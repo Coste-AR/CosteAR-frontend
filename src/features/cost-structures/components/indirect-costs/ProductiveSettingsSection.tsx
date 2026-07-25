@@ -2,6 +2,7 @@ import { Plus, Trash2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { UseFormRegister, UseFieldArrayReturn } from 'react-hook-form';
 import { fmtBudget } from './helpers';
+import { centerLabel } from '@/lib/utils';
 
 export function ProductiveSettingsSection({
   productiveCenters,
@@ -71,7 +72,7 @@ export function ProductiveSettingsSection({
                         return !usedInOtherRows;
                       })
                       .map((c) => (
-                        <option key={c.id} value={c.id}>{c.name || c.id}</option>
+                        <option key={c.id} value={c.id}>{centerLabel(c)}</option>
                       ))}
                   </select>
                 </td>

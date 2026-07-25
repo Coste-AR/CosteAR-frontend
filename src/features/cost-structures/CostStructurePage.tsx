@@ -526,7 +526,7 @@ export function CostStructurePage() {
             period={structure?.period}
           />
           {shown
-            ? <ResultTab result={shown.result} companyId={structure?.companyId} period={structure?.period} />
+            ? <ResultTab result={shown.result} companyId={structure?.companyId} period={structure?.period} incompleto={incompletitud?.incompleto} />
             : <EmptyResult />}
         </div>
       )}

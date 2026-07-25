@@ -8,6 +8,7 @@ import type {
   CaptureMethod,
   CostElement,
   Incompletitud,
+  MpMovement,
 } from './trazabilidad-types';
 
 /** Corre el motor con árbol persistido (Trazabilidad Total v1, D.1). Endpoint
@@ -43,6 +44,23 @@ export function useStructureRuns(structureId: string) {
     queryKey: ['structures', structureId, 'runs'],
     queryFn: async () => {
       const res = await api.get<{ data: RunSummary[] }>(`/structures/${structureId}/runs`);
+      return res.data.data;
+    },
+    enabled: !!structureId,
+  });
+}
+
+/**
+ * F06 — movimientos de MP con su estado de imputación (incluye los pendientes).
+ * La ficha PPP lo usa para marcar cada movimiento sin imputar y hacerlo
+ * accionable. Se cachea bajo `['structures', id, ...]` a propósito: `useImputar`
+ * invalida `['structures', id]` y así esta lista se refresca sola al imputar.
+ */
+export function useMpMovements(structureId: string) {
+  return useQuery({
+    queryKey: ['structures', structureId, 'mp-movements'],
+    queryFn: async () => {
+      const res = await api.get<{ data: MpMovement[] }>(`/structures/${structureId}/mp-movements`);
       return res.data.data;
     },
     enabled: !!structureId,

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { UseFormRegister, UseFieldArrayReturn, UseFormSetValue } from 'react-hook-form';
 import { BaseSelect } from './BaseSelect';
 import { type AllocationBase } from '../../allocation-base-hooks';
+import { centerLabel } from '@/lib/utils';
 
 export function PrimaryAllocationSection({ 
   concepts, 
@@ -116,7 +117,7 @@ export function PrimaryAllocationSection({
               <th className="px-3 py-2 text-right font-medium">Variable $</th>
               <th className="w-36 px-3 py-2 text-left font-medium">Modo</th>
               {watchedCenters?.map((c) => (
-                <th key={c.id} className="w-20 px-3 py-2 text-right font-medium">{c.name || c.id} (base)</th>
+                <th key={c.id} className="w-20 px-3 py-2 text-right font-medium">{centerLabel(c)} (base)</th>
               ))}
               <th className="px-3 py-2" />
             </tr>
@@ -158,7 +159,7 @@ export function PrimaryAllocationSection({
                       <div className="flex flex-wrap gap-2">
                         {(watchedCenters ?? []).map((c) => (
                           <div key={c.id} className="flex items-center gap-1.5 rounded border border-line bg-surface px-2 py-1">
-                            <span className="text-[12px] text-ink-soft">{c.name || c.id}</span>
+                            <span className="text-[12px] text-ink-soft">{centerLabel(c)}</span>
                             <input type="number" step="any" inputMode="decimal" className="w-16 rounded border border-line bg-surface px-1.5 py-0.5 text-right text-sm text-ink focus:border-granate focus:outline-none" placeholder="0" {...register(`concepts.${i}.distribution.${c.id}`, { valueAsNumber: true })} />
                             <span className="w-12 text-right text-[11px] font-medium text-action">{driverPct(cDrivers, c.id)}</span>
                           </div>
@@ -169,7 +170,7 @@ export function PrimaryAllocationSection({
                   </td>
                 ) : (
                   watchedCenters?.map((c) => (
-                    <td key={c.id} data-label={`${c.name || c.id} %`} className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
+                    <td key={c.id} data-label={`${centerLabel(c)} %`} className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
                       <input type="number" step="any" inputMode="decimal" className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none sm:w-20" placeholder="0" {...register(`concepts.${i}.distribution.${c.id}`, { valueAsNumber: true })} />
                     </td>
                   ))

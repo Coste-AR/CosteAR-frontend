@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react';
 import { UseFormRegister, UseFieldArrayReturn, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
 import { BaseSelect } from './BaseSelect';
 import { type AllocationBase } from '../../allocation-base-hooks';
+import { centerLabel } from '@/lib/utils';
 
 export function SecondaryAllocationSection({
   serviceCenters,
@@ -60,7 +61,7 @@ export function SecondaryAllocationSection({
               <th className="w-36 px-3 py-2 text-left font-medium" rowSpan={2}>Modo</th>
               {targetCenters.map((c) => (
                 <th key={c.id} className="px-3 py-2 text-center font-medium" colSpan={2}>
-                  {c.name || c.id}{c.type === 'service' && <span className="ml-1 text-[9px] text-ink-soft">(servicio)</span>}
+                  {centerLabel(c)}{c.type === 'service' && <span className="ml-1 text-[9px] text-ink-soft">(servicio)</span>}
                 </th>
               ))}
               <th className="w-8 px-3 py-2" rowSpan={2} />
@@ -114,7 +115,7 @@ export function SecondaryAllocationSection({
                         return !usedInOtherRows;
                       })
                       .map((c) => (
-                        <option key={c.id} value={c.id}>{c.name || c.id}</option>
+                        <option key={c.id} value={c.id}>{centerLabel(c)}</option>
                       ))}
                   </select>
                 </td>
@@ -140,7 +141,7 @@ export function SecondaryAllocationSection({
                       <div className="flex flex-wrap gap-2">
                         {targetCenters.filter((c) => !closedServiceIds.has(c.id)).map((c) => (
                           <div key={c.id} className="flex items-center gap-1.5 rounded border border-line bg-surface px-2 py-1">
-                            <span className="text-[12px] text-ink-soft">{c.name || c.id}</span>
+                            <span className="text-[12px] text-ink-soft">{centerLabel(c)}</span>
                             <input type="number" step="any" inputMode="decimal" className="w-16 rounded border border-line bg-surface px-1.5 py-0.5 text-right text-sm text-ink focus:border-granate focus:outline-none" placeholder="0" {...register(`serviceDistributions.${i}.toProductive.${c.id}`, { valueAsNumber: true })} />
                             <span className="w-12 text-right text-[11px] font-medium text-action">{driverPct(rowDrivers, c.id)}</span>
                           </div>
@@ -157,11 +158,11 @@ export function SecondaryAllocationSection({
                   const isBlocked = closedServiceIds.has(c.id);
                   return (
                   <Fragment key={c.id}>
-                    <td data-label={`${c.name || c.id} — Fijo %`} className="block text-left before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-1 sm:py-1.5 sm:text-center sm:before:hidden">
+                    <td data-label={`${centerLabel(c)} — Fijo %`} className="block text-left before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-1 sm:py-1.5 sm:text-center sm:before:hidden">
                       {isBlocked ? <span className="block text-center text-ink-soft/40">—</span> :
                       <input type="number" step="any" inputMode="decimal" className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none sm:w-20" placeholder="0" {...register(`serviceDistributions.${i}.toProductiveFixed.${c.id}`, { valueAsNumber: true })} />}
                     </td>
-                    <td data-label={`${c.name || c.id} — Var %`} className="block text-left before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-1 sm:py-1.5 sm:text-center sm:before:hidden">
+                    <td data-label={`${centerLabel(c)} — Var %`} className="block text-left before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-1 sm:py-1.5 sm:text-center sm:before:hidden">
                       {isBlocked ? <span className="block text-center text-ink-soft/40">—</span> :
                       <input type="number" step="any" inputMode="decimal" className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none sm:w-20" placeholder="0" {...register(`serviceDistributions.${i}.toProductiveVariable.${c.id}`, { valueAsNumber: true })} />}
                     </td>

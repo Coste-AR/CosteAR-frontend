@@ -524,3 +524,180 @@ quedara en una columna recién bloqueada tras un reordenamiento **jamás llega a
   UI de F02-#1 (el `<select>` nativo) se fundamenta en el mecanismo conocido de react-hook-form +
   `<select>` filtrado; queda la verificación manual en navegador para el usuario (pasos en el
   resumen). Suites: `vitest run` 22✅, `typecheck` ✅, `build` ✅ (mismos avisos preexistentes de chunk).
+
+---
+
+## F06 — La ficha PPP muestra los movimientos pendientes de imputar y los hace accionables
+
+**Diagnóstico (STEP 1).** La tabla "Movimientos (ficha PPP)" (hoy en el sub-componente
+`MaterialDetailForm.tsx`, extraído en el refactor reciente) se dibujaba SÓLO con el JSON de la sección
+(`material.movements`), que no tiene noción de imputación ni vínculo con los `data_points`. El estado
+"pendiente" (`periodoImputado = null`) vive en el store de trazabilidad — el mismo que cuenta el motor
+(F04). **No había filtro por período en el componente ni un endpoint que filtrara: el dato nunca se
+cruzaba con su estado de imputación.** Capa culpable: el flujo de datos del frontend.
+
+**Fix (STEP 2).** Nuevo hook `useMpMovements(structureId)` (GET `/structures/:id/mp-movements`, backend)
+que trae los movimientos de MP con su `pending` y sus `dataPointIds`. En `MaterialDetailForm`:
+- Cada fila cuyo movimiento GUARDADO casa con un pendiente muestra el pill **"Pendiente de imputar"**
+  (`PendingBadge`). El pill ES el botón que abre el modal.
+- Al tocarlo se encola en el `imputacionQueue` ya existente → se reusa el mismo `ImputacionModal` +
+  `useImputar` + `proposeImputation` (NO se creó un segundo modal, criterio de la tarea).
+- Al resolver, `useImputar` invalida `['structures', id]` (prefijo de `['structures', id, 'mp-movements']`)
+  → la lista se refresca y el pill se limpia. Las filas ya imputadas no cambian.
+
+**Decisiones.**
+- **Clave natural** `(tipo · detalle · fecha)` para casar fila↔data points (la sección no guarda
+  `movementId`); detalle vacío → `'(sin detalle)'`. Se usa el movimiento GUARDADO (`material.movements[i]`),
+  no la fila en edición, para que el pill no parpadee mientras se tipea sin guardar.
+- **Huérfanos:** un pendiente que el motor cuenta pero sin fila en esta sección se muestra igual como
+  fila extra (sólo lectura, con pill accionable), para que ningún dato sin imputar quede invisible.
+- **Cache-key bajo `['structures', id, ...]`** a propósito, para colgar de la invalidación de `useImputar`
+  sin tocar la query de la config (`['cost-structures', id]`) → no resetea el formulario en edición.
+- Regla #6/#7: al usuario sólo se le muestra el detalle humano + una acción en pantalla; los
+  `dataPointIds` son internos y nunca se ven.
+
+**Verificación (navegador contra dev + DB real).** Ver DECISIONES.md del backend (`Costear.api`) — flujo
+end-to-end: alta de compra fuera de período → pill "Pendiente de imputar" → click → modal → imputar →
+pill limpio y fila normal, con el conteo del motor casando en todo momento. `typecheck` ✅, `build` ✅,
+`vitest` 22✅.
+
+## F07 — Doble fecha (fecha_hecho / fecha_captación) en la ficha PPP y en "Agregar"
+
+**Qué se separó.** La tabla de Movimientos (ficha PPP, dentro de `MaterialDetailForm`) tenía UNA sola
+columna "Fecha". Se partió en dos:
+- **"Fecha del hecho"** — editable, la pone el usuario (es el `movements.[i].date` de siempre; ya se
+  mandaba al backend como `fechaHecho`). Es la que dispara la imputación (§3 / F04-F05-F06).
+- **"Fecha de captación"** — sólo lectura, valor del servidor. Para un movimiento ya guardado se lee de
+  `MpMovement.fechaCaptacion` (nuevo campo del endpoint) y se muestra con `formatDate`. Para una fila
+  nueva sin guardar todavía se muestra "Al guardar" (la fija el servidor al registrar el dato — nunca
+  el reloj del cliente, regla #6).
+
+**"Agregar Manual" = la misma tabla.** En la ficha de MP, "Agregar" appendea una fila a esta tabla; no
+hay un modal aparte. Partir la fecha en la tabla cubre alta y edición. (El botón "Agregar Manual" de
+`companies/LedgerTabSection` es el **Libro de costos** de la empresa —`LedgerEntryModal`, con su propio
+`docDate` y sin flujo de imputación—, superficie distinta y fuera del alcance de F07.)
+
+**Imputación: se reusa, no se reimplementa.** Cargar una "Fecha del hecho" fuera del período de la
+estructura sigue disparando exactamente el flujo existente: `proposeImputation` → `ImputacionModal` →
+`useImputar`. F07 no crea lógica de imputación nueva.
+
+**Formato DD/MM/AAAA (regla #4 / anticipo de F09) — decisión.**
+- Los renders de sólo lectura usan formato AR: captación con `formatDate` (ISO con hora → DD/MM/AAAA);
+  fecha del hecho de las filas huérfanas con **`formatDateOnly`** (helper nuevo en `lib/utils`).
+- `formatDateOnly` NO pasa por `new Date()` a propósito: `new Date('2026-06-27')` se interpreta como
+  medianoche UTC y en Argentina (UTC-3) se mostraría **un día antes** (26/06). Con fechas date-only se
+  reordena el string y se evita el corrimiento.
+- El campo **editable** es un `<input type="date">` nativo: su display lo decide el navegador/SO (en un
+  equipo es-AR ya muestra DD/MM/AAAA) y su `value` es `YYYY-MM-DD`, que es lo que el backend espera. No
+  se le impone una máscara de texto: forzar DD/MM/AAAA en un input nativo rompería el binding y la
+  accesibilidad. Se documenta como límite aceptado (queda para F09 si se decide un date-picker propio).
+
+**Retrocompat (regla #5).** Un movimiento sin data point trazable (p. ej. cargado antes de la
+trazabilidad, o una fila de la sección sin registrar) no tiene captación conocida: se muestra "Al
+guardar"/"—" sin romper. Si tiene data point pero `fechaHecho` es `null`, la fecha del hecho se
+muestra "—". Ningún caso crashea.
+
+**Verificación.** `typecheck` ✅, `build` ✅, `vitest` 22✅. Navegador contra dev: ver DECISIONES del
+backend (`Costear.api`) para el escenario de factura tardía (hecho 27/06 en estructura 07/2026 →
+modal de imputación → se comporta como F06).
+
+---
+
+## F08 — El badge de margen no miente: nunca "MARGEN SANO" sobre un resultado no confiable
+
+**Problema.** El panel de resultados podía mostrar un badge verde "MARGEN BRUTO 53,0 % · MARGEN
+SANO" sobre un cálculo con **Materia Prima $0 y CIP $0** (número que no contiene materia prima ni
+costos indirectos), o sobre un resultado marcado incompleto por F04. Un costista lee ese verde y
+confía en un margen sano que no es real. Es la mitad visible del problema F04.
+
+**Regla implementada.** El estado "sano" (verde/`ok`) NO se renderiza cuando se cumple cualquiera de:
+- el resultado viene marcado `incompleto` (flag F04, `incompletitud.incompleto`), **o**
+- Materia Prima consumida ≤ 0, **o**
+- CIP aplicados ≤ 0.
+
+En esos casos el badge pasa a **advertencia** (tono `warn`, "Margen no confiable") con una explicación
+breve en español debajo (motivo específico: sin MP, sin CIP, ambos, o incompleto). El badge de un
+resultado genuinamente completo (MP > 0, CIP > 0, no marcado) sigue funcionando igual — sin
+sobre-disparo.
+
+**Dónde vive el piso de plausibilidad — decisión (DO #3).** En `marginStatus` (`StatusBadge.tsx`),
+no en el panel. Se agregó:
+- `marginStatus(marginPct, thresholdPct, trustworthy = true)`: un tercer parámetro con default `true`
+  (retrocompatible con los llamados existentes de 2 args). Si `trustworthy === false`, degrada a
+  `warn` **antes** de evaluar el margen — ni siquiera un margen alto ni uno negativo se afirman como
+  algo cuando el número no es confiable.
+- `isResultTrustworthy({ rawMaterialConsumed, indirectCostsApplied, incompleto? })`: regla de negocio
+  reusable que decide la confiabilidad. Vive junto a `marginStatus` para que **cualquier** consumidor
+  del semáforo (no solo el panel) herede el mismo piso. El `ResultTab` solo la invoca y pasa el
+  resultado a `marginStatus`.
+
+**Por qué degradar a `warn` y no mantener `danger` en pérdida.** El requisito es no afirmar "sano".
+Con MP=0/CIP=0 el propio margen no es confiable, así que tampoco tiene sentido afirmar "venta a
+pérdida" (`danger`) sobre él: se muestra una advertencia neutral que dice explícitamente que el número
+no es confiable. Reusa los tonos existentes de `StatusBadge` (`warn`) — no se inventaron colores.
+
+**Alcance del flag F04 (`incompleto`).** Llega por el estado `incompletitud` de `CostStructurePage`
+(corrida de trazabilidad de esta sesión). Para un resultado cacheado (`latest`, recién abierta la
+página sin recalcular) el flag no está disponible, pero el piso MP=0/CIP=0 —que se computa sobre los
+propios valores del `CalculationResult`— sigue actuando como guarda siempre presente. Es exactamente
+el caso del reporte, así que queda cubierto con o sin sesión de trazabilidad.
+
+**Terminología (regla #6/#7).** Los mensajes usan términos de cátedra en español ("Materia Prima
+consumida", "CIP aplicados") y no exponen identificadores internos ni endpoints.
+
+**Verificación.** `typecheck` ✅, `build` ✅, `vitest` 32✅ (nuevo `StatusBadge.test.ts`, 10 casos,
+incluye el escenario exacto del reporte). Navegador contra dev: se importó el **módulo compilado real**
+(`StatusBadge.tsx` servido por Vite) y se renderizó el `<StatusBadge>` real para los 3 escenarios de
+aceptación → reporte (MP 0/CIP 0/53%) y F04-incompleto pintan "MARGEN NO CONFIABLE" ámbar; completo
+pinta "MARGEN SANO" verde. (No se pudo usar el flujo autenticado completo: ingresar contraseña es una
+acción que el asistente no ejecuta; la verificación se hizo sobre el componente shippeado real.)
+
+## F09 — Pulido de demo: cerrar los 🟡 del reporte del 20/07 (identificación, cierre, fechas, ids)
+
+Lote de defectos chicos e independientes de UI. Cada uno menor; juntos son lo que hace que el
+producto se sienta sin terminar en una demo. Se releyó el estado ACTUAL de cada pantalla (el equipo
+refactorizó varias desde el 20/07) y se trabajó contra el código como está hoy.
+
+**F09-1 — "Completa" exige identificación (no solo datos de cálculo).**
+Antes una materia prima con nombre/unidad vacíos mostraba el verde "Completa" (se veía "Sin nombre")
+con solo tener costo unitario y algún movimiento. Ahora "Completa" pide IDENTIFICACIÓN real.
+- **Decisión — set mínimo:** `nombre` + `unidad`. El `código de mercado` y el `proveedor habitual`
+  quedan OPCIONALES: no siempre se conocen al cargar y no hacen a la identidad mínima de la MP para
+  costear. Regla final: `complete = (nombre && unidad) && (costo unitario > 0 && ≥1 movimiento)`.
+- Archivo: `RawMaterialsList.tsx`. Sin identificación → badge gris "Incompleta".
+
+**F09-2 — "cierra en 0" distingue "cerró de verdad" de "no repartió nada".**
+Antes cualquier centro de servicio pintaba el mismo verde ("cierra en 0" + estado verde) aunque su
+reparto secundario estuviera vacío o roto. Ahora:
+- **Señal usada:** la CONFIG del prorrateo secundario (los pesos fijo/variable que cargó el costista).
+  Un servicio "repartió algo" solo si tiene fila de reparto, con destinos, y con al menos un peso ≠ 0.
+  Es exactamente el caso "reparto empty or broken" del reporte. (Se eligió la config y no el resultado
+  del cálculo porque es el origen del defecto y está siempre disponible en esta vista de lectura.)
+- Servicio que repartió → verde `Cerrado` + "cierra en 0". Servicio que no → estado ámbar
+  `Sin reparto` + texto "sin reparto", y en su ficha un aviso que explica que todavía no cerró.
+- Archivo: `CostCentersView.tsx` (helper `serviceDistributes`).
+
+**F09-3 — Fechas en DD/MM/AAAA (formato argentino), por helper compartido.**
+Barrido de todas las fechas visibles. Hallazgo: el código YA renderiza es-AR (DD/MM/AAAA) en todos
+lados — los helpers `formatDate` / `formatDateOnly` (`lib/utils.ts`) ya existían y estaban en uso, y el
+`07/17/2026` del reporte correspondía a pantallas ya refactorizadas desde el 20/07. Se completó el
+barrido ruteando por el helper los dos renders de fecha que quedaban con `toLocaleDateString('es-AR')`
+inline (`CostCentersView` traza de bases, `MetricsDashboard` "congelado el"). Los `<input type="date">`
+(fecha del hecho) son nativos: el navegador los pinta en el locale del SO por spec y NO se pueden forzar
+a DD/MM desde el código; su valor guardado y todo lo que se MUESTRA en modo lectura ya va por el helper
+en DD/MM/AAAA.
+
+**F09-4 — Sin ids internos en texto de usuario.**
+Antes, si un centro no tenía nombre cargado, la UI mostraba su id autogenerado (`prod1`/`serv2`…) como
+rótulo. Se creó `centerLabel(center)` en `lib/utils.ts` (`nombre || 'Centro sin nombre'`, nunca el id) y
+se ruteó por él TODA referencia de usuario a un centro: lista y ficha de centros, prorrateo primario y
+secundario, ajustes productivos, destinos del reparto. La base sin nombre cae a "Base sin nombre".
+- **Frontera documentada:** el ÚNICO lugar donde el id sigue visible es su propio campo editable en
+  "Centros de costo" (el costista asigna ahí el código a mano, como un SKU) — es un valor de input, no
+  un rótulo/mensaje. El `id inmutable: …` de la ficha de trazabilidad es un UUID de auditoría a propósito
+  (registro auditable), no un slug tipo `serv3` que reemplace a un nombre; se conserva.
+
+**Verificación.** `typecheck` ✅ + `build` (tsc + vite) ✅ + `vitest` 32✅ sin regresión. La verificación
+end-to-end en navegador contra dev requiere sesión autenticada (ingresar contraseña es una acción que el
+asistente no ejecuta); los cambios son de lógica de presentación pura y quedan cubiertos por
+typecheck/build/suite. Pasos de prueba manual para cada ítem, en el resumen al usuario.

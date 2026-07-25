@@ -3,6 +3,7 @@ import { api } from '@/lib/api';
 import { BarChart3, TrendingUp, TrendingDown, Layers, Loader2, AlertCircle } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { Money, Percent } from '@/components/ui/Money';
+import { formatDate } from '@/lib/utils';
 
 interface Metrics {
   productName: string;
@@ -67,7 +68,7 @@ export function MetricsDashboard({
           Métricas de <span className="text-granate">{metrics!.productName}</span>
         </h2>
         <p className="text-[13px] text-ink-soft mt-1">
-          Último cálculo oficial (Congelado el {new Date(metrics!.calculatedAt).toLocaleDateString('es-AR')})
+          Último cálculo oficial (Congelado el {formatDate(metrics!.calculatedAt)})
         </p>
       </div>
 

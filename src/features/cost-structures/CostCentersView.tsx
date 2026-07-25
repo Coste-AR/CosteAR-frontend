@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { ArrowLeft, ChevronRight, Factory, Wrench, Pencil, Info, FileText, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Money } from '@/components/ui/Money';
-import { cn } from '@/lib/utils';
+import { cn, centerLabel, formatDate } from '@/lib/utils';
 import type { IndirectCostConfig } from './cost-structure-types';
 import type { CalculationResult } from '@/lib/types';
 import { useAllocationValues, useAllocationBases } from './allocation-base-hooks';
@@ -31,6 +31,22 @@ const fmt = (n: number | undefined) =>
   n == null ? '—' : n.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
 /**
+ * F09-2 — ¿este centro de SERVICIO realmente repartió su costo?
+ * "Cierra en 0" (verde) solo es válido cuando el servicio distribuyó a otros
+ * centros. Un servicio sin fila de reparto, con la lista vacía, o con todos los
+ * pesos en cero (reparto vacío o roto) NO cerró: distribuyó nada. Se mira la
+ * config del prorrateo secundario (los pesos que cargó el costista), que es el
+ * origen del "reparto empty or broken" del reporte.
+ */
+function serviceDistributes(config: IndirectCostConfig, centerId: string): boolean {
+  const dist = (config.serviceDistributions ?? []).find((d) => d.serviceCenterId === centerId);
+  if (!dist || !dist.distributions || dist.distributions.length === 0) return false;
+  return dist.distributions.some(
+    (p) => (Number(p.fijo) || 0) !== 0 || (Number(p.variable) || 0) !== 0,
+  );
+}
+
+/**
  * Costos Indirectos — LISTA de centros de costo → FICHA por centro (Parte 3.3).
  * Vista de LECTURA: los números derivados salen del último cálculo persistido
  * (el front no recalcula); la estructura (conceptos, servicios, orden de cierre)
@@ -51,7 +67,7 @@ export function CostCentersView({ config, perDepartment, onEdit, structureId, co
     const b = baseById.get(v.baseId);
     const rows = traceByCenter.get(v.centerId) ?? [];
     rows.push({
-      baseName: b?.name ?? v.baseId,
+      baseName: b?.name?.trim() || 'Base sin nombre',
       unit: b?.unit ?? '',
       value: Number(v.value),
       createdAt: v.createdAt,
@@ -141,9 +157,11 @@ export function CostCentersView({ config, perDepartment, onEdit, structureId, co
             {centers.map((c) => {
               const d = perDepartment?.[c.id];
               const isProd = c.type === 'productive';
+              // F09-2 — un servicio "cierra en 0" (verde) solo si repartió algo.
+              const svcClosed = !isProd && serviceDistributes(config, c.id);
               return (
                 <tr key={c.id} className="cursor-pointer hover:bg-surface-alt/40" onClick={() => setSelected(c.id)}>
-                  <td className="px-3 py-2 font-medium text-ink">{c.name || c.id}</td>
+                  <td className="px-3 py-2 font-medium text-ink">{centerLabel(c)}</td>
                   <td className="px-3 py-2">
                     <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase',
                       isProd ? 'border-action/20 bg-action/10 text-action' : 'border-idle/20 bg-idle/10 text-idle')}>
@@ -151,14 +169,31 @@ export function CostCentersView({ config, perDepartment, onEdit, structureId, co
                       {isProd ? 'Productivo' : 'Servicio'}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ink">{isProd ? fmt(d?.budgetFixed) : <span className="text-ink-soft">cierra en 0</span>}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ink">
+                    {isProd
+                      ? fmt(d?.budgetFixed)
+                      : svcClosed
+                        ? <span className="text-ink-soft">cierra en 0</span>
+                        : <span className="text-warn">sin reparto</span>}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums text-ink">{isProd ? fmt(d?.budgetVariable) : '—'}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-ink">{isProd ? fmt(d?.quota) : '—'}</td>
                   <td className="px-3 py-2 text-center">
-                    <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase',
-                      d || !isProd ? 'border-ok/20 bg-ok/10 text-ok' : 'border-idle/20 bg-idle/10 text-idle')}>
-                      {isProd ? (d ? 'Calculado' : 'Pendiente') : 'Servicio'}
-                    </span>
+                    {isProd ? (
+                      <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase',
+                        d ? 'border-ok/20 bg-ok/10 text-ok' : 'border-idle/20 bg-idle/10 text-idle')}>
+                        {d ? 'Calculado' : 'Pendiente'}
+                      </span>
+                    ) : svcClosed ? (
+                      <span className="inline-flex rounded-full border border-ok/20 bg-ok/10 px-2 py-0.5 text-[10px] font-bold uppercase text-ok">
+                        Cerrado
+                      </span>
+                    ) : (
+                      <span title="Este servicio no repartió su costo a ningún centro (reparto vacío o en cero). Todavía no cerró."
+                        className="inline-flex rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-bold uppercase text-warn">
+                        Sin reparto
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-right"><ChevronRight className="ml-auto size-4 text-ink-soft" /></td>
                 </tr>
@@ -196,7 +231,7 @@ function CenterCard({
         <ArrowLeft className="size-3.5" /> Volver a la lista de centros
       </button>
       <div className="flex items-center gap-2">
-        <h3 className="text-lg font-bold text-granate-deep">{center.name || center.id}</h3>
+        <h3 className="text-lg font-bold text-granate-deep">{centerLabel(center)}</h3>
         <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase',
           isProd ? 'border-action/20 bg-action/10 text-action' : 'border-idle/20 bg-idle/10 text-idle')}>
           {isProd ? <Factory className="size-3" /> : <Wrench className="size-3" />}{isProd ? 'Productivo' : 'Servicio'}
@@ -212,7 +247,7 @@ function CenterCard({
             {conceptsHere.map((c) => (
               <li key={c.name} className="flex justify-between rounded border border-line bg-surface px-2.5 py-1.5">
                 <span className="text-ink">{c.name}</span>
-                <span className="text-ink-soft">peso/base en {center.name || center.id}: <strong className="text-ink">{c.distribution[center.id]}</strong></span>
+                <span className="text-ink-soft">peso/base en {centerLabel(center)}: <strong className="text-ink">{c.distribution[center.id]}</strong></span>
               </li>
             ))}
           </ul>
@@ -228,7 +263,7 @@ function CenterCard({
               <li key={i} className="flex flex-col gap-0.5 rounded border border-line bg-surface px-2.5 py-1.5 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-ink"><strong>{t.baseName}</strong>: {fmt(t.value)}{t.unit ? ` ${t.unit}` : ''}</span>
                 <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-ink-soft">
-                  registrado {new Date(t.createdAt).toLocaleDateString('es-AR')}
+                  registrado {formatDate(t.createdAt)}
                   {t.note ? <span>· {t.note}</span> : null}
                   {t.dataPointId ? (
                     <span className="inline-flex items-center gap-0.5 rounded-full border border-action/20 bg-action/10 px-1.5 py-0.5 text-[10px] font-semibold text-action">
@@ -325,11 +360,11 @@ function CenterCard({
               ? <>Orden de cierre: <strong className="text-ink">#{closureIdx + 1}</strong>. Un servicio reparte a productivos y a servicios que aún no cerraron; al final queda en <strong>0</strong>.</>
               : <>Este servicio reparte su costo a los centros productivos; al final queda en <strong>0</strong>.</>}
           </p>
-          {myDist && myDist.distributions.length > 0 ? (
+          {serviceDistributes(config, center.id) ? (
             <ul className="space-y-1 text-[12.5px]">
-              {myDist.distributions.map((p) => (
+              {myDist!.distributions.map((p) => (
                 <li key={p.centroDestinoId} className="flex justify-between rounded border border-line bg-surface px-2.5 py-1.5">
-                  <span className="text-ink">→ {config.centers.find((c) => c.id === p.centroDestinoId)?.name || p.centroDestinoId}</span>
+                  <span className="text-ink">→ {centerLabel(config.centers.find((c) => c.id === p.centroDestinoId))}</span>
                   <span className="text-ink-soft">
                     fijo <strong className="text-ink">{fmt(p.fijo)}</strong> · var <strong className="text-ink">{fmt(p.variable)}</strong>
                   </span>
@@ -337,7 +372,15 @@ function CenterCard({
               ))}
             </ul>
           ) : (
-            <p className="text-[12.5px] text-ink-soft">Sin base de distribución cargada.</p>
+            // F09-2 — reparto vacío o en cero: NO cerró. Se dice explícito en vez
+            // de mostrar el mismo verde "cierra en 0" de un servicio real.
+            <p className="flex items-start gap-2 rounded-xl bg-warn/10 px-3 py-2 text-[12.5px] text-ink">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warn" />
+              <span>
+                <strong>Este servicio todavía no repartió su costo</strong> (reparto vacío o en cero). Mientras no distribuya
+                a ningún centro, no cierra: cargá a qué centros reparte en la configuración de Costos Indirectos.
+              </span>
+            </p>
           )}
         </Section>
       )}

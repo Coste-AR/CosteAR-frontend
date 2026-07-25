@@ -49,7 +49,13 @@ export function RawMaterialsList({ materials, saving, toDelete, setToDelete, set
             </thead>
             <tbody className="divide-y divide-line">
               {materials.map((m, i) => {
-                const complete = (m.wilson?.unitCost ?? 0) > 0 && (m.movements?.length ?? 0) > 0;
+                // F09-1 — "Completa" exige IDENTIFICACIÓN real, no solo datos de
+                // cálculo. Mínimo: nombre + unidad (el código de mercado y el
+                // proveedor son opcionales; ver DECISIONES.md). Sin identificación
+                // la MP nunca cuenta como completa aunque tenga costo y movimientos.
+                const identified = !!m.name?.trim() && !!m.unit?.trim();
+                const hasContent = (m.wilson?.unitCost ?? 0) > 0 && (m.movements?.length ?? 0) > 0;
+                const complete = identified && hasContent;
                 return (
                   <tr key={m.id ?? i} className="cursor-pointer hover:bg-surface-alt/40" onClick={() => setSelected(i)}>
                     <td className="px-3 py-2 font-mono text-[12px] text-ink-soft">{m.code || '—'}</td>

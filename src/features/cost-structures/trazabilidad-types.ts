@@ -85,3 +85,23 @@ export interface Incompletitud {
   motivos: string[];
   datosPendientes: { id: string; nombre: string }[];
 }
+
+/**
+ * Movimiento de MP visto desde el store de trazabilidad (F06). Agrupa los data
+ * points hermanos de una compra (cantidad + precio) por `movementId` y expone
+ * si el movimiento sigue `pending` (sin decisión de imputación de período).
+ * `dataPointIds` son SOLO para imputar en bloque; nunca se le muestran al
+ * usuario (regla #6/#7).
+ */
+export interface MpMovement {
+  movementId: string;
+  label: string;
+  detail: string;
+  type: 'purchase' | 'consumption';
+  fechaHecho: string | null;
+  /** fecha_captación: timestamp del servidor (§3). Read-only, nunca del cliente. */
+  fechaCaptacion: string;
+  periodoImputado: string | null;
+  pending: boolean;
+  dataPointIds: string[];
+}

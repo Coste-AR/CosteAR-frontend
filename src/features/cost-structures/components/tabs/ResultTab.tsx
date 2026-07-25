@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Money, Percent } from '@/components/ui/Money';
-import { StatusBadge, marginStatus } from '@/components/ui/StatusBadge';
+import { StatusBadge, marginStatus, isResultTrustworthy } from '@/components/ui/StatusBadge';
 import { AdvisorPanel } from '@/features/advisor/AdvisorPanel';
 import { ReconciliationCard } from '../shared/ReconciliationCard';
 import type { CalculationResult } from '@/lib/types';
@@ -22,7 +22,33 @@ export function EmptyResult() {
   );
 }
 
-export function ResultTab({ result, companyId, period }: { result: CalculationResult; companyId?: string; period?: string }) {
+/**
+ * Explicación breve (ES) de por qué el margen no es confiable. Regla #6/#7: sin
+ * identificadores internos ni endpoints — solo términos de cátedra.
+ */
+function untrustworthyReason(result: CalculationResult, incompleto?: boolean): string {
+  if (incompleto) {
+    return 'Resultado incompleto: se calculó con datos sin imputar a un período. El margen no es confiable hasta resolver la imputación.';
+  }
+  const sinMp = result.rawMaterialConsumed <= 0;
+  const sinCip = result.indirectCostsApplied <= 0;
+  if (sinMp && sinCip) {
+    return 'El cálculo no incluye Materia Prima consumida ni CIP aplicados: el margen no refleja el costo real del producto.';
+  }
+  if (sinMp) {
+    return 'El cálculo no incluye Materia Prima consumida: el margen no refleja el costo real del producto.';
+  }
+  return 'El cálculo no incluye CIP aplicados: el margen no refleja el costo real del producto.';
+}
+
+export function ResultTab({ result, companyId, period, incompleto }: { result: CalculationResult; companyId?: string; period?: string; incompleto?: boolean }) {
+  // F08 — un margen sobre un resultado sin MP, sin CIP o marcado incompleto no
+  // es confiable: el badge nunca debe decir "sano" sobre un número así.
+  const trustworthy = isResultTrustworthy({
+    rawMaterialConsumed: result.rawMaterialConsumed,
+    indirectCostsApplied: result.indirectCostsApplied,
+    incompleto,
+  });
   const rows = [
     { label: 'Materia Prima consumida', value: result.rawMaterialConsumed },
     { label: 'Mano de Obra Directa',    value: result.directLaborTotal },
@@ -196,9 +222,20 @@ export function ResultTab({ result, companyId, period }: { result: CalculationRe
             <Percent value={result.grossMarginPct} colorize className="text-5xl font-bold" />
             <Money value={result.grossMargin} className="block text-lg text-ink-soft" />
             <div className="pt-2">
-              <StatusBadge status={marginStatus(result.grossMarginPct, 15)}>
-                {result.grossMarginPct < 0 ? 'Venta a pérdida' : result.grossMarginPct < 15 ? 'Margen ajustado' : 'Margen sano'}
+              <StatusBadge status={marginStatus(result.grossMarginPct, 15, trustworthy)}>
+                {!trustworthy
+                  ? 'Margen no confiable'
+                  : result.grossMarginPct < 0
+                    ? 'Venta a pérdida'
+                    : result.grossMarginPct < 15
+                      ? 'Margen ajustado'
+                      : 'Margen sano'}
               </StatusBadge>
+              {!trustworthy && (
+                <p className="mx-auto mt-2 max-w-[16rem] text-[11px] leading-snug text-ink-soft">
+                  {untrustworthyReason(result, incompleto)}
+                </p>
+              )}
             </div>
           </CardBody>
         </Card>
