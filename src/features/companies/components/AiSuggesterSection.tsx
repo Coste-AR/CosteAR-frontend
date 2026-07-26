@@ -25,7 +25,7 @@ export function AiSuggesterSection({ companyName }: { companyName: string }) {
         message: `Dada la siguiente descripción de mi cliente "${companyName}", sugerí detalladamente cómo estructurar su costeo en CosteAR. Incluí sugerencias específicas para Materia Prima (valuación PPP, lote óptimo, etc.), Mano de Obra (cargas sociales, ITCS, incentivos) y Costos Indirectos (prorrateo dual fijo/variable por centro productivo/servicio): ${promptText}`,
       });
       setSuggs(res.data.data.reply);
-    } catch (e) {
+    } catch {
       toast.error('No se pudo obtener sugerencias. Intentá de nuevo.');
     } finally {
       setLoading(false);

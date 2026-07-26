@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link } from '@tanstack/react-router';
 import {
   ArrowLeft, Calculator, CheckCircle2,
@@ -131,7 +131,12 @@ export function CostStructurePage() {
   // La cadena de departamentos se consulta una sola vez en la página y se pasa a
   // las cuatro pestañas: todas la necesitan y así comparten el mismo dato.
   const { data: processData } = useProcessDepartments(id, isProcesses);
-  const processDepartments = processData?.departments ?? [];
+  // El `?? []` tiene que ir memoizado: sin esto, cada render crea un array nuevo
+  // y el efecto de abajo —que lo tiene como dependencia— se dispara siempre.
+  const processDepartments = useMemo(
+    () => processData?.departments ?? [],
+    [processData?.departments],
+  );
   const [processDeptId, setProcessDeptId] = useState<string | null>(null);
 
   // Al entrar (o al quedar apuntando a un departamento que se dio de baja) se
