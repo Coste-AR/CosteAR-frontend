@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from '@tanstack/react-router';
 import {
-  ArrowLeft, Calculator, Package, Users, Factory, Activity,
-  TrendingUp, BarChart2, CheckCircle2, History, GitCompare,
+  ArrowLeft, Calculator, CheckCircle2,
   Download, Upload, Lock,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
@@ -43,10 +42,17 @@ import { SalesTab } from './components/tabs/SalesTab';
 import { ResultTab, EmptyResult } from './components/tabs/ResultTab';
 import { HistoryTab } from './components/tabs/HistoryTab';
 import { CostingSystemBadge } from './components/shared/CostingSystemBadge';
+import { ProcessTabPlaceholder } from './components/process/ProcessTabPlaceholder';
+import {
+  tabsFor,
+  defaultTabFor,
+  type SectionTab,
+} from './components/tabs/tab-definitions';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type SectionTab = 'raw-material' | 'direct-labor' | 'indirect-costs' | 'sales' | 'result' | 'history' | 'simulate' | 'comparison';
+// El juego de pestañas y su tipo viven en `components/tabs/tab-definitions.ts`:
+// dependen del sistema de costeo (U02) y no de esta pantalla.
 
 const IMPORT_REVIEW_SECTIONS = [
   { key: 'rawMaterialConfig', label: 'Materia Prima' },
@@ -110,6 +116,18 @@ export function CostStructurePage() {
   const readOnly = selectedPeriod?.status === 'CLOSED';
 
   const [activeTab, setActiveTab] = useState<SectionTab>('raw-material');
+  // La estructura llega después del primer render, y al cambiar el sistema de
+  // costeo el juego de pestañas cambia entero: si la que estaba activa no existe
+  // en el sistema nuevo, la pantalla quedaría en blanco. Se cae a la primera del
+  // set (U02).
+  const costingSystem = structure?.costingSystem;
+  useEffect(() => {
+    if (!costingSystem) return;
+    const disponibles = tabsFor(costingSystem);
+    if (!disponibles.some((t) => t.id === activeTab)) {
+      setActiveTab(defaultTabFor(costingSystem));
+    }
+  }, [costingSystem, activeTab]);
   const [result,    setResult]    = useState<{ result: CalculationResult; calculationId: string } | null>(null);
   const [error,     setError]     = useState<string | null>(null);
   const [importedDefaults, setImportedDefaults] = useState<ImportedExcelData | null>(null);
@@ -383,18 +401,7 @@ export function CostStructurePage() {
 
       {/* Tab bar — con gap entre pestañas para evitar errar de botón al cargar datos */}
       <div className="mb-8 flex gap-4 overflow-x-auto border-b border-line">
-        {(
-          [
-            { id: 'raw-material'    as SectionTab, label: 'Materia Prima',        icon: Package,    configKey: 'mp'    as const },
-            { id: 'direct-labor'    as SectionTab, label: 'Mano de Obra',          icon: Users,      configKey: 'mod'   as const },
-            { id: 'indirect-costs'  as SectionTab, label: 'Costos Indirectos',     icon: Factory,    configKey: 'cip'   as const },
-            { id: 'sales'           as SectionTab, label: 'Venta',                 icon: TrendingUp, configKey: 'sales' as const },
-            { id: 'result'          as SectionTab, label: 'Resultado',             icon: BarChart2,  configKey: undefined },
-            { id: 'simulate'        as SectionTab, label: 'Simulador',             icon: Activity,   configKey: undefined },
-            { id: 'comparison'      as SectionTab, label: 'Comparación',           icon: GitCompare, configKey: undefined },
-            { id: 'history'         as SectionTab, label: 'Historial',             icon: History,    configKey: undefined },
-          ] as { id: SectionTab; label: string; icon: typeof Package; configKey: keyof typeof configured | undefined }[]
-        ).map(({ id: tabId, label, icon: Icon, configKey }) => {
+        {tabsFor(structure?.costingSystem).map(({ id: tabId, label, icon: Icon, configKey }) => {
           const isDone = configKey ? configured[configKey] : !!shown;
           return (
             <button
@@ -549,6 +556,57 @@ export function CostStructurePage() {
 
       {activeTab === 'history' && (
         <HistoryTab structureId={id} />
+      )}
+
+      {/* Costeo por Procesos (U02) — el armazón ya bifurca; estas cinco pantallas
+          se construyen en U04-U08. */}
+      {activeTab === 'process-departments' && (
+        <ProcessTabPlaceholder
+          title="Departamentos"
+          description="Las etapas por las que pasa la producción, en el orden en que ocurren. El costo de cada una se transfiere a la siguiente."
+          items={[
+            'Alta, edición y baja de departamentos',
+            'Reordenamiento de la secuencia',
+            'Marcar qué departamento es punto de separación',
+          ]}
+        />
+      )}
+
+      {activeTab === 'process-movement' && (
+        <ProcessTabPlaceholder
+          title="Cuadro de movimiento de unidades"
+          description="Cuántas unidades entran y salen de cada departamento en el período. Es la base de todo el cálculo por procesos."
+          items={[
+            'Entradas: existencia inicial, puestas en elaboración, recibidas del departamento anterior, aumento de unidades',
+            'Salidas: terminadas y transferidas, terminadas en stock, pérdidas normales y extraordinarias, existencia final',
+            'Grados de avance de las existencias inicial y final',
+            'Control en vivo de que las unidades que entran igualen a las que salen',
+          ]}
+        />
+      )}
+
+      {activeTab === 'process-equivalent' && (
+        <ProcessTabPlaceholder
+          title="Producción equivalente"
+          description="Cuántas unidades terminadas equivalen al trabajo hecho en el período, por elemento del costo. Se deriva del cuadro de movimiento."
+          items={[
+            'Una columna por elemento (materia prima y conversión, o mano de obra y carga fabril por separado)',
+            'Terminadas y transferidas, terminadas en stock, existencia final por su grado de avance y pérdidas extraordinarias',
+            'Las pérdidas normales se muestran aparte: las absorben las unidades buenas',
+          ]}
+        />
+      )}
+
+      {activeTab === 'process-joint-costs' && (
+        <ProcessTabPlaceholder
+          title="Costos conjuntos"
+          description="Cómo se reparte el costo acumulado hasta el punto de separación entre los productos que salen de ahí."
+          items={[
+            'Los cuatro métodos: unidades físicas, rendimiento técnico, valor de mercado y valor neto de realización',
+            'Coproductos, subproductos y desechos con las magnitudes que pide cada método',
+            'Costo asignado y costo unitario por producto',
+          ]}
+        />
       )}
     </AppShell>
   );
