@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { TraceableValue } from '@/components/ui/TraceableValue';
 import { apiErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useUnitMovement, useSaveUnitMovement } from '../../process-costing-hooks';
@@ -41,20 +42,33 @@ const n = (v: string): number | undefined => {
 const fmt = (v: number | null | undefined, dec = 0): string =>
   v == null ? '—' : v.toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
-/** Una fila del cuadro: etiqueta a la izquierda, número a la derecha. */
+/**
+ * Una fila del cuadro: etiqueta a la izquierda, número a la derecha.
+ *
+ * `traceId` es el DataPoint del valor YA GUARDADO. Cuando existe, la etiqueta se
+ * vuelve trazable: se puede abrir la ficha de ese dato sin salir del formulario.
+ * Los campos que se derivan por diferencia no tienen ficha, porque no son un
+ * dato cargado sino un cálculo.
+ */
 function Fila({
   label,
   hint,
+  traceId,
   children,
 }: {
   label: string;
   hint?: string;
+  traceId?: string | null;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-line py-2.5 last:border-b-0">
       <div className="min-w-0">
-        <div className="text-[13px] text-ink">{label}</div>
+        <div className="text-[13px] text-ink">
+          <TraceableValue dataPointId={traceId} title={label}>
+            {label}
+          </TraceableValue>
+        </div>
         {hint && <div className="text-[11px] text-ink-soft">{hint}</div>}
       </div>
       <div className="w-36 shrink-0">{children}</div>
@@ -276,6 +290,8 @@ export function UnitMovementTab({
   }
 
   const hayEF = (n(form.finalWip ?? '') ?? derivada?.valor ?? 0) > 0;
+  /** `dataPointId` por campo del cuadro ya guardado (U10). */
+  const traces = data?.traces ?? {};
 
   return (
     <div className="space-y-5">
@@ -293,12 +309,16 @@ export function UnitMovementTab({
             ▸ Entran
           </div>
 
-          <Fila label="Existencia inicial en proceso">
+          <Fila label="Existencia inicial en proceso" traceId={traces.initialWip}>
             <NumInput value={form.initialWip ?? ''} onChange={set('initialWip')} disabled={readOnly} />
           </Fila>
 
           {esInicial ? (
-            <Fila label="Puestas en elaboración" hint="Solo el primer departamento de la cadena">
+            <Fila
+              label="Puestas en elaboración"
+              hint="Solo el primer departamento de la cadena"
+              traceId={traces.startedInProduction}
+            >
               <NumInput
                 value={form.startedInProduction ?? ''}
                 onChange={set('startedInProduction')}
@@ -307,14 +327,18 @@ export function UnitMovementTab({
             </Fila>
           ) : (
             <>
-              <Fila label="Recibidas del departamento anterior">
+              <Fila label="Recibidas del departamento anterior" traceId={traces.receivedFromPrevious}>
                 <NumInput
                   value={form.receivedFromPrevious ?? ''}
                   onChange={set('receivedFromPrevious')}
                   disabled={readOnly}
                 />
               </Fila>
-              <Fila label="Aumento de número de unidades" hint="Por agregado de material o dilución">
+              <Fila
+                label="Aumento de número de unidades"
+                hint="Por agregado de material o dilución"
+                traceId={traces.unitIncrease}
+              >
                 <NumInput
                   value={form.unitIncrease ?? ''}
                   onChange={set('unitIncrease')}
@@ -338,7 +362,7 @@ export function UnitMovementTab({
             ▸ Salen
           </div>
 
-          <Fila label="Terminadas y transferidas">
+          <Fila label="Terminadas y transferidas" traceId={traces.transferredOut}>
             {derivada?.campo === 'transferredOut' ? (
               <Derivado
                 value={derivada.valor}
@@ -354,7 +378,11 @@ export function UnitMovementTab({
             )}
           </Fila>
 
-          <Fila label="Terminadas y en existencia" hint="Terminadas que no se transfirieron">
+          <Fila
+            label="Terminadas y en existencia"
+            hint="Terminadas que no se transfirieron"
+            traceId={traces.finishedInStock}
+          >
             <NumInput
               value={form.finishedInStock ?? ''}
               onChange={set('finishedInStock')}
@@ -362,7 +390,11 @@ export function UnitMovementTab({
             />
           </Fila>
 
-          <Fila label="Pérdida normal admitida" hint="% sobre las unidades del período">
+          <Fila
+            label="Pérdida normal admitida"
+            hint="% sobre las unidades del período"
+            traceId={traces.normalLossPct}
+          >
             <NumInput
               value={form.normalLossPct ?? ''}
               onChange={set('normalLossPct')}
@@ -382,7 +414,7 @@ export function UnitMovementTab({
             />
           </Fila>
 
-          <Fila label="Existencia final en proceso">
+          <Fila label="Existencia final en proceso" traceId={traces.finalWip}>
             {derivada?.campo === 'finalWip' ? (
               <Derivado
                 value={derivada.valor}
@@ -471,34 +503,34 @@ export function UnitMovementTab({
             ' Este departamento sigue la conversión unificada: mano de obra y carga fabril se suman en una sola columna al calcular.'}
         </p>
         <div className="grid gap-x-6 sm:grid-cols-2">
-          <Fila label="Materia prima del período">
+          <Fila label="Materia prima del período" traceId={traces.periodCostMp}>
             <NumInput value={form.periodCostMp ?? ''} onChange={set('periodCostMp')} disabled={readOnly} />
           </Fila>
-          <Fila label="Materia prima en la existencia inicial">
+          <Fila label="Materia prima en la existencia inicial" traceId={traces.initialWipCostMp}>
             <NumInput
               value={form.initialWipCostMp ?? ''}
               onChange={set('initialWipCostMp')}
               disabled={readOnly}
             />
           </Fila>
-          <Fila label="Mano de obra del período">
+          <Fila label="Mano de obra del período" traceId={traces.periodCostMo}>
             <NumInput value={form.periodCostMo ?? ''} onChange={set('periodCostMo')} disabled={readOnly} />
           </Fila>
-          <Fila label="Mano de obra en la existencia inicial">
+          <Fila label="Mano de obra en la existencia inicial" traceId={traces.initialWipCostMo}>
             <NumInput
               value={form.initialWipCostMo ?? ''}
               onChange={set('initialWipCostMo')}
               disabled={readOnly}
             />
           </Fila>
-          <Fila label="Carga fabril del período">
+          <Fila label="Carga fabril del período" traceId={traces.periodCostCif}>
             <NumInput
               value={form.periodCostCif ?? ''}
               onChange={set('periodCostCif')}
               disabled={readOnly}
             />
           </Fila>
-          <Fila label="Carga fabril en la existencia inicial">
+          <Fila label="Carga fabril en la existencia inicial" traceId={traces.initialWipCostCif}>
             <NumInput
               value={form.initialWipCostCif ?? ''}
               onChange={set('initialWipCostCif')}

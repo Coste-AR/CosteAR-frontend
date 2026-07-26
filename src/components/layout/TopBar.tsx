@@ -5,6 +5,56 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useAlerts } from '@/features/alerts/alert-hooks';
 import { useLogout } from '@/features/auth/auth-hooks';
 import { CosteARLogo } from '@/components/layout/CosteARLogo';
+import { useTraceMode } from '@/stores/trace-mode-store';
+import { cn } from '@/lib/utils';
+
+/**
+ * MODO TRAZABILIDAD (U10) — un interruptor para toda la app.
+ *
+ * Vive en la barra superior, no dentro de una pantalla, porque afecta a todas:
+ * es el gesto de "mostrame qué está respaldado y qué no". Es el diferencial del
+ * producto, así que se pone donde se ve, no escondido en un menú.
+ */
+function TraceModeToggle() {
+  const on = useTraceMode((s) => s.on);
+  const toggle = useTraceMode((s) => s.toggle);
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={toggle}
+      title={
+        on
+          ? 'Apagar el modo trazabilidad'
+          : 'Resaltar todos los datos con origen rastreable'
+      }
+      className={cn(
+        'flex select-none items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors',
+        on
+          ? 'border-granate/20 bg-granate-tenue text-granate'
+          : 'border-line bg-surface-alt/40 text-ink-soft hover:text-ink',
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'relative h-[18px] w-[32px] rounded-full transition-colors',
+          on ? 'bg-action' : 'bg-line-strong',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-[2px] size-[14px] rounded-full bg-white transition-all',
+            on ? 'left-[16px]' : 'left-[2px]',
+          )}
+        />
+      </span>
+      <span className="hidden sm:inline">Trazabilidad</span>
+    </button>
+  );
+}
 
 export function TopBar() {
   const user = useAuthStore((s) => s.user);
@@ -27,6 +77,8 @@ export function TopBar() {
 
       {/* Right side: Alerts and User details */}
       <div className="flex items-center gap-3 lg:gap-4">
+        <TraceModeToggle />
+
         {/* Alerts Indicator - Hidden for Admin */}
         {user?.role !== 'ADMIN' && (
           <Link

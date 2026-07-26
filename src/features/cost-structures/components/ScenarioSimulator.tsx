@@ -38,7 +38,9 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
     const diff = proj - curr;
     const isPositive = diff > 0;
     const good = inverse ? !isPositive : isPositive;
-    return good ? 'text-success' : 'text-danger';
+    // `text-ok` es el token del semáforo en `index.css`; `text-success` no
+    // existe, así que la variación favorable se venía pintando sin color.
+    return good ? 'text-ok' : 'text-danger';
   };
 
   const renderDelta = (curr: number, proj: number, inverse = false) => {

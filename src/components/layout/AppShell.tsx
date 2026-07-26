@@ -15,6 +15,8 @@ import { useLogout } from "@/features/auth/auth-hooks";
 import { usePendingCount } from "@/features/validaciones/validaciones-hooks";
 import { CosteARLogo } from "@/components/layout/CosteARLogo";
 import { TopBar } from "@/components/layout/TopBar";
+import { TraceDrawer } from "@/components/layout/TraceDrawer";
+import { TraceModeLegend } from "@/components/ui/TraceableValue";
 
 const NAV = [
   { to: "/dashboard", label: "Inicio", icon: LayoutDashboard },
@@ -347,9 +349,14 @@ export function AppShell({
               wide ? "max-w-full" : "max-w-6xl",
             )}
           >
+            <TraceModeLegend />
             {children}
           </div>
         </main>
+
+        {/* Panel de trazabilidad (U10): vive en el armazón porque cualquier
+            valor de cualquier pantalla lo abre. */}
+        <TraceDrawer />
 
         {/* Cohesive Footer */}
         <footer className="hidden lg:block border-t border-line/40 py-6 bg-zinc-50/20">
