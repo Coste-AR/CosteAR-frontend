@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useCreateCostStructure } from '@/features/cost-structures/cost-structure-hooks';
+import {
+  CostingSystemSelector,
+  type CostingSystem,
+} from '@/features/cost-structures/components/shared/CostingSystemSelector';
 import { PERIODICITY_LABEL, type Periodicity } from '@/lib/types';
 import { apiErrorMessage } from '@/lib/api';
 
@@ -85,12 +89,16 @@ function NewStructureForm({
 }) {
   const create = useCreateCostStructure(companyId);
   const [error, setError] = useState<string | null>(null);
+  // El sistema de costeo se elige acá y prácticamente no se cambia después (solo
+  // mientras no haya cálculos). Órdenes es el default porque es el sistema con el
+  // que la app viene funcionando.
+  const [costingSystem, setCostingSystem] = useState<CostingSystem>('ORDERS');
   const { register, handleSubmit, formState } = useForm<{ productName: string }>();
 
   const onSubmit = handleSubmit(async (values) => {
     setError(null);
     try {
-      await create.mutateAsync({ productName: values.productName });
+      await create.mutateAsync({ productName: values.productName, costingSystem });
       onDone();
     } catch (e) {
       setError(apiErrorMessage(e));
@@ -100,6 +108,12 @@ function NewStructureForm({
   return (
     <form onSubmit={onSubmit} className="animate-rise space-y-4">
       <Input label="Producto" placeholder="Ej: Mesa de roble" {...register('productName', { required: true })} />
+
+      <CostingSystemSelector
+        value={costingSystem}
+        onChange={setCostingSystem}
+        idPrefix="nueva-estructura-costeo"
+      />
 
       <div className="flex items-start gap-2.5 rounded-lg bg-zinc-50 border border-zinc-100 px-3.5 py-3">
         <CalendarClock className="size-4 shrink-0 text-zinc-400 mt-0.5" />

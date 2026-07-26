@@ -42,6 +42,7 @@ import { DirectLaborTab } from './components/tabs/DirectLaborTab';
 import { SalesTab } from './components/tabs/SalesTab';
 import { ResultTab, EmptyResult } from './components/tabs/ResultTab';
 import { HistoryTab } from './components/tabs/HistoryTab';
+import { CostingSystemBadge } from './components/shared/CostingSystemBadge';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -277,6 +278,13 @@ export function CostStructurePage() {
             <span className="inline-flex items-center self-start rounded-full border border-line bg-surface-alt px-2.5 py-0.5 text-[10.5px] font-medium uppercase tracking-wide text-ink-soft">
               Captación: continua
             </span>
+            {structure && (
+              <CostingSystemBadge
+                structureId={id}
+                costingSystem={structure.costingSystem ?? 'ORDERS'}
+                readOnly={readOnly}
+              />
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
