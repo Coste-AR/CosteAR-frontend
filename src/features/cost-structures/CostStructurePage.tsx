@@ -42,7 +42,12 @@ import { SalesTab } from './components/tabs/SalesTab';
 import { ResultTab, EmptyResult } from './components/tabs/ResultTab';
 import { HistoryTab } from './components/tabs/HistoryTab';
 import { CostingSystemBadge } from './components/shared/CostingSystemBadge';
-import { ProcessTabPlaceholder } from './components/process/ProcessTabPlaceholder';
+import { DepartmentsTab } from './components/process/DepartmentsTab';
+import { UnitMovementTab } from './components/process/UnitMovementTab';
+import { EquivalentProductionTab } from './components/process/EquivalentProductionTab';
+import { JointCostsTab } from './components/process/JointCostsTab';
+import { ProductionCostReportView } from './components/process/ProductionCostReportView';
+import { useProcessDepartments } from './process-costing-hooks';
 import {
   tabsFor,
   defaultTabFor,
@@ -121,6 +126,23 @@ export function CostStructurePage() {
   // en el sistema nuevo, la pantalla quedaría en blanco. Se cae a la primera del
   // set (U02).
   const costingSystem = structure?.costingSystem;
+  const isProcesses = costingSystem === 'PROCESSES';
+
+  // La cadena de departamentos se consulta una sola vez en la página y se pasa a
+  // las cuatro pestañas: todas la necesitan y así comparten el mismo dato.
+  const { data: processData } = useProcessDepartments(id, isProcesses);
+  const processDepartments = processData?.departments ?? [];
+  const [processDeptId, setProcessDeptId] = useState<string | null>(null);
+
+  // Al entrar (o al quedar apuntando a un departamento que se dio de baja) se
+  // cae al primero de la cadena, para que las pestañas nunca queden en blanco.
+  useEffect(() => {
+    if (processDepartments.length === 0) return;
+    if (!processDeptId || !processDepartments.some((d) => d.id === processDeptId)) {
+      setProcessDeptId(processDepartments[0]!.id);
+    }
+  }, [processDepartments, processDeptId]);
+
   useEffect(() => {
     if (!costingSystem) return;
     const disponibles = tabsFor(costingSystem);
@@ -519,7 +541,19 @@ export function CostStructurePage() {
         </Frozen>
       </div>
 
-      {activeTab === 'result' && (
+      {/* En Procesos el resultado es el informe de costos por departamento, no el
+          estado de costos de Órdenes: son dos informes distintos. */}
+      {activeTab === 'result' && isProcesses && (
+        <ProductionCostReportView
+          structureId={id}
+          periodId={periodId}
+          departments={processDepartments}
+          deptId={processDeptId}
+          onDeptChange={setProcessDeptId}
+        />
+      )}
+
+      {activeTab === 'result' && !isProcesses && (
         <div className="space-y-4">
           {incompletitud?.incompleto && (
             <IncompleteNotice
@@ -558,54 +592,40 @@ export function CostStructurePage() {
         <HistoryTab structureId={id} />
       )}
 
-      {/* Costeo por Procesos (U02) — el armazón ya bifurca; estas cinco pantallas
-          se construyen en U04-U08. */}
+      {/* Costeo por Procesos (U04-U08). */}
       {activeTab === 'process-departments' && (
-        <ProcessTabPlaceholder
-          title="Departamentos"
-          description="Las etapas por las que pasa la producción, en el orden en que ocurren. El costo de cada una se transfiere a la siguiente."
-          items={[
-            'Alta, edición y baja de departamentos',
-            'Reordenamiento de la secuencia',
-            'Marcar qué departamento es punto de separación',
-          ]}
-        />
+        <DepartmentsTab structureId={id} readOnly={readOnly} />
       )}
 
       {activeTab === 'process-movement' && (
-        <ProcessTabPlaceholder
-          title="Cuadro de movimiento de unidades"
-          description="Cuántas unidades entran y salen de cada departamento en el período. Es la base de todo el cálculo por procesos."
-          items={[
-            'Entradas: existencia inicial, puestas en elaboración, recibidas del departamento anterior, aumento de unidades',
-            'Salidas: terminadas y transferidas, terminadas en stock, pérdidas normales y extraordinarias, existencia final',
-            'Grados de avance de las existencias inicial y final',
-            'Control en vivo de que las unidades que entran igualen a las que salen',
-          ]}
+        <UnitMovementTab
+          structureId={id}
+          periodId={periodId}
+          departments={processDepartments}
+          deptId={processDeptId}
+          onDeptChange={setProcessDeptId}
+          readOnly={readOnly}
         />
       )}
 
       {activeTab === 'process-equivalent' && (
-        <ProcessTabPlaceholder
-          title="Producción equivalente"
-          description="Cuántas unidades terminadas equivalen al trabajo hecho en el período, por elemento del costo. Se deriva del cuadro de movimiento."
-          items={[
-            'Una columna por elemento (materia prima y conversión, o mano de obra y carga fabril por separado)',
-            'Terminadas y transferidas, terminadas en stock, existencia final por su grado de avance y pérdidas extraordinarias',
-            'Las pérdidas normales se muestran aparte: las absorben las unidades buenas',
-          ]}
+        <EquivalentProductionTab
+          structureId={id}
+          periodId={periodId}
+          departments={processDepartments}
+          deptId={processDeptId}
+          onDeptChange={setProcessDeptId}
         />
       )}
 
       {activeTab === 'process-joint-costs' && (
-        <ProcessTabPlaceholder
-          title="Costos conjuntos"
-          description="Cómo se reparte el costo acumulado hasta el punto de separación entre los productos que salen de ahí."
-          items={[
-            'Los cuatro métodos: unidades físicas, rendimiento técnico, valor de mercado y valor neto de realización',
-            'Coproductos, subproductos y desechos con las magnitudes que pide cada método',
-            'Costo asignado y costo unitario por producto',
-          ]}
+        <JointCostsTab
+          structureId={id}
+          periodId={periodId}
+          departments={processDepartments}
+          deptId={processDeptId}
+          onDeptChange={setProcessDeptId}
+          readOnly={readOnly}
         />
       )}
     </AppShell>
