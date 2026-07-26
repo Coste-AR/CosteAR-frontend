@@ -39,8 +39,14 @@ function invalidateProcess(qc: QueryClient, structureId: string) {
 /**
  * El área de origen que se registra en la trazabilidad de cada carga hecha desde
  * esta pantalla. El JWT no la lleva, así que viaja en el body.
+ *
+ * Tiene que ser uno de los valores del enum del backend (`sourceAreaSchema`):
+ * deposito · contaduria · planta · comercial · costista · sistema. Acá es
+ * siempre `costista`: quien arma la estructura de costos y carga estos datos es
+ * el profesional, no un operario de planta ni el depósito. Es el mismo valor que
+ * usan la imputación de período y el pedido de revisión.
  */
-const SOURCE_AREA = 'estructura';
+const SOURCE_AREA = 'costista';
 
 // ── Departamentos (B14) ──────────────────────────────────────────────────────
 
