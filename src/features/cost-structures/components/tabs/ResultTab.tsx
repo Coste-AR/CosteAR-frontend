@@ -1,5 +1,7 @@
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Money, Percent } from '@/components/ui/Money';
+import { TraceableValue, toDerivation } from '@/components/ui/TraceableValue';
+import { useCalculationTree } from '@/features/cost-structures/trazabilidad-hooks';
 import { StatusBadge, marginStatus, isResultTrustworthy } from '@/components/ui/StatusBadge';
 import { AdvisorPanel } from '@/features/advisor/AdvisorPanel';
 import { ReconciliationCard } from '../shared/ReconciliationCard';
@@ -41,7 +43,7 @@ function untrustworthyReason(result: CalculationResult, incompleto?: boolean): s
   return 'El cálculo no incluye CIP aplicados: el margen no refleja el costo real del producto.';
 }
 
-export function ResultTab({ result, companyId, period, incompleto }: { result: CalculationResult; companyId?: string; period?: string; incompleto?: boolean }) {
+export function ResultTab({ result, companyId, period, incompleto, runId }: { result: CalculationResult; companyId?: string; period?: string; incompleto?: boolean; runId?: string | null }) {
   // F08 — un margen sobre un resultado sin MP, sin CIP o marcado incompleto no
   // es confiable: el badge nunca debe decir "sano" sobre un número así.
   const trustworthy = isResultTrustworthy({
@@ -49,10 +51,41 @@ export function ResultTab({ result, companyId, period, incompleto }: { result: C
     indirectCostsApplied: result.indirectCostsApplied,
     incompleto,
   });
+  /**
+   * TRAZABILIDAD DEL RESULTADO (U10).
+   *
+   * Es la pantalla donde más importa: el costista mira estos tres números y el
+   * costo unitario, y lo primero que quiere saber es con qué fórmula salieron y
+   * qué datos entraron. El árbol de derivación de la corrida ya tiene esa
+   * información —una raíz por elemento del costo—; acá se engancha cada fila con
+   * su raíz para poder abrirla desde el número mismo, sin ir a otra pestaña.
+   *
+   * Sin corrida trazada (`runId`) las filas se muestran igual, sin afordance:
+   * un número sin respaldo no debe parecer trazable.
+   */
+  const { data: arbol } = useCalculationTree(runId ?? null);
+
+  const raiz = (nombre: string) => {
+    const nodo = arbol?.tree.find((n) => n.label.toLowerCase() === nombre.toLowerCase());
+    return nodo ? toDerivation(nodo) : null;
+  };
+
   const rows = [
-    { label: 'Materia Prima consumida', value: result.rawMaterialConsumed },
-    { label: 'Mano de Obra Directa',    value: result.directLaborTotal },
-    { label: 'CIP aplicados',           value: result.indirectCostsApplied },
+    {
+      label: 'Materia Prima consumida',
+      value: result.rawMaterialConsumed,
+      derivation: raiz('Materia Prima Consumida'),
+    },
+    {
+      label: 'Mano de Obra Directa',
+      value: result.directLaborTotal,
+      derivation: raiz('Mano de Obra Directa'),
+    },
+    {
+      label: 'CIP aplicados',
+      value: result.indirectCostsApplied,
+      derivation: raiz('Costos Indirectos de Producción Aplicados'),
+    },
   ];
 
   const handleExportPDF = async () => {
@@ -122,7 +155,43 @@ export function ResultTab({ result, companyId, period, incompleto }: { result: C
           <Card>
             <CardBody className="space-y-2 py-8 text-center">
               <p className="text-[11px] uppercase tracking-widest text-ink-soft">Costo unitario de producción</p>
-              <Money value={result.detail.unitCost.unitProductionCost} className="block text-5xl font-bold text-ink" />
+              {/* El número final del sistema de costos: es el que más se mira y
+                  el que más hay que poder abrir. La cuenta se arma acá porque el
+                  árbol llega hasta el costo de producción, no hasta el unitario. */}
+              <TraceableValue
+                title="Costo unitario de producción"
+                derivation={{
+                  label: 'Costo unitario de producción',
+                  formula: 'costo de producción ÷ unidades producidas',
+                  value: result.detail.unitCost.unitProductionCost,
+                  unit: '$',
+                  children: [
+                    {
+                      label: 'Costo de producción',
+                      formula: 'materia prima + mano de obra + costos indirectos',
+                      value: result.productionCost,
+                      unit: '$',
+                      children: rows.map((r) => ({
+                        label: r.label,
+                        formula: r.derivation?.formula ?? null,
+                        value: r.value,
+                        unit: '$',
+                        children: r.derivation?.children ?? [],
+                        dataPointId: r.derivation?.dataPointId ?? null,
+                      })),
+                    },
+                    {
+                      label: 'Unidades producidas',
+                      formula: null,
+                      value: result.detail.unitCost.unitsProduced,
+                      unit: 'u',
+                      children: [],
+                    },
+                  ],
+                }}
+              >
+                <Money value={result.detail.unitCost.unitProductionCost} className="block text-5xl font-bold text-ink" />
+              </TraceableValue>
               {result.detail.unitCost.unitsProduced > 0 && (
                 <p className="text-[12px] text-ink-soft">
                   costo de producción ÷ {result.detail.unitCost.unitsProduced.toLocaleString('es-AR')} u producidas
@@ -146,7 +215,11 @@ export function ResultTab({ result, companyId, period, incompleto }: { result: C
                 {rows.map((r) => (
                   <tr key={r.label} className="hover:bg-surface-alt/40">
                     <td className="px-6 py-3 text-ink-soft">{r.label}</td>
-                    <td className="px-6 py-3 text-right"><Money value={r.value} /></td>
+                    <td className="px-6 py-3 text-right">
+                      <TraceableValue derivation={r.derivation} title={r.label}>
+                        <Money value={r.value} />
+                      </TraceableValue>
+                    </td>
                     <td className="px-6 py-3 text-right text-ink-soft">
                       {result.productionCost > 0 ? `${((r.value / result.productionCost) * 100).toFixed(1)}%` : '—'}
                     </td>

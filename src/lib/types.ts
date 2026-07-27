@@ -109,6 +109,34 @@ export interface CalculationResult {
   };
 }
 
+/**
+ * El resultado de un cálculo, sea cual sea el sistema de costeo (U03).
+ *
+ * `CalculationResult` (arriba) es y sigue siendo el de ÓRDENES: no se tocó, así
+ * que todo el código que ya lo consume compila igual. Costeo por Procesos tiene
+ * otra forma —costo por departamento, no por elemento del producto— y no se
+ * puede meter a la fuerza en la misma interfaz sin llenarla de campos opcionales
+ * que no aplican nunca.
+ *
+ * `costingSystem` es el discriminante. Es OPCIONAL en la rama de Órdenes porque
+ * los cálculos guardados antes de que existiera Procesos no lo traen: sin eso,
+ * un resultado viejo dejaría de tipar.
+ */
+export type AnyCalculationResult =
+  | (CalculationResult & { costingSystem?: 'ORDERS' })
+  | (import('@/features/cost-structures/process-costing-types').ProcessCalculationResult & {
+      costingSystem: 'PROCESSES';
+    });
+
+/** Estrecha el resultado a Procesos sin castear a mano en cada pantalla. */
+export function isProcessResult(
+  result: AnyCalculationResult,
+): result is import('@/features/cost-structures/process-costing-types').ProcessCalculationResult & {
+  costingSystem: 'PROCESSES';
+} {
+  return result.costingSystem === 'PROCESSES';
+}
+
 export interface CostCalculation {
   id: string;
   costStructureId: string;

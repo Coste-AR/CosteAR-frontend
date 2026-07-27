@@ -701,3 +701,96 @@ secundario, ajustes productivos, destinos del reparto. La base sin nombre cae a 
 end-to-end en navegador contra dev requiere sesión autenticada (ingresar contraseña es una acción que el
 asistente no ejecuta); los cambios son de lógica de presentación pura y quedan cubiertos por
 typecheck/build/suite. Pasos de prueba manual para cada ítem, en el resumen al usuario.
+
+---
+
+## U01-U10 — La interfaz de Costeo por Procesos
+
+Referencia visual: el mockup aprobado `CosteAR-Mockups-v2-Trazabilidad.html` (repo
+`costear-knowledge-base`, `costeo-procesos/mockups/`). Sus tokens coinciden 1:1 con `index.css`
+—granate `#4a151b`, acción `#b31929`, Outfit + JetBrains Mono, radio 24px—, así que no hubo que
+inventar estilos ni aproximar colores.
+
+**U01 · Selector de sistema de costeo.** Dos tarjetas, no un desplegable: la diferencia entre Órdenes
+y Procesos es conceptual y hay que poder leerla en el momento de elegir. `CostingSystemSelector` se
+comparte entre el alta (`CompanyStructuresList`) y el cambio posterior (`CostingSystemBadge`, en el
+encabezado de la estructura). El backend solo acepta el cambio si no hay cálculos; su 422 se muestra
+tal cual, porque explica el motivo mejor que un texto adivinado en el front.
+
+**U02 · Bifurcación por sistema.** El juego de pestañas sale a `components/tabs/tab-definitions.ts`,
+que antes estaba embebido en el JSX de `CostStructurePage`. Procesos sigue el orden en que se
+trabaja: Departamentos → Movimiento → Producción equivalente → Costos conjuntos → Resultado. No lleva
+Simulador (está armado sobre el resultado de Órdenes); sí Comparación e Historial, que son de período
+y funcionan igual en los dos sistemas. Si la pestaña activa no existe en el sistema nuevo, cae a la
+primera del set en vez de dejar la pantalla en blanco. **El set de Órdenes quedó idéntico.**
+
+**U03 · Tipos y hooks.** `process-costing-types.ts` espeja los DTOs como salen por la API, no como
+están en la base: `null` significa "no cargado", distinto de 0 que es un valor cargado. Cada mutación
+invalida el subárbol `['cost-structures', id, 'process']` entero y no una clave puntual: en Procesos
+casi todo depende en cascada, y una invalidación fina deja pantallas mostrando números derivados de
+datos que ya cambiaron. `AnyCalculationResult` es una unión discriminada por `costingSystem`;
+`CalculationResult` no se tocó, así que todo lo que ya lo consume compila igual.
+
+**U04 · Departamentos — no está en el mockup.** Se armó con el patrón de la app. La posición se
+muestra siempre porque el orden ES la cadena por la que viaja el costo. Reordenar y borrar mueven por
+ID, nunca por índice (fix F02). Con cálculos hechos el backend congela la cadena: los controles se
+deshabilitan con el motivo a la vista, en vez de dejar que el usuario arrastre y después coma un error.
+
+**U05 · Cuadro de movimiento.** Los campos que no aplican según la posición del departamento no se
+muestran: un cero cargado y un campo que no corresponde no son lo mismo. El dato que se deja en blanco
+se deriva por diferencia y se muestra en solo-lectura con su fórmula (mismo patrón que la fila IAP de
+Mano de Obra). Guardar se bloquea si el cuadro no cuadra.
+
+> **Decisión — agregar los importes del período, que el mockup no maqueta.** El mockup solo muestra
+> unidades. Pero sin los costos por elemento el motor calcula TODO en cero: no habría forma de llegar
+> a un costo unitario desde la interfaz. Van en su propia tarjeta, separados de las unidades, porque
+> son otra naturaleza de dato. Lo mismo con el aviso de existencia final sin grado de avance en
+> conversión, que si falta hace que esas unidades se valúen en cero sin que nadie se entere.
+
+> **Decisión — la validación en vivo no replica la matemática del dominio.** Cuando hay un % de merma
+> admitida y no se informó pérdida total, la pérdida normal la calcula el servidor sobre las unidades
+> del período. Duplicar esa cuenta en el cliente es la forma segura de que se desincronicen: la
+> pantalla muestra "con merma admitida · al guardar se verifica" y deja que mande el servidor.
+
+**U06 · Producción equivalente.** El total por elemento lo calcula el servidor —es el que después usa
+el motor, así que no se recalcula—; las filas que lo componen se arman del cuadro resuelto para que se
+vea de dónde sale el total en vez de tener que creerlo. Las pérdidas normales figuran atenuadas y
+marcadas "no entran": es una confusión clásica de la cátedra, así que se muestran en vez de omitirse.
+
+**U07 · Costos conjuntos.** Arranca por elegir el criterio, con lo que asume cada uno, porque repartir
+el costo conjunto no es un cálculo objetivo. Los campos de cada producto cambian según el método. Un
+departamento se vuelve punto de separación cuando se le cargan productos acá — no hay un interruptor
+aparte que haya que acordarse de prender. Un producto que queda en pérdida se muestra marcado, no se
+oculta: esconderlo sería tapar justamente la señal que hace elegir otro criterio.
+
+**U08 · Informe de costos.** La estructura de la cátedra por departamento, con la doble verificación
+de la existencia final: por diferencia y por elemento. Si los dos caminos no dan lo mismo, el informe
+lo dice en vez de redondear. Regla F08: un resultado marcado incompleto no lleva ninguna insignia de
+sano. Reutiliza `DerivationTree` sin modificarlo.
+
+**U09 · Consistencia.** `ScenarioSimulator` usaba `text-success`, que no existe en el design system:
+la variación favorable se venía pintando sin color. Ahora usa `text-ok`. Verificado que las pantallas
+nuevas no renderizan fechas en formato ajeno ni exponen identificadores internos en texto visible.
+
+**U10 · Modo trazabilidad global.** Un interruptor en la barra superior, no dentro de una pantalla,
+porque afecta a todas: es el gesto de "mostrame qué está respaldado y qué no".
+
+> **Decisión — un solo envoltorio, y la ficha que ya existía.** `<TraceableValue>` es el único lugar
+> donde vive el resalte y la forma de abrir la ficha; si mañana cambia, cambia en toda la app a la
+> vez. El panel lateral muestra `TraceCard`, que se **exportó** desde `DerivationTree` en lugar de
+> reimplementarse: dos versiones de la misma ficha se desincronizan sin falta.
+
+> **Decisión — sin `dataPointId` no se envuelve nada.** Un número sin origen no debe parecer trazable.
+> Es deliberado: el modo sirve justamente para distinguir lo respaldado de lo que no lo está.
+
+La preferencia del modo se guarda en `localStorage` (es de visualización, se espera que sobreviva a
+navegar y recargar; si el storage está bloqueado arranca apagado y funciona igual). Migrados los 14
+valores del cuadro de movimiento, que traen su `dataPointId` en el `traces` que el backend ya devolvía.
+Los campos derivados por diferencia no llevan ficha: son un cálculo, no un dato cargado.
+
+**Verificación.** `typecheck` ✅, `build` ✅, `vitest` 32✅. Flujo completo probado contra la API real
+(no solo tipos): alta de departamentos con sus guardarraíles, apertura de período, carga de los dos
+cuadros con sus importes y cálculo. El primer departamento reproduce **$3,75** y existencia final
+**$11.560** (FX-P1) y la doble verificación cierra en las dos etapas. La ficha de trazabilidad de un
+valor del cuadro resuelve con su etiqueta, valor, autor, versiones e impactos. Falta la pasada visual
+en navegador: la extensión no quedó disponible en esta sesión.

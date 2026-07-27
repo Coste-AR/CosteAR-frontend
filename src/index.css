@@ -85,6 +85,57 @@ input[type='number'] {
   appearance: textfield;
 }
 
+/* ---------------------------------------------------------------------------
+ * SELECTS — un solo lugar para todos.
+ *
+ * La app tiene ~26 `<select>` sueltos en 20 archivos, cada uno con sus clases:
+ * el resultado era el desplegable gris del sistema operativo, que rompe con el
+ * resto de los campos. En vez de tocar los 20 archivos, se estilan acá: cambia
+ * TODA la app de una vez y lo nuevo nace bien por defecto.
+ *
+ * Se toma la misma forma que `Input` (borde, radio, foco granate) y se le suma
+ * lo propio de un desplegable: flecha propia en vez de la del SO, y cursor de
+ * mano, que es la señal de "esto se despliega".
+ *
+ * Va sin `@layer` a propósito pero con selector de baja especificidad, así
+ * cualquier clase de Tailwind puesta en el elemento le sigue ganando.
+ * --------------------------------------------------------------------------- */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--color-surface);
+  /* Flecha dibujada a mano (chevron) en color de texto suave. */
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23525860' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  padding-right: 2.1rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  color: var(--color-ink);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background-color 0.15s;
+}
+
+select:hover:not(:disabled) {
+  border-color: var(--color-line-strong);
+  background-color: var(--color-surface-alt);
+}
+
+select:focus {
+  border-color: var(--color-granate);
+  box-shadow: 0 0 0 3px rgb(74 21 27 / 0.08);
+}
+
+select:disabled {
+  background-color: var(--color-surface-alt);
+  color: var(--color-ink-soft);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 /* Scrollbar sobria coherente con la estética premium. */
 ::-webkit-scrollbar {
   width: 10px;

@@ -194,7 +194,12 @@ function TreeRow({
 
 // ── Ficha del dato (D.2) ─────────────────────────────────────────────────────
 
-function TraceCard({ dataPointId, period, onClose }: { dataPointId: string; period?: string; onClose: () => void }) {
+/**
+ * Ficha de trazabilidad de un dato. Se exporta para que el modo trazabilidad
+ * global (U10) muestre EXACTAMENTE esta ficha desde cualquier pantalla, en vez
+ * de mantener dos versiones que se desincronizan.
+ */
+export function TraceCard({ dataPointId, period, onClose }: { dataPointId: string; period?: string; onClose: () => void }) {
   const { data: trace, isLoading, error } = useDataPointTrace(dataPointId);
   const pedirRevision = usePedirRevision();
   const [revisionOpen, setRevisionOpen] = useState(false);

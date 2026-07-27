@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link } from '@tanstack/react-router';
 import {
-  ArrowLeft, Calculator, Package, Users, Factory, Activity,
-  TrendingUp, BarChart2, CheckCircle2, History, GitCompare,
+  ArrowLeft, Calculator, CheckCircle2,
   Download, Upload, Lock,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
@@ -42,10 +41,23 @@ import { DirectLaborTab } from './components/tabs/DirectLaborTab';
 import { SalesTab } from './components/tabs/SalesTab';
 import { ResultTab, EmptyResult } from './components/tabs/ResultTab';
 import { HistoryTab } from './components/tabs/HistoryTab';
+import { CostingSystemBadge } from './components/shared/CostingSystemBadge';
+import { DepartmentsTab } from './components/process/DepartmentsTab';
+import { UnitMovementTab } from './components/process/UnitMovementTab';
+import { EquivalentProductionTab } from './components/process/EquivalentProductionTab';
+import { JointCostsTab } from './components/process/JointCostsTab';
+import { ProductionCostReportView } from './components/process/ProductionCostReportView';
+import { useProcessDepartments } from './process-costing-hooks';
+import {
+  tabsFor,
+  defaultTabFor,
+  type SectionTab,
+} from './components/tabs/tab-definitions';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type SectionTab = 'raw-material' | 'direct-labor' | 'indirect-costs' | 'sales' | 'result' | 'history' | 'simulate' | 'comparison';
+// El juego de pestañas y su tipo viven en `components/tabs/tab-definitions.ts`:
+// dependen del sistema de costeo (U02) y no de esta pantalla.
 
 const IMPORT_REVIEW_SECTIONS = [
   { key: 'rawMaterialConfig', label: 'Materia Prima' },
@@ -109,6 +121,40 @@ export function CostStructurePage() {
   const readOnly = selectedPeriod?.status === 'CLOSED';
 
   const [activeTab, setActiveTab] = useState<SectionTab>('raw-material');
+  // La estructura llega después del primer render, y al cambiar el sistema de
+  // costeo el juego de pestañas cambia entero: si la que estaba activa no existe
+  // en el sistema nuevo, la pantalla quedaría en blanco. Se cae a la primera del
+  // set (U02).
+  const costingSystem = structure?.costingSystem;
+  const isProcesses = costingSystem === 'PROCESSES';
+
+  // La cadena de departamentos se consulta una sola vez en la página y se pasa a
+  // las cuatro pestañas: todas la necesitan y así comparten el mismo dato.
+  const { data: processData } = useProcessDepartments(id, isProcesses);
+  // El `?? []` tiene que ir memoizado: sin esto, cada render crea un array nuevo
+  // y el efecto de abajo —que lo tiene como dependencia— se dispara siempre.
+  const processDepartments = useMemo(
+    () => processData?.departments ?? [],
+    [processData?.departments],
+  );
+  const [processDeptId, setProcessDeptId] = useState<string | null>(null);
+
+  // Al entrar (o al quedar apuntando a un departamento que se dio de baja) se
+  // cae al primero de la cadena, para que las pestañas nunca queden en blanco.
+  useEffect(() => {
+    if (processDepartments.length === 0) return;
+    if (!processDeptId || !processDepartments.some((d) => d.id === processDeptId)) {
+      setProcessDeptId(processDepartments[0]!.id);
+    }
+  }, [processDepartments, processDeptId]);
+
+  useEffect(() => {
+    if (!costingSystem) return;
+    const disponibles = tabsFor(costingSystem);
+    if (!disponibles.some((t) => t.id === activeTab)) {
+      setActiveTab(defaultTabFor(costingSystem));
+    }
+  }, [costingSystem, activeTab]);
   const [result,    setResult]    = useState<{ result: CalculationResult; calculationId: string } | null>(null);
   const [error,     setError]     = useState<string | null>(null);
   const [importedDefaults, setImportedDefaults] = useState<ImportedExcelData | null>(null);
@@ -277,6 +323,13 @@ export function CostStructurePage() {
             <span className="inline-flex items-center self-start rounded-full border border-line bg-surface-alt px-2.5 py-0.5 text-[10.5px] font-medium uppercase tracking-wide text-ink-soft">
               Captación: continua
             </span>
+            {structure && (
+              <CostingSystemBadge
+                structureId={id}
+                costingSystem={structure.costingSystem ?? 'ORDERS'}
+                readOnly={readOnly}
+              />
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -375,18 +428,7 @@ export function CostStructurePage() {
 
       {/* Tab bar — con gap entre pestañas para evitar errar de botón al cargar datos */}
       <div className="mb-8 flex gap-4 overflow-x-auto border-b border-line">
-        {(
-          [
-            { id: 'raw-material'    as SectionTab, label: 'Materia Prima',        icon: Package,    configKey: 'mp'    as const },
-            { id: 'direct-labor'    as SectionTab, label: 'Mano de Obra',          icon: Users,      configKey: 'mod'   as const },
-            { id: 'indirect-costs'  as SectionTab, label: 'Costos Indirectos',     icon: Factory,    configKey: 'cip'   as const },
-            { id: 'sales'           as SectionTab, label: 'Venta',                 icon: TrendingUp, configKey: 'sales' as const },
-            { id: 'result'          as SectionTab, label: 'Resultado',             icon: BarChart2,  configKey: undefined },
-            { id: 'simulate'        as SectionTab, label: 'Simulador',             icon: Activity,   configKey: undefined },
-            { id: 'comparison'      as SectionTab, label: 'Comparación',           icon: GitCompare, configKey: undefined },
-            { id: 'history'         as SectionTab, label: 'Historial',             icon: History,    configKey: undefined },
-          ] as { id: SectionTab; label: string; icon: typeof Package; configKey: keyof typeof configured | undefined }[]
-        ).map(({ id: tabId, label, icon: Icon, configKey }) => {
+        {tabsFor(structure?.costingSystem).map(({ id: tabId, label, icon: Icon, configKey }) => {
           const isDone = configKey ? configured[configKey] : !!shown;
           return (
             <button
@@ -504,7 +546,19 @@ export function CostStructurePage() {
         </Frozen>
       </div>
 
-      {activeTab === 'result' && (
+      {/* En Procesos el resultado es el informe de costos por departamento, no el
+          estado de costos de Órdenes: son dos informes distintos. */}
+      {activeTab === 'result' && isProcesses && (
+        <ProductionCostReportView
+          structureId={id}
+          periodId={periodId}
+          departments={processDepartments}
+          deptId={processDeptId}
+          onDeptChange={setProcessDeptId}
+        />
+      )}
+
+      {activeTab === 'result' && !isProcesses && (
         <div className="space-y-4">
           {incompletitud?.incompleto && (
             <IncompleteNotice
@@ -526,7 +580,7 @@ export function CostStructurePage() {
             period={structure?.period}
           />
           {shown
-            ? <ResultTab result={shown.result} companyId={structure?.companyId} period={structure?.period} incompleto={incompletitud?.incompleto} />
+            ? <ResultTab result={shown.result} companyId={structure?.companyId} period={structure?.period} incompleto={incompletitud?.incompleto} runId={effectiveRunId} />
             : <EmptyResult />}
         </div>
       )}
@@ -541,6 +595,43 @@ export function CostStructurePage() {
 
       {activeTab === 'history' && (
         <HistoryTab structureId={id} />
+      )}
+
+      {/* Costeo por Procesos (U04-U08). */}
+      {activeTab === 'process-departments' && (
+        <DepartmentsTab structureId={id} readOnly={readOnly} />
+      )}
+
+      {activeTab === 'process-movement' && (
+        <UnitMovementTab
+          structureId={id}
+          periodId={periodId}
+          departments={processDepartments}
+          deptId={processDeptId}
+          onDeptChange={setProcessDeptId}
+          readOnly={readOnly}
+        />
+      )}
+
+      {activeTab === 'process-equivalent' && (
+        <EquivalentProductionTab
+          structureId={id}
+          periodId={periodId}
+          departments={processDepartments}
+          deptId={processDeptId}
+          onDeptChange={setProcessDeptId}
+        />
+      )}
+
+      {activeTab === 'process-joint-costs' && (
+        <JointCostsTab
+          structureId={id}
+          periodId={periodId}
+          departments={processDepartments}
+          deptId={processDeptId}
+          onDeptChange={setProcessDeptId}
+          readOnly={readOnly}
+        />
       )}
     </AppShell>
   );

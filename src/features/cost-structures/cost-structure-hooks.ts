@@ -124,6 +124,25 @@ export function useUpdateSales(id: string) {
   });
 }
 
+/**
+ * Cambia el sistema de costeo de una estructura ya creada (U01).
+ *
+ * El backend solo lo permite mientras la estructura NO tenga cálculos: si ya los
+ * tiene, devuelve un 422 accionable que la pantalla muestra tal cual. Cambiar el
+ * sistema cambia qué se carga y cómo se acumula el costo, así que al volver hay
+ * que refrescar la estructura entera.
+ */
+export function useUpdateCostingSystem(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (costingSystem: 'ORDERS' | 'PROCESSES') => {
+      const res = await api.patch(`/cost-structures/${id}/costing-system`, { costingSystem });
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['cost-structures', id] }),
+  });
+}
+
 export function useCalculate(id: string) {
   const qc = useQueryClient();
   return useMutation({
