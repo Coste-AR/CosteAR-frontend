@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { TraceCard } from '@/features/cost-structures/DerivationTree';
+import { DerivationCard } from '@/components/layout/DerivationCard';
 import { useTraceMode } from '@/stores/trace-mode-store';
 
 /**
@@ -16,18 +17,20 @@ import { useTraceMode } from '@/stores/trace-mode-store';
  */
 export function TraceDrawer() {
   const dataPointId = useTraceMode((s) => s.openDataPointId);
+  const derivation = useTraceMode((s) => s.openDerivation);
   const closeTrace = useTraceMode((s) => s.closeTrace);
+  const abierto = !!dataPointId || !!derivation;
 
   useEffect(() => {
-    if (!dataPointId) return;
+    if (!abierto) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeTrace();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [dataPointId, closeTrace]);
+  }, [abierto, closeTrace]);
 
-  if (!dataPointId) return null;
+  if (!abierto) return null;
 
   return (
     <>
@@ -44,10 +47,12 @@ export function TraceDrawer() {
         <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
-              Trazabilidad del dato
+              {derivation ? 'Cómo se calculó' : 'Trazabilidad del dato'}
             </div>
             <p className="mt-0.5 text-[12.5px] text-ink-soft">
-              De dónde sale este número y quién lo cargó.
+              {derivation
+                ? 'La fórmula que se usó y los números que entraron en ella.'
+                : 'De dónde sale este número y quién lo cargó.'}
             </p>
           </div>
           <button
@@ -61,7 +66,11 @@ export function TraceDrawer() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
-          <TraceCard dataPointId={dataPointId} onClose={closeTrace} />
+          {derivation ? (
+            <DerivationCard detail={derivation} />
+          ) : (
+            <TraceCard dataPointId={dataPointId!} onClose={closeTrace} />
+          )}
         </div>
       </aside>
     </>

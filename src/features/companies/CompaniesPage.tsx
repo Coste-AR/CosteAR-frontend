@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import {
@@ -77,6 +77,24 @@ function companyHealth(structCount: number): {
 export function CompaniesPage() {
   const { data: companies = [], isLoading } = useCompanies();
   const [showForm, setShowForm] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Abrir el formulario y LLEVARLO al viewport.
+   *
+   * El botón vive en el encabezado y el formulario se monta abajo: con la lista
+   * de clientes larga, se abría fuera de pantalla y parecía que el botón no
+   * hacía nada. El scroll espera un frame porque el nodo todavía no existe en el
+   * momento del click.
+   */
+  const abrirFormulario = () => {
+    const abriendo = !showForm;
+    setShowForm(abriendo);
+    if (!abriendo) return;
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
   const deleteCompany = useDeleteCompany();
 
   const handleDelete = async (companyId: string, name: string) => {
@@ -174,12 +192,16 @@ export function CompaniesPage() {
             cartera
           </h2>
         </div>
-        <Button onClick={() => setShowForm((v) => !v)} className="gap-2">
+        <Button onClick={abrirFormulario} className="gap-2">
           <Plus className="size-4" /> Nuevo cliente
         </Button>
       </div>
 
-      {showForm && <NewCompanyForm onDone={() => setShowForm(false)} />}
+      {showForm && (
+        <div ref={formRef}>
+          <NewCompanyForm onDone={() => setShowForm(false)} />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-12">

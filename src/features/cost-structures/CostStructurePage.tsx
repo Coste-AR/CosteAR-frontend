@@ -580,7 +580,7 @@ export function CostStructurePage() {
             period={structure?.period}
           />
           {shown
-            ? <ResultTab result={shown.result} companyId={structure?.companyId} period={structure?.period} incompleto={incompletitud?.incompleto} />
+            ? <ResultTab result={shown.result} companyId={structure?.companyId} period={structure?.period} incompleto={incompletitud?.incompleto} runId={effectiveRunId} />
             : <EmptyResult />}
         </div>
       )}
