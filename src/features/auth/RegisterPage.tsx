@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { useRegister, type RegisterPayload, type ProfessionalType } from './auth-hooks';
 import { apiErrorMessage, api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import toast from 'react-hot-toast';
 
 const STEPS = ['Cuenta', 'Datos profesionales', 'Tu cartera', 'Preferencias'] as const;
 
@@ -61,6 +62,8 @@ export function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [emailTaken, setEmailTaken] = useState(false);
   const [cuitTaken, setCuitTaken] = useState(false);
+  const [emailCheckFailed, setEmailCheckFailed] = useState(false);
+  const [cuitCheckFailed, setCuitCheckFailed] = useState(false);
   const emailCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cuitCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -73,34 +76,52 @@ export function RegisterPage() {
 
   const CUIT_COMPLETE = /^\d{2}-\d{8}-\d$/;
 
+  const runEmailCheck = async (val: string) => {
+    try {
+      const res = await api.get<{ data: { available: boolean } }>(`/auth/check-email?email=${encodeURIComponent(val)}`);
+      setEmailTaken(!res.data.data.available);
+      setEmailCheckFailed(false);
+    } catch {
+      // La verificación en sí falló (red, 500, etc.) — no sabemos si el email
+      // está disponible o no. No podemos asumir que sí: eso dejaría avanzar a
+      // la usuaria como si estuviera confirmado, para recién enterarse del
+      // conflicto en el submit final con un error crudo.
+      setEmailCheckFailed(true);
+      toast.error('No pudimos verificar el email. Revisá tu conexión y reintentá.');
+    }
+  };
+
+  const runCuitCheck = async (formatted: string) => {
+    try {
+      const res = await api.get<{ data: { available: boolean } }>(`/auth/check-cuit?cuit=${encodeURIComponent(formatted)}`);
+      setCuitTaken(!res.data.data.available);
+      setCuitCheckFailed(false);
+    } catch {
+      setCuitCheckFailed(true);
+      toast.error('No pudimos verificar el CUIT. Revisá tu conexión y reintentá.');
+    }
+  };
+
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     const finalValue = key === 'cuit' ? formatCuit(value as string) as Draft[K] : value;
     setDraft((d) => ({ ...d, [key]: finalValue }));
 
     if (key === 'email') {
       setEmailTaken(false);
+      setEmailCheckFailed(false);
       if (emailCheckRef.current) clearTimeout(emailCheckRef.current);
       const val = value as string;
       if (/\S+@\S+\.\S+/.test(val)) {
-        emailCheckRef.current = setTimeout(async () => {
-          try {
-            const res = await api.get<{ data: { available: boolean } }>(`/auth/check-email?email=${encodeURIComponent(val)}`);
-            setEmailTaken(!res.data.data.available);
-          } catch { }
-        }, 600);
+        emailCheckRef.current = setTimeout(() => { void runEmailCheck(val); }, 600);
       }
     }
     if (key === 'cuit') {
       setCuitTaken(false);
+      setCuitCheckFailed(false);
       if (cuitCheckRef.current) clearTimeout(cuitCheckRef.current);
       const formatted = formatCuit(value as string);
       if (CUIT_COMPLETE.test(formatted)) {
-        cuitCheckRef.current = setTimeout(async () => {
-          try {
-            const res = await api.get<{ data: { available: boolean } }>(`/auth/check-cuit?cuit=${encodeURIComponent(formatted)}`);
-            setCuitTaken(!res.data.data.available);
-          } catch { }
-        }, 400);
+        cuitCheckRef.current = setTimeout(() => { void runCuitCheck(formatted); }, 400);
       }
     }
   };
@@ -113,7 +134,9 @@ export function RegisterPage() {
       validateCuit(draft.cuit) &&
       passwordStrength(draft.password) === 4 &&
       !emailTaken &&
-      !cuitTaken
+      !cuitTaken &&
+      !emailCheckFailed &&
+      !cuitCheckFailed
     );
     if (step === 1) return !!draft.professionalType;
     if (step === 2) return draft.hasClients !== null;
@@ -202,7 +225,18 @@ export function RegisterPage() {
         <Stepper step={step} />
 
         <div className="mt-8 space-y-6">
-          {step === 0 && <StepAccount draft={draft} set={set} emailTaken={emailTaken} cuitTaken={cuitTaken} />}
+          {step === 0 && (
+            <StepAccount
+              draft={draft}
+              set={set}
+              emailTaken={emailTaken}
+              cuitTaken={cuitTaken}
+              emailCheckFailed={emailCheckFailed}
+              cuitCheckFailed={cuitCheckFailed}
+              onRetryEmail={() => runEmailCheck(draft.email)}
+              onRetryCuit={() => runCuitCheck(draft.cuit)}
+            />
+          )}
           {step === 1 && <StepProfessional draft={draft} set={set} />}
           {step === 2 && <StepClients draft={draft} set={set} />}
           {step === 3 && <StepPreferences draft={draft} set={set} />}
@@ -314,7 +348,25 @@ function validateCuit(cuit: string): boolean {
   return Number(digits[10]) === expectedVerifier;
 }
 
-function StepAccount({ draft, set, emailTaken, cuitTaken }: { draft: Draft; set: SetFn; emailTaken: boolean; cuitTaken: boolean }) {
+function StepAccount({
+  draft,
+  set,
+  emailTaken,
+  cuitTaken,
+  emailCheckFailed,
+  cuitCheckFailed,
+  onRetryEmail,
+  onRetryCuit,
+}: {
+  draft: Draft;
+  set: SetFn;
+  emailTaken: boolean;
+  cuitTaken: boolean;
+  emailCheckFailed: boolean;
+  cuitCheckFailed: boolean;
+  onRetryEmail: () => void;
+  onRetryCuit: () => void;
+}) {
   const emailInvalid = draft.email.length > 0 && !EMAIL_RE.test(draft.email);
   const cuitDigits = draft.cuit.replace(/\D/g, '');
   const cuitTyping = cuitDigits.length > 0 && cuitDigits.length < 11;
@@ -337,6 +389,12 @@ function StepAccount({ draft, set, emailTaken, cuitTaken }: { draft: Draft; set:
         {emailTaken && !emailInvalid && (
           <p className="mt-1 text-[12px] text-danger">Ya existe una cuenta con ese email. <Link to="/login" className="underline">Iniciá sesión</Link></p>
         )}
+        {emailCheckFailed && (
+          <p className="mt-1 text-[12px] text-danger">
+            No pudimos verificar el email.{' '}
+            <button type="button" onClick={onRetryEmail} className="underline font-semibold">Reintentar</button>
+          </p>
+        )}
       </div>
       <div>
         <Input label="CUIT/CUIL" placeholder="20-12345678-9" value={draft.cuit} onChange={(e) => set('cuit', e.target.value)} />
@@ -348,6 +406,12 @@ function StepAccount({ draft, set, emailTaken, cuitTaken }: { draft: Draft; set:
         )}
         {cuitTaken && (
           <p className="mt-1 text-[12px] text-danger">Este CUIT ya está registrado. <Link to="/login" className="underline">Iniciá sesión</Link></p>
+        )}
+        {cuitCheckFailed && (
+          <p className="mt-1 text-[12px] text-danger">
+            No pudimos verificar el CUIT.{' '}
+            <button type="button" onClick={onRetryCuit} className="underline font-semibold">Reintentar</button>
+          </p>
         )}
       </div>
       <div className="space-y-2">
