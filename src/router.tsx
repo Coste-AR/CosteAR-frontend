@@ -139,9 +139,14 @@ const empresaPortalRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/portal',
   beforeLoad: () => {
-    const { accessToken, initializing } = useAuthStore.getState();
+    const { accessToken, initializing, user } = useAuthStore.getState();
     if (!accessToken && !initializing) throw redirect({ to: '/login' });
-    // No bloquear: el costista que llega acá sería raro pero se lo redirige al dash
+    // Los operarios de empresa TAMBIÉN tienen que aceptar los Términos — es
+    // el mismo contrato que ya le pedimos al costista. Si llegan derecho acá
+    // (bookmark, o después de cambiar la contraseña) sin pasar por
+    // requireAuth(), este es el único lugar que los agarra.
+    if (user?.needsTermsAcceptance) throw redirect({ to: '/accept-terms' });
+    // No bloquear por rol: el costista que llega acá sería raro pero se lo redirige al dash
   },
   component: EmpresaPortalPage,
 });
