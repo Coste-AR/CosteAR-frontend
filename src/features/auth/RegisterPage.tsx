@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Check, Plus, Trash2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Check, Plus, Trash2, ArrowLeft, ArrowRight, FileText, X } from 'lucide-react';
 import { CosteARLogo } from '@/components/layout/CosteARLogo';
 import { InteractiveDotGrid } from '@/components/layout/InteractiveDotGrid';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { useRegister, type RegisterPayload, type ProfessionalType } from './auth-hooks';
+import { useRegister, useCurrentTerms, type RegisterPayload, type ProfessionalType } from './auth-hooks';
 import { apiErrorMessage, api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -38,6 +39,7 @@ type Draft = {
   hasClients: boolean | null;
   clients: ClientDraft[];
   marginThresholdPct: number;
+  acceptedTerms: boolean;
 };
 
 const EMPTY: Draft = {
@@ -52,11 +54,13 @@ const EMPTY: Draft = {
   hasClients: null,
   clients: [],
   marginThresholdPct: 15,
+  acceptedTerms: false,
 };
 
 export function RegisterPage() {
   const navigate = useNavigate();
   const register = useRegister();
+  const { data: terms, isLoading: termsLoading, isError: termsFailed } = useCurrentTerms();
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +68,7 @@ export function RegisterPage() {
   const [cuitTaken, setCuitTaken] = useState(false);
   const [emailCheckFailed, setEmailCheckFailed] = useState(false);
   const [cuitCheckFailed, setCuitCheckFailed] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const emailCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cuitCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -145,6 +150,10 @@ export function RegisterPage() {
 
   const submit = async () => {
     setError(null);
+    if (!draft.acceptedTerms || !terms) {
+      setError('Tenés que aceptar los Términos y Condiciones para crear tu cuenta.');
+      return;
+    }
     const payload: RegisterPayload = {
       name: draft.name,
       email: draft.email,
@@ -164,6 +173,8 @@ export function RegisterPage() {
               cuit: c.cuit.trim() || undefined,
             }))
         : undefined,
+      acceptedTerms: true,
+      termsVersionId: terms.id,
     };
     try {
       await register.mutateAsync(payload);
@@ -239,7 +250,16 @@ export function RegisterPage() {
           )}
           {step === 1 && <StepProfessional draft={draft} set={set} />}
           {step === 2 && <StepClients draft={draft} set={set} />}
-          {step === 3 && <StepPreferences draft={draft} set={set} />}
+          {step === 3 && (
+            <StepPreferences
+              draft={draft}
+              set={set}
+              terms={terms}
+              termsLoading={termsLoading}
+              termsFailed={termsFailed}
+              onOpenTerms={() => setShowTerms(true)}
+            />
+          )}
         </div>
 
         {error && (
@@ -261,7 +281,12 @@ export function RegisterPage() {
               Continuar <ArrowRight className="size-4" />
             </Button>
           ) : (
-            <Button onClick={submit} loading={register.isPending} className="rounded-full px-6 py-2.5">
+            <Button
+              onClick={submit}
+              loading={register.isPending}
+              disabled={!draft.acceptedTerms || !terms}
+              className="rounded-full px-6 py-2.5"
+            >
               Crear cuenta
             </Button>
           )}
@@ -273,6 +298,40 @@ export function RegisterPage() {
             Ingresá
           </Link>
         </p>
+      </div>
+
+      {showTerms && terms && createPortal(
+        <TermsModal terms={terms} onClose={() => setShowTerms(false)} />,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+function TermsModal({ terms, onClose }: { terms: { version: number; content: string }; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl bg-surface shadow-2xl animate-rise"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-line px-6 py-4">
+          <h3 className="flex items-center gap-2 text-[15px] font-bold text-ink">
+            <FileText className="size-4 text-granate" /> Términos y Condiciones (v{terms.version})
+          </h3>
+          <button type="button" onClick={onClose} className="text-ink-soft hover:text-ink" aria-label="Cerrar">
+            <X className="size-5" />
+          </button>
+        </div>
+        <div className="overflow-y-auto px-6 py-5 text-[13px] leading-relaxed text-ink whitespace-pre-wrap">
+          {terms.content}
+        </div>
+        <div className="border-t border-line px-6 py-4">
+          <Button onClick={onClose} className="w-full">Cerrar</Button>
+        </div>
       </div>
     </div>
   );
@@ -562,7 +621,21 @@ function StepClients({ draft, set }: { draft: Draft; set: SetFn }) {
   );
 }
 
-function StepPreferences({ draft, set }: { draft: Draft; set: SetFn }) {
+function StepPreferences({
+  draft,
+  set,
+  terms,
+  termsLoading,
+  termsFailed,
+  onOpenTerms,
+}: {
+  draft: Draft;
+  set: SetFn;
+  terms?: { id: string; version: number };
+  termsLoading: boolean;
+  termsFailed: boolean;
+  onOpenTerms: () => void;
+}) {
   return (
     <>
       <h2 className="text-xl font-bold text-ink">Preferencias</h2>
@@ -578,6 +651,36 @@ function StepPreferences({ draft, set }: { draft: Draft; set: SetFn }) {
       <div className="rounded-md bg-surface-alt p-4 text-[13px] text-ink-soft">
         Vas a poder activar la <strong className="text-ink">verificación en dos pasos (2FA)</strong> desde
         tu perfil una vez dentro, para máxima seguridad de tu cuenta.
+      </div>
+
+      <div className="rounded-xl border border-line bg-surface-alt p-4">
+        {termsFailed ? (
+          <p className="text-[12.5px] font-semibold text-danger">
+            No pudimos cargar los Términos y Condiciones. Recargá la página para poder continuar.
+          </p>
+        ) : (
+          <label className="flex items-start gap-3 text-[13px] text-ink">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 shrink-0 accent-granate"
+              checked={draft.acceptedTerms}
+              disabled={termsLoading || !terms}
+              onChange={(e) => set('acceptedTerms', e.target.checked)}
+            />
+            <span>
+              Leí y acepto los{' '}
+              <button
+                type="button"
+                onClick={onOpenTerms}
+                disabled={!terms}
+                className="font-bold text-granate underline underline-offset-2 hover:text-action disabled:opacity-50"
+              >
+                Términos y Condiciones
+              </button>
+              {terms ? ` (v${terms.version})` : ''}. Sin aceptarlos no podés crear la cuenta.
+            </span>
+          </label>
+        )}
       </div>
     </>
   );

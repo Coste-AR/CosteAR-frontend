@@ -26,6 +26,7 @@ import { PropagacionPage } from '@/features/propagacion/PropagacionPage';
 import { NotFoundPage } from '@/features/not-found/NotFoundPage';
 import { AutomatizacionPage } from '@/features/automatizacion/AutomatizacionPage';
 import { ChangePasswordPage } from '@/features/auth/ChangePasswordPage';
+import { AcceptTermsPage } from '@/features/auth/AcceptTermsPage';
 import { LandingPage } from '@/features/landing/LandingPage';
 import { TrazabilidadDatoPage, TrazabilidadCalculoPage } from '@/features/trazabilidad/TrazabilidadPages';
 
@@ -44,6 +45,12 @@ function requireAuth() {
   // Primer login: operador debe cambiar su contraseña
   if (user?.mustChangePassword) {
     throw redirect({ to: '/change-password' });
+  }
+  // Términos y condiciones sin aceptar (nuevos o versión republicada) — nadie
+  // navega a ningún lado hasta aceptar. Va después de mustChangePassword: si
+  // hace falta las dos cosas, primero asegurar la cuenta, después el contrato.
+  if (user?.needsTermsAcceptance) {
+    throw redirect({ to: '/accept-terms' });
   }
   // Los operadores de empresa solo tienen acceso al portal
   if (user?.role === 'EMPRESA_OPERATOR') {
@@ -94,6 +101,17 @@ const changePasswordRoute = createRoute({
   component: ChangePasswordPage,
 });
 
+// Aceptación obligatoria de Términos y Condiciones (nuevos o versión republicada).
+const acceptTermsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/accept-terms',
+  beforeLoad: () => {
+    const { accessToken, initializing } = useAuthStore.getState();
+    if (!accessToken && !initializing) throw redirect({ to: '/login' });
+  },
+  component: AcceptTermsPage,
+});
+
 // Trazabilidad — páginas completas que se abren en pestaña nueva (mismo layout,
 // mismo login). Formato comprobante, imprimibles (Parte 2.3).
 const trazaDatoRoute = createRoute({
@@ -121,9 +139,14 @@ const empresaPortalRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/portal',
   beforeLoad: () => {
-    const { accessToken, initializing } = useAuthStore.getState();
+    const { accessToken, initializing, user } = useAuthStore.getState();
     if (!accessToken && !initializing) throw redirect({ to: '/login' });
-    // No bloquear: el costista que llega acá sería raro pero se lo redirige al dash
+    // Los operarios de empresa TAMBIÉN tienen que aceptar los Términos — es
+    // el mismo contrato que ya le pedimos al costista. Si llegan derecho acá
+    // (bookmark, o después de cambiar la contraseña) sin pasar por
+    // requireAuth(), este es el único lugar que los agarra.
+    if (user?.needsTermsAcceptance) throw redirect({ to: '/accept-terms' });
+    // No bloquear por rol: el costista que llega acá sería raro pero se lo redirige al dash
   },
   component: EmpresaPortalPage,
 });
@@ -148,6 +171,7 @@ const routeTree = rootRoute.addChildren([
   propagacionRoute,
   automatizacionRoute,
   changePasswordRoute,
+  acceptTermsRoute,
   empresaPortalRoute,
   trazaDatoRoute,
   trazaCalculoRoute,

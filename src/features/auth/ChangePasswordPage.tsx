@@ -38,8 +38,12 @@ export function ChangePasswordPage() {
     setError(null);
     try {
       await setFirstPassword.mutateAsync(password);
-      // Redirigir según el rol
-      if (user?.role === 'EMPRESA_OPERATOR') {
+      // needsTermsAcceptance ya venía en el user del login (antes de este
+      // cambio de contraseña) — si hace falta, va primero: ver los Términos
+      // antes que el portal/dashboard, no después.
+      if (user?.needsTermsAcceptance) {
+        await navigate({ to: '/accept-terms' });
+      } else if (user?.role === 'EMPRESA_OPERATOR') {
         await navigate({ to: '/portal' });
       } else {
         await navigate({ to: '/dashboard' });

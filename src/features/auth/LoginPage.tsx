@@ -53,6 +53,8 @@ export function LoginPage() {
       const result = await login.mutateAsync(values);
       if (result?.user?.mustChangePassword) {
         await navigate({ to: '/change-password' });
+      } else if (result?.user?.needsTermsAcceptance) {
+        await navigate({ to: '/accept-terms' });
       } else if (result?.user?.role === 'ADMIN') {
         window.location.href = 'http://localhost:5176';
       } else {
