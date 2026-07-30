@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Calculator, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import toast from 'react-hot-toast';
 
 export function EmptyResult() {
   return (
@@ -113,6 +114,7 @@ export function ResultTab({ result, companyId, period, incompleto, runId }: { re
       pdf.save(`Reporte_Costos_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('Error al exportar PDF:', error);
+      toast.error('No se pudo exportar el PDF. Intentá de nuevo.');
     }
   };
 

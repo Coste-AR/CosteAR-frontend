@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import toast from "react-hot-toast";
 import {
   ClipboardCheck,
   CheckCircle2,
@@ -48,6 +49,16 @@ export function ValidacionesPage() {
         ? `Aprobaste ${res.approved} ${res.approved === 1 ? "entrada" : "entradas"} de confianza alta. ${res.skipped > 0 ? `Quedan ${res.skipped} para revisar a mano.` : ""}`
         : "No había entradas de confianza alta para aprobar en bloque.",
     );
+    // Igual que en la revisión individual: aprobar no garantiza que el dato
+    // se haya aplicado a la estructura (Costeo por Procesos, período
+    // cerrado). En bloque es más fácil no darse cuenta — se aprueban varias
+    // de una y el mensaje de éxito de arriba tapaba cualquier problema.
+    if (res.populationWarnings > 0) {
+      toast(
+        `${res.populationWarnings} de las aprobadas no se pudo aplicar automáticamente a su estructura — revisá /admin/system-alerts o el detalle de cada una.`,
+        { icon: "⚠️", duration: 10000 },
+      );
+    }
   };
 
   const [reviewing, setReviewing] = useState<{
@@ -59,12 +70,15 @@ export function ValidacionesPage() {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [correctedType, setCorrectedType] = useState<string>("");
   const [correctedSection, setCorrectedSection] = useState<string>("");
+  const [processDepartmentId, setProcessDepartmentId] = useState<
+    string | null
+  >(null);
 
   const handleReview = async (
     status: "APPROVED" | "REJECTED" | "CORRECTED",
   ) => {
     if (!reviewing) return;
-    await review.mutateAsync({
+    const result = await review.mutateAsync({
       entryId: reviewing.entry.id,
       status,
       note: note || undefined,
@@ -75,12 +89,25 @@ export function ValidacionesPage() {
         status === "CORRECTED" && correctedSection
           ? correctedSection
           : undefined,
+      processDepartmentId:
+        status !== "REJECTED" && processDepartmentId
+          ? processDepartmentId
+          : undefined,
     });
+    // El estado se guardó bien (si no, mutateAsync ya hubiera tirado), pero
+    // el dato puede no haberse aplicado a la estructura (ej. Costeo por
+    // Procesos, o período cerrado) — antes esto solo se veía revisando
+    // alertas de admin. Duración larga: es información que importa leer,
+    // no una confirmación de un click.
+    if (result.populationWarning) {
+      toast(result.populationWarning, { icon: "⚠️", duration: 8000 });
+    }
     setReviewing(null);
     setNote("");
     setCorrectedContent("");
     setCorrectedType("");
     setCorrectedSection("");
+    setProcessDepartmentId(null);
   };
 
   const byCompany = (data?.items ?? []).reduce<
@@ -204,8 +231,13 @@ export function ValidacionesPage() {
               setCorrectedType={setCorrectedType}
               correctedSection={correctedSection}
               setCorrectedSection={setCorrectedSection}
+              processDepartmentId={processDepartmentId}
+              setProcessDepartmentId={setProcessDepartmentId}
               setLightboxSrc={setLightboxSrc}
-              onCancel={() => setReviewing(null)}
+              onCancel={() => {
+                setReviewing(null);
+                setProcessDepartmentId(null);
+              }}
               onConfirm={() => handleReview(reviewing.action)}
               isPending={review.isPending}
             />

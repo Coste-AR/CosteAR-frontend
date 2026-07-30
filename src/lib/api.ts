@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { useAuthStore, getStoredRefreshToken } from '@/stores/auth-store';
+import { useAuthStore } from '@/stores/auth-store';
 
 /**
  * Cliente HTTP con refresh transparente. El access token vive en memoria
@@ -36,15 +36,16 @@ api.interceptors.request.use((config) => {
 
 async function doRefresh(): Promise<string | null> {
   try {
-    const storedRt = getStoredRefreshToken();
-    if (!storedRt) { useAuthStore.getState().clear(); return null; }
-    const res = await axios.post<{ data: { accessToken: string; refreshToken: string } }>(
+    // Sin body: el refresh token viaja SOLO en la cookie httpOnly, que el
+    // navegador adjunta solo gracias a withCredentials. No hay fallback a
+    // localStorage — ver la nota en stores/auth-store.ts.
+    const res = await axios.post<{ data: { accessToken: string } }>(
       `${API_BASE}/api/v1/auth/refresh`,
-      { refreshToken: storedRt },
+      {},
       { withCredentials: true },
     );
-    const { accessToken, refreshToken } = res.data.data;
-    useAuthStore.getState().setAuth(accessToken, useAuthStore.getState().user!, refreshToken);
+    const { accessToken } = res.data.data;
+    useAuthStore.getState().setAuth(accessToken, useAuthStore.getState().user!);
     return accessToken;
   } catch {
     useAuthStore.getState().clear();

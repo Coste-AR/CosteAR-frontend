@@ -126,7 +126,7 @@ export function UnitMovementTab({
   onDeptChange: (id: string) => void;
   readOnly: boolean;
 }) {
-  const { data, isLoading } = useUnitMovement(structureId, deptId, periodId);
+  const { data, isLoading, isError: isFetchError, error: fetchError } = useUnitMovement(structureId, deptId, periodId);
   const guardar = useSaveUnitMovement(structureId, deptId, periodId);
 
   const dept = departments.find((d) => d.id === deptId) ?? null;
@@ -139,6 +139,11 @@ export function UnitMovementTab({
   // Al cambiar de departamento o período se recarga lo guardado. `null` en la
   // base = campo nunca cargado, así que se muestra vacío y no como 0.
   useEffect(() => {
+    // Si el fetch falló no hay que pisar el formulario con blanco: eso se ve
+    // idéntico a "cuadro nunca cargado" y podría hacer que se vuelva a cargar
+    // algo que ya existe. Se deja el formulario como estaba y se muestra el
+    // error en su lugar (más abajo, antes del `return` principal).
+    if (isFetchError) return;
     const s = data?.saved;
     const v = (x: number | null | undefined) => (x == null ? '' : String(x));
     setForm({
@@ -163,7 +168,7 @@ export function UnitMovementTab({
       initialWipCostCif: v(s?.initialWipCostCif),
     });
     setError(null);
-  }, [data, deptId, periodId]);
+  }, [data, deptId, periodId, isFetchError]);
 
   const set = (campo: string) => (v: string) => setForm((f) => ({ ...f, [campo]: v }));
 
@@ -286,6 +291,23 @@ export function UnitMovementTab({
       <p className="py-10 text-center text-[13px] text-ink-soft">
         Primero cargá los departamentos del proceso en la pestaña «Departamentos».
       </p>
+    );
+  }
+  // Fetch falló: esto NO es "cuadro vacío" — son cosas distintas y hay que
+  // distinguirlas, así que se corta acá en vez de seguir al formulario en
+  // blanco (que se ve igual que un cuadro nunca cargado).
+  if (isFetchError) {
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <DepartmentSelector departments={departments} value={deptId} onChange={onDeptChange} />
+        </div>
+        <div className="rounded-lg border border-line bg-surface p-8 text-center">
+          <p className="text-[13px] text-ink-soft">
+            No se pudo cargar el cuadro de movimiento: {apiErrorMessage(fetchError)}
+          </p>
+        </div>
+      </div>
     );
   }
 

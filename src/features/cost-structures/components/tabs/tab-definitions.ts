@@ -4,6 +4,7 @@ import {
   Factory,
   GitCompare,
   History,
+  Inbox,
   Layers,
   Package,
   Scale,
@@ -36,6 +37,7 @@ export type OrdersTab =
 
 export type ProcessTab =
   | 'process-departments'
+  | 'process-pending'
   | 'process-movement'
   | 'process-equivalent'
   | 'process-joint-costs';
@@ -75,6 +77,7 @@ const ORDERS_TABS: TabDefinition[] = [
  */
 const PROCESS_TABS: TabDefinition[] = [
   { id: 'process-departments', label: 'Departamentos', icon: Layers },
+  { id: 'process-pending', label: 'Documentos pendientes', icon: Inbox },
   { id: 'process-movement', label: 'Movimiento de unidades', icon: Scale },
   { id: 'process-equivalent', label: 'Producción equivalente', icon: Split },
   { id: 'process-joint-costs', label: 'Costos conjuntos', icon: Factory },

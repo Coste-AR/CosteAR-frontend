@@ -6,8 +6,9 @@ import { Toaster } from 'react-hot-toast';
 import axios from 'axios';
 import { router } from './router';
 import { API_BASE, refreshAccessToken } from './lib/api';
-import { useAuthStore, getStoredRefreshToken, type AuthUser } from './stores/auth-store';
+import { useAuthStore, type AuthUser } from './stores/auth-store';
 import { CosteARLoadingScreen } from './components/layout/CosteARLoadingScreen';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -54,9 +55,6 @@ function AuthBootstrap({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const storedRt = getStoredRefreshToken();
-        if (!storedRt) { setInitialized(); return; }
-
         // Pasa por el refresh deduplicado de api.ts: en StrictMode este efecto
         // corre dos veces seguidas, y sin este singleton cada corrida dispara
         // su propia llamada a /auth/refresh con el mismo refresh token, lo que
@@ -88,11 +86,13 @@ function AuthBootstrap({ children }: { children: React.ReactNode }) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <Toaster position="top-center" toastOptions={{ duration: 4000, style: { background: '#1c1c1c', color: '#fff', fontSize: '13px', fontWeight: 'bold' } }} />
-      <AuthBootstrap>
-        <RouterProvider router={router} />
-      </AuthBootstrap>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Toaster position="top-center" toastOptions={{ duration: 4000, style: { background: '#1c1c1c', color: '#fff', fontSize: '13px', fontWeight: 'bold' } }} />
+        <AuthBootstrap>
+          <RouterProvider router={router} />
+        </AuthBootstrap>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );

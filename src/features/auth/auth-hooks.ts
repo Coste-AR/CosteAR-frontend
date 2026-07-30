@@ -3,7 +3,7 @@ import { api } from '@/lib/api';
 import { useAuthStore, type AuthUser } from '@/stores/auth-store';
 
 interface AuthResponse {
-  data: { user: AuthUser; accessToken: string; refreshToken?: string };
+  data: { user: AuthUser; accessToken: string };
 }
 
 export function useLogin() {
@@ -13,7 +13,7 @@ export function useLogin() {
       const res = await api.post<AuthResponse>('/auth/login', input);
       return res.data.data;
     },
-    onSuccess: (data) => setAuth(data.accessToken, data.user, data.refreshToken),
+    onSuccess: (data) => setAuth(data.accessToken, data.user),
   });
 }
 
@@ -61,7 +61,7 @@ export function useRegister() {
       const res = await api.post<AuthResponse>('/auth/register', input);
       return res.data.data;
     },
-    onSuccess: (data) => setAuth(data.accessToken, data.user, data.refreshToken),
+    onSuccess: (data) => setAuth(data.accessToken, data.user),
   });
 }
 
@@ -69,8 +69,8 @@ export function useLogout() {
   const clear = useAuthStore((s) => s.clear);
   return useMutation({
     mutationFn: async () => {
-      const { getStoredRefreshToken } = await import('@/stores/auth-store');
-      await api.post('/auth/logout', { refreshToken: getStoredRefreshToken() });
+      // Sin body: el refresh token viaja en la cookie httpOnly (withCredentials).
+      await api.post('/auth/logout');
     },
     onSettled: () => clear(),
   });
