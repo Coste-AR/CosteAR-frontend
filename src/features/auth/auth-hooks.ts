@@ -1,6 +1,49 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthStore, type AuthUser } from '@/stores/auth-store';
+
+export interface TermsVersion {
+  id: string;
+  version: number;
+  content: string;
+  createdAt: string;
+}
+
+/** Versión vigente de los Términos y Condiciones — pública, no requiere sesión. */
+export function useCurrentTerms() {
+  return useQuery({
+    queryKey: ['terms', 'current'],
+    queryFn: async () => {
+      const res = await api.get<{ data: TermsVersion }>('/terms/current');
+      return res.data.data;
+    },
+    staleTime: 60_000,
+  });
+}
+
+/** ¿El usuario logueado tiene que (re)aceptar la versión vigente? */
+export function useTermsStatus(enabled = true) {
+  return useQuery({
+    queryKey: ['terms', 'status'],
+    queryFn: async () => {
+      const res = await api.get<{ data: { needsAcceptance: boolean; currentVersion: TermsVersion | null } }>(
+        '/terms/status',
+      );
+      return res.data.data;
+    },
+    enabled,
+  });
+}
+
+export function useAcceptTerms() {
+  const patchUser = useAuthStore((s) => s.patchUser);
+  return useMutation({
+    mutationFn: async (termsVersionId: string) => {
+      await api.post('/terms/accept', { termsVersionId });
+    },
+    onSuccess: () => patchUser({ needsTermsAcceptance: false }),
+  });
+}
 
 interface AuthResponse {
   data: { user: AuthUser; accessToken: string };
@@ -52,6 +95,8 @@ export interface RegisterPayload {
   province: string;
   initialClients?: { name: string; industry?: string; cuit?: string }[];
   marginThresholdPct: number;
+  acceptedTerms: true;
+  termsVersionId: string;
 }
 
 export function useRegister() {

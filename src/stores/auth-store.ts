@@ -7,6 +7,7 @@ export interface AuthUser {
   role: string;
   avatarUrl?: string | null;
   mustChangePassword?: boolean;
+  needsTermsAcceptance?: boolean;
 }
 
 interface AuthState {
