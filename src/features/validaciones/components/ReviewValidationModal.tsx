@@ -1,8 +1,13 @@
-import { Building2, FileText } from 'lucide-react';
+import { useEffect } from 'react';
+import { Building2, FileText, Factory } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { parseAIAnalysis, fmt, DOC_TYPE_OPTIONS, SECTION_LABELS } from './helpers';
 import type { DataEntry } from '../validaciones-hooks';
+import { useProcessDepartments } from '@/features/cost-structures/process-costing-hooks';
+
+/** Solo estos tres tienen un lugar seguro donde acumular $ en Costeo por Procesos. */
+const PROCESS_COST_SECTIONS = new Set(['MATERIA_PRIMA', 'MANO_DE_OBRA', 'COSTOS_INDIRECTOS']);
 
 interface Props {
   reviewing: {
@@ -17,6 +22,8 @@ interface Props {
   setCorrectedType: (val: string) => void;
   correctedSection: string;
   setCorrectedSection: (val: string) => void;
+  processDepartmentId: string | null;
+  setProcessDepartmentId: (val: string | null) => void;
   setLightboxSrc: (val: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
@@ -33,6 +40,8 @@ export function ReviewValidationModal({
   setCorrectedType,
   correctedSection,
   setCorrectedSection,
+  processDepartmentId,
+  setProcessDepartmentId,
   setLightboxSrc,
   onCancel,
   onConfirm,
@@ -41,6 +50,34 @@ export function ReviewValidationModal({
   const ai = parseAIAnalysis(reviewing.entry.reviewNote);
   const ed = ai?.extractedData as Record<string, unknown> | undefined;
   const amt = ed?.totalAmount ?? ed?.netAmount;
+
+  const targetStructure = reviewing.entry.targetCostStructure;
+  const isProcessCosting = targetStructure?.costingSystem === 'PROCESSES';
+  const finalSection =
+    reviewing.action === 'CORRECTED' && correctedSection
+      ? correctedSection
+      : (reviewing.entry.classificationAudits?.[0]?.costSection ?? '');
+  const showDepartmentPicker =
+    reviewing.action !== 'REJECTED' && isProcessCosting && PROCESS_COST_SECTIONS.has(finalSection);
+
+  const { data: departmentsData } = useProcessDepartments(
+    targetStructure?.id ?? '',
+    showDepartmentPicker,
+  );
+  const departments = departmentsData?.departments ?? [];
+
+  // Regla de oro de la cátedra: la Materia Prima entra casi siempre por el
+  // primer departamento de la cadena — se pre-selecciona, pero el costista
+  // puede cambiarlo. Para MOD/CIF no hay un default razonable: cada
+  // departamento agrega su propia mano de obra y carga fabril.
+  useEffect(() => {
+    if (!showDepartmentPicker || processDepartmentId || departments.length === 0) return;
+    if (finalSection === 'MATERIA_PRIMA') {
+      const first = departments.find((d) => d.sequence === 1);
+      if (first) setProcessDepartmentId(first.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showDepartmentPicker, departments, finalSection]);
 
   return (
     <div
@@ -167,6 +204,35 @@ export function ReviewValidationModal({
               />
             </div>
           </>
+        )}
+
+        {showDepartmentPicker && (
+          <div className="mb-4 rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm">
+            <p className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-wide text-violet-700">
+              <Factory className="size-3.5" /> Costeo por Procesos · {SECTION_LABELS[finalSection] ?? finalSection}
+            </p>
+            <p className="mt-1 text-[11.5px] text-violet-800">
+              ¿A qué departamento de <strong>{targetStructure?.productName}</strong> pertenece este monto? Sin elegirlo,
+              queda pendiente de asignar.
+            </p>
+            <select
+              className="mt-2.5 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-ink transition-colors focus:border-violet-500 focus:outline-none"
+              value={processDepartmentId ?? ''}
+              onChange={(e) => setProcessDepartmentId(e.target.value || null)}
+            >
+              <option value="">— sin asignar (queda pendiente) —</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.sequence}. {d.name}
+                </option>
+              ))}
+            </select>
+            {departments.length === 0 && (
+              <p className="mt-2 text-[11px] text-violet-700">
+                Esta estructura todavía no tiene departamentos cargados — creálos desde Costeo por Procesos.
+              </p>
+            )}
+          </div>
         )}
 
         <div className="mb-5">

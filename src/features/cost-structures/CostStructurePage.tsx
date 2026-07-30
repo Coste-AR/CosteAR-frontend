@@ -43,6 +43,7 @@ import { ResultTab, EmptyResult } from './components/tabs/ResultTab';
 import { HistoryTab } from './components/tabs/HistoryTab';
 import { CostingSystemBadge } from './components/shared/CostingSystemBadge';
 import { DepartmentsTab } from './components/process/DepartmentsTab';
+import { PendingDocumentsTab } from './components/process/PendingDocumentsTab';
 import { UnitMovementTab } from './components/process/UnitMovementTab';
 import { EquivalentProductionTab } from './components/process/EquivalentProductionTab';
 import { JointCostsTab } from './components/process/JointCostsTab';
@@ -621,6 +622,10 @@ export function CostStructurePage() {
       {/* Costeo por Procesos (U04-U08). */}
       {activeTab === 'process-departments' && (
         <DepartmentsTab structureId={id} readOnly={readOnly} />
+      )}
+
+      {activeTab === 'process-pending' && (
+        <PendingDocumentsTab structureId={id} />
       )}
 
       {activeTab === 'process-movement' && (

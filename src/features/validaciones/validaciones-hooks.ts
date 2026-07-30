@@ -24,6 +24,14 @@ export interface DataEntry {
   fileMimeType: string | null;
   fileData: string | null;
   fileUrl: string | null;
+  costStructureId?: string | null;
+  /**
+   * A qué CostStructure apuntaría esta entrada si se aprobara ahora (mismo
+   * criterio que el populador del backend). Si `costingSystem` es
+   * `'PROCESSES'`, Validaciones ofrece el selector de departamento antes de
+   * aprobar — sin esto el monto queda "pendiente" hasta asignarlo a mano.
+   */
+  targetCostStructure?: { id: string; productName: string; costingSystem: string } | null;
   classificationAudits?: ClassificationAudit[];
   connection: {
     company: { id: string; name: string; industry: string | null };
@@ -152,6 +160,7 @@ export function useReviewEntry() {
       correctedContent,
       correctedDocumentType,
       correctedCostSection,
+      processDepartmentId,
     }: {
       entryId: string;
       status: 'APPROVED' | 'REJECTED' | 'CORRECTED';
@@ -159,6 +168,8 @@ export function useReviewEntry() {
       correctedContent?: string;
       correctedDocumentType?: string;
       correctedCostSection?: string;
+      /** Costeo por Procesos: departamento elegido a mano al aprobar/corregir. */
+      processDepartmentId?: string;
     }) => {
       const res = await api.post<{ data: ReviewResult }>(`/validaciones/${entryId}/review`, {
         status,
@@ -166,11 +177,56 @@ export function useReviewEntry() {
         correctedContent,
         correctedDocumentType,
         correctedCostSection,
+        processDepartmentId,
       });
       return res.data.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['validaciones'] });
+    },
+  });
+}
+
+// ── Costeo por Procesos: documentos aprobados sin departamento asignado ─────
+
+export interface UnassignedDataEntry {
+  id: string;
+  rawContent: string;
+  fileName: string | null;
+  fileUrl: string | null;
+  reviewedAt: string | null;
+  classificationAudits: { costSection: string | null; documentType: string | null }[];
+}
+
+/** La cola: documentos que ya pasaron validación pero cuyo monto todavía no
+ *  llegó a ningún departamento — nada se pierde, queda visible acá hasta
+ *  que alguien lo asigne. */
+export function useUnassignedDataEntries(costStructureId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['validaciones', 'pending-departments', costStructureId],
+    queryFn: async () => {
+      const res = await api.get<{ data: UnassignedDataEntry[] }>(
+        `/validaciones/pending-departments/${costStructureId}`,
+      );
+      return res.data.data;
+    },
+    enabled: !!costStructureId && enabled,
+  });
+}
+
+export function useAssignDepartment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ entryId, processDepartmentId }: { entryId: string; processDepartmentId: string }) => {
+      const res = await api.post<{ data: { populationWarning?: string } }>(
+        `/validaciones/${entryId}/assign-department`,
+        { processDepartmentId },
+      );
+      return res.data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['validaciones'] });
+      qc.invalidateQueries({ queryKey: ['cost-structures'] });
     },
   });
 }

@@ -70,6 +70,9 @@ export function ValidacionesPage() {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [correctedType, setCorrectedType] = useState<string>("");
   const [correctedSection, setCorrectedSection] = useState<string>("");
+  const [processDepartmentId, setProcessDepartmentId] = useState<
+    string | null
+  >(null);
 
   const handleReview = async (
     status: "APPROVED" | "REJECTED" | "CORRECTED",
@@ -86,6 +89,10 @@ export function ValidacionesPage() {
         status === "CORRECTED" && correctedSection
           ? correctedSection
           : undefined,
+      processDepartmentId:
+        status !== "REJECTED" && processDepartmentId
+          ? processDepartmentId
+          : undefined,
     });
     // El estado se guardó bien (si no, mutateAsync ya hubiera tirado), pero
     // el dato puede no haberse aplicado a la estructura (ej. Costeo por
@@ -100,6 +107,7 @@ export function ValidacionesPage() {
     setCorrectedContent("");
     setCorrectedType("");
     setCorrectedSection("");
+    setProcessDepartmentId(null);
   };
 
   const byCompany = (data?.items ?? []).reduce<
@@ -223,8 +231,13 @@ export function ValidacionesPage() {
               setCorrectedType={setCorrectedType}
               correctedSection={correctedSection}
               setCorrectedSection={setCorrectedSection}
+              processDepartmentId={processDepartmentId}
+              setProcessDepartmentId={setProcessDepartmentId}
               setLightboxSrc={setLightboxSrc}
-              onCancel={() => setReviewing(null)}
+              onCancel={() => {
+                setReviewing(null);
+                setProcessDepartmentId(null);
+              }}
               onConfirm={() => handleReview(reviewing.action)}
               isPending={review.isPending}
             />
