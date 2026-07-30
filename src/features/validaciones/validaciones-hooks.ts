@@ -119,7 +119,7 @@ export function useBulkApprove() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (companyId?: string) => {
-      const res = await api.post<{ data: { approved: number; skipped: number } }>(
+      const res = await api.post<{ data: { approved: number; skipped: number; populationWarnings: number } }>(
         '/validaciones/bulk-approve',
         companyId ? { companyId } : {},
       );
@@ -130,6 +130,16 @@ export function useBulkApprove() {
       qc.invalidateQueries({ queryKey: ['ledger'] });
     },
   });
+}
+
+/**
+ * Si el documento se aprobó/corrigió pero el dato NO se pudo aplicar
+ * automáticamente a la estructura (ej. es de Costeo por Procesos, o el
+ * período está cerrado), el backend manda el motivo acá — antes esto solo
+ * se sabía revisando /admin/system-alerts, y quien aprobaba no se enteraba.
+ */
+export interface ReviewResult extends DataEntry {
+  populationWarning?: string;
 }
 
 export function useReviewEntry() {
@@ -150,7 +160,7 @@ export function useReviewEntry() {
       correctedDocumentType?: string;
       correctedCostSection?: string;
     }) => {
-      const res = await api.post<{ data: DataEntry }>(`/validaciones/${entryId}/review`, {
+      const res = await api.post<{ data: ReviewResult }>(`/validaciones/${entryId}/review`, {
         status,
         note,
         correctedContent,
