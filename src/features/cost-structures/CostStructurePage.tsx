@@ -237,7 +237,11 @@ export function CostStructurePage() {
     } catch (e) { setError(apiErrorMessage(e)); }
   };
 
-  const triggerImport = () => fileInputRef.current?.click();
+  const triggerImport = () => {
+    setError(null);
+    if (blockedByClosedPeriod()) return;
+    fileInputRef.current?.click();
+  };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -256,6 +260,8 @@ export function CostStructurePage() {
 
   const confirmImport = () => {
     if (!pendingImport) return;
+    setPendingImport(null);
+    if (blockedByClosedPeriod()) return;
     const data = pendingImport;
     setImportedDefaults(data);
     // El backend omite del todo una sección si no encontró nada en el
@@ -276,9 +282,10 @@ export function CostStructurePage() {
         : `No pudimos reconocer datos automáticamente para: ${missing.join(', ')}. No es un error — completá esas secciones a mano.`,
     );
     // Llevar a la costista a la primera sección para que vea de entrada lo
-    // que se pre-llenó, en vez de dejarla en la pestaña donde clickeó.
-    setActiveTab('raw-material');
-    setPendingImport(null);
+    // que se pre-llenó, en vez de dejarla en la pestaña donde clickeó. En
+    // Procesos "raw-material" no es una pestaña válida (el import de Excel no
+    // aplica a ese sistema todavía — B25), así que no redirigimos ahí.
+    if (!isProcesses) setActiveTab('raw-material');
   };
 
   const discardImport = () => setPendingImport(null);
@@ -340,9 +347,23 @@ export function CostStructurePage() {
             className="hidden"
             onChange={handleImportFile}
           />
-          <Button variant="secondary" size="sm" onClick={triggerImport} loading={importExcel.isPending}>
-            <Upload className="size-4" /> Importar desde Excel
-          </Button>
+          {/* El import de Excel extrae MP/MOD/CIP clásicos (rawMaterialConfig /
+              directLaborConfig / indirectCostConfig): en Procesos no hay ningún
+              servicio que lea esos campos, así que hoy no aplica (B25). Se
+              oculta en vez de dejarla habilitada para no prometer algo que no
+              hace nada. */}
+          {!isProcesses && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={triggerImport}
+              loading={importExcel.isPending}
+              disabled={readOnly}
+              title={readOnly ? 'El período está cerrado: sus números están congelados.' : undefined}
+            >
+              <Upload className="size-4" /> Importar desde Excel
+            </Button>
+          )}
           <Button variant="secondary" size="sm" onClick={runExport} loading={exportExcel.isPending} disabled={!allReady}>
             <Download className="size-4" /> Exportar
           </Button>

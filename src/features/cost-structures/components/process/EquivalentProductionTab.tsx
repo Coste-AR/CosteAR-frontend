@@ -62,10 +62,22 @@ export function EquivalentProductionTab({
 
       {pe.isLoading && <p className="py-10 text-center text-[13px] text-ink-soft">Calculando…</p>}
 
-      {pe.error && (
+      {/* El cuadro (`cuadro`) sale de `movimiento`, no de `pe`: si ese fetch
+          falla, la tabla desaparece sin avisar y el error de `pe` (si lo hay)
+          apunta al pedido equivocado. Se distingue cuál de los dos falló. */}
+      {movimiento.isError ? (
         <div className="rounded-lg border border-line bg-surface p-8 text-center">
-          <p className="text-[13px] text-ink-soft">{apiErrorMessage(pe.error)}</p>
+          <p className="text-[13px] text-ink-soft">
+            No se pudo cargar el cuadro de movimiento de unidades, así que no se puede calcular la
+            producción equivalente: {apiErrorMessage(movimiento.error)}
+          </p>
         </div>
+      ) : (
+        pe.error && (
+          <div className="rounded-lg border border-line bg-surface p-8 text-center">
+            <p className="text-[13px] text-ink-soft">{apiErrorMessage(pe.error)}</p>
+          </div>
+        )
       )}
 
       {pe.data && cuadro && (

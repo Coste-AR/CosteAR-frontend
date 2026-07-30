@@ -114,7 +114,7 @@ export function JointCostsTab({
   onDeptChange: (id: string) => void;
   readOnly: boolean;
 }) {
-  const { data, isLoading } = useJointCosts(structureId, deptId, periodId);
+  const { data, isLoading, isError: isFetchError, error: fetchError } = useJointCosts(structureId, deptId, periodId);
   const guardar = useSaveJointCosts(structureId, periodId);
 
   const [metodo, setMetodo] = useState<JointAllocationMethod>('NET_REALIZABLE_VALUE');
@@ -124,6 +124,10 @@ export function JointCostsTab({
   const [confirmando, setConfirmando] = useState(false);
 
   useEffect(() => {
+    // Si el fetch falló no hay que pisar el formulario con los valores por
+    // defecto: se vería igual que "todavía no tiene reparto", que es el
+    // estado vacío legítimo, no un error transitorio.
+    if (isFetchError) return;
     if (data?.saved) {
       setMetodo(data.saved.method);
       setTotal(String(data.saved.jointCostTotal));
@@ -143,7 +147,7 @@ export function JointCostsTab({
       setFilas([filaVacia()]);
     }
     setError(null);
-  }, [data, deptId, periodId]);
+  }, [data, deptId, periodId, isFetchError]);
 
   const metodoActual = METODOS.find((m) => m.value === metodo)!;
   const pideRendimiento = metodo === 'TECHNICAL_YIELD';
@@ -195,6 +199,27 @@ export function JointCostsTab({
           ? 'Primero cargá los departamentos del proceso.'
           : 'Elegí un período en la barra de arriba.'}
       </p>
+    );
+  }
+  // Fetch falló: distinto del estado vacío legítimo ("todavía no tiene
+  // reparto"), así que no sigue al formulario — se corta acá con el error.
+  if (isFetchError) {
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <DepartmentSelector
+            departments={departments}
+            value={deptId}
+            onChange={onDeptChange}
+            label="Punto de separación en"
+          />
+        </div>
+        <div className="rounded-lg border border-line bg-surface p-8 text-center">
+          <p className="text-[13px] text-ink-soft">
+            No se pudo cargar el reparto de costos conjuntos: {apiErrorMessage(fetchError)}
+          </p>
+        </div>
+      </div>
     );
   }
 
