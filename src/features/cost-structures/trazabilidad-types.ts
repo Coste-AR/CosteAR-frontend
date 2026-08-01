@@ -22,14 +22,58 @@ export interface CalculationTree {
   tree: TreeNode[];
 }
 
+/** Qué disparó una corrida. `AUTO_DAILY` es el recálculo diario del sistema. */
+export type RunTrigger = 'MANUAL' | 'AUTO_DAILY' | 'CLOSE';
+
 export interface RunSummary {
   id: string;
   runN: number;
   engineVersion: string;
+  /**
+   * En las automáticas el backend manda "Cálculo automático del sistema", no el
+   * nombre del dueño de la estructura: no la apretó él.
+   */
   executedBy: string;
   executedAt: string;
+  trigger: RunTrigger;
+  /** true = un humano la miró y la dio por buena. */
+  validated: boolean;
+  validatedAt: string | null;
+  periodo: { code: string; label: string } | null;
   grossMargin: number | null;
   grossMarginPct: number | null;
+}
+
+/**
+ * El resultado que vale hoy. Si nadie validó todavía, `provisorio` viene en true
+ * y `run` trae igual la última corrida automática: no es lo mismo "no hay datos"
+ * que "hay datos que nadie miró".
+ */
+export interface ResultadoVigente {
+  provisorio: boolean;
+  motivo?: string;
+  run: RunSummary | null;
+}
+
+export type LateDataChoice = 'CURRENT_PERIOD' | 'REOPEN' | 'DISCARD';
+
+export interface LateDataOption {
+  choice: LateDataChoice;
+  etiqueta: string;
+  /** Qué pasa si elijo esto. Se muestra ANTES de apretar, no después. */
+  consecuencia: string;
+  disponible: boolean;
+}
+
+/** Un dato que llegó para un período ya cerrado y espera decisión. */
+export interface LateDataDecision {
+  id: string;
+  dato: { id: string; nombre: string; fecha: string | null };
+  producto: string;
+  periodoCerrado: string;
+  periodoAbierto: string | null;
+  detectadoEl: string;
+  opciones: LateDataOption[];
 }
 
 export interface TraceField {
