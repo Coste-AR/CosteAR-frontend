@@ -3,19 +3,30 @@ import { Money, Percent } from '@/components/ui/Money';
 import { useCalculationHistory } from '../../cost-structure-hooks';
 import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { RunHistoryPanel } from '../RunHistoryPanel';
+import { LateDataInbox } from '../LateDataInbox';
 
+/**
+ * Pestaña Historial. Arriba, lo que requiere una decisión (datos atrasados) y el
+ * historial de CORRIDAS —que incluye las automáticas sin validar—; abajo, el
+ * historial legado de cálculos, que sigue igual.
+ *
+ * El orden no es casual: primero lo que está esperando a una persona.
+ */
 export function HistoryTab({ structureId }: { structureId: string }) {
+  return (
+    <div className="space-y-4">
+      <LateDataInbox />
+      <RunHistoryPanel structureId={structureId} />
+      <LegacyCalculationHistory structureId={structureId} />
+    </div>
+  );
+}
+
+function LegacyCalculationHistory({ structureId }: { structureId: string }) {
   const { data: history, isLoading } = useCalculationHistory(structureId);
   if (isLoading) return <p className="text-sm text-ink-soft">Cargando…</p>;
-  if (!history?.length) {
-    return (
-      <Card>
-        <CardBody className="py-12 text-center">
-          <p className="text-sm text-ink-soft">No hay cálculos todavía. Presioná <strong>Calcular</strong> para crear el primero.</p>
-        </CardBody>
-      </Card>
-    );
-  }
+  if (!history?.length) return null;
   return (
     <Card>
       <CardHeader title="Historial de cálculos" description="Últimos 50 snapshots" />
