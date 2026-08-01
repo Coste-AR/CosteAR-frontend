@@ -1,7 +1,8 @@
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Money, Percent } from '@/components/ui/Money';
 import { TraceableValue, toDerivation } from '@/components/ui/TraceableValue';
-import { useCalculationTree } from '@/features/cost-structures/trazabilidad-hooks';
+import { useCalculationTree, useResultadoVigente } from '@/features/cost-structures/trazabilidad-hooks';
+import { ProvisionalBanner } from '../RunHistoryPanel';
 import { StatusBadge, marginStatus, isResultTrustworthy } from '@/components/ui/StatusBadge';
 import { AdvisorPanel } from '@/features/advisor/AdvisorPanel';
 import { ReconciliationCard } from '../shared/ReconciliationCard';
@@ -44,7 +45,10 @@ function untrustworthyReason(result: CalculationResult, incompleto?: boolean): s
   return 'El cálculo no incluye CIP aplicados: el margen no refleja el costo real del producto.';
 }
 
-export function ResultTab({ result, companyId, period, incompleto, runId }: { result: CalculationResult; companyId?: string; period?: string; incompleto?: boolean; runId?: string | null }) {
+export function ResultTab({ result, companyId, period, incompleto, runId, structureId }: { result: CalculationResult; companyId?: string; period?: string; incompleto?: boolean; runId?: string | null; structureId?: string }) {
+  // ¿Lo que se está mirando ya lo validó alguien? El backend responde con la
+  // última validada o, si no hay ninguna, con la última automática marcada.
+  const { data: vigente } = useResultadoVigente(structureId ?? '');
   // F08 — un margen sobre un resultado sin MP, sin CIP o marcado incompleto no
   // es confiable: el badge nunca debe decir "sano" sobre un número así.
   const trustworthy = isResultTrustworthy({
@@ -121,6 +125,11 @@ export function ResultTab({ result, companyId, period, incompleto, runId }: { re
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
       <div id="pdf-export-content" className="space-y-4 bg-surface p-2 rounded-xl">
+        {/* Si lo que se está mirando lo calculó el sistema solo y nadie lo
+            validó, se avisa ARRIBA de los números — al pie llegaría tarde, con
+            la decisión de precio ya tomada. Va dentro del bloque exportable a
+            propósito: un PDF de un resultado provisorio tiene que decirlo. */}
+        {vigente?.provisorio && <ProvisionalBanner motivo={vigente.motivo} />}
         <div className="flex justify-end mb-2">
           <button
             onClick={handleExportPDF}
