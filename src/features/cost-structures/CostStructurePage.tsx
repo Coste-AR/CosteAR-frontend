@@ -49,7 +49,7 @@ import { UnitMovementTab } from './components/process/UnitMovementTab';
 import { EquivalentProductionTab } from './components/process/EquivalentProductionTab';
 import { JointCostsTab } from './components/process/JointCostsTab';
 import { ProductionCostReportView } from './components/process/ProductionCostReportView';
-import { useProcessDepartments, useProcessSetup } from './process-costing-hooks';
+import { useProcessDepartments, useProcessSetup, useProcessCalculate } from './process-costing-hooks';
 import {
   tabsFor,
   defaultTabFor,
@@ -142,6 +142,9 @@ export function CostStructurePage() {
   // La cadena de departamentos se consulta una sola vez en la página y se pasa a
   // las cuatro pestañas: todas la necesitan y así comparten el mismo dato.
   const { data: processData } = useProcessDepartments(id, isProcesses);
+  // El cálculo de Procesos corre por período y departamento, con su propio
+  // motor. Lo usa `runCalculate` cuando la estructura es de Procesos.
+  const processCalculate = useProcessCalculate(id, periodId);
   // El `?? []` tiene que ir memoizado: sin esto, cada render crea un array nuevo
   // y el efecto de abajo —que lo tiene como dependencia— se dispara siempre.
   const processDepartments = useMemo(
@@ -223,6 +226,33 @@ export function CostStructurePage() {
     setTracedError(null);
     setIncompletitud(null);
     if (blockedByClosedPeriod()) return;
+
+    // DESPACHO POR SISTEMA DE COSTEO.
+    //
+    // Los dos sistemas tienen motores, endpoints e informes distintos. Hasta acá
+    // este botón llamaba SIEMPRE al de Órdenes, así que en una estructura de
+    // Procesos fallaba con "cargá MP, MOD y CIP" —campos que en esa pantalla no
+    // existen— y, como el catch cortaba con `return`, tampoco redirigía a
+    // Resultado. Un solo bug que se veía como dos: "no calcula" y "no redirige".
+    //
+    // El cálculo de Procesos ya existía y andaba: estaba enterrado en el botón de
+    // adentro de la pestaña Resultado. Acá se conecta al botón principal.
+    if (isProcesses) {
+      if (!periodId) {
+        setError('Abrí un período de costeo antes de calcular.');
+        return;
+      }
+      try {
+        await processCalculate.mutateAsync();
+        // La redirección va SIEMPRE que el cálculo salga bien, en los dos
+        // sistemas. Antes, en Procesos, no llegaba nunca.
+        setActiveTab('result');
+      } catch (e) {
+        setError(apiErrorMessage(e));
+      }
+      return;
+    }
+
     try {
       const data = await calculate.mutateAsync();
       setResult(data);
@@ -585,7 +615,7 @@ export function CostStructurePage() {
             saving={updateSales.isPending}
             allReady={allReady}
             onCalculate={runCalculate}
-            calculating={calculate.isPending}
+            calculating={calculate.isPending || processCalculate.isPending}
           />
         </Frozen>
       </div>
@@ -613,7 +643,7 @@ export function CostStructurePage() {
               doneTitle="Volvé a calcular para ver el resultado limpio."
               doneLabel="Volver a calcular"
               onDone={() => void runCalculate()}
-              busy={calculate.isPending || calculateTraced.isPending}
+              busy={calculate.isPending || calculateTraced.isPending || processCalculate.isPending}
             />
           )}
           <DerivationTree
