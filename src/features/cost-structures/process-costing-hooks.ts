@@ -10,6 +10,9 @@ import type {
   ProcessProductionReport,
   UnitMovementInput,
   UnitMovementResponse,
+  ProcessSetupState,
+  ProcessSetupInput,
+  ProcessSetupPreview,
 } from './process-costing-types';
 
 /**
@@ -247,5 +250,55 @@ export function useProcessProductionReport(
     },
     enabled: !!structureId && !!periodId && enabled,
     retry: false,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// SETUP PREVIO OBLIGATORIO
+// ---------------------------------------------------------------------------
+
+/** Estado del setup + departamentos ya cargados + operarios disponibles. */
+export function useProcessSetup(structureId: string) {
+  return useQuery({
+    queryKey: ['structures', structureId, 'process-setup'],
+    queryFn: async () => {
+      const res = await api.get<{ data: ProcessSetupState }>(
+        `/structures/${structureId}/process-setup`,
+      );
+      return res.data.data;
+    },
+    enabled: !!structureId,
+  });
+}
+
+/**
+ * Valida SIN guardar. El wizard lo llama mientras el costista escribe, para
+ * mostrarle los problemas y los avisos antes de que apriete — no después.
+ */
+export function useProcessSetupPreview(structureId: string) {
+  return useMutation({
+    mutationFn: async (input: ProcessSetupInput) => {
+      const res = await api.post<{ data: ProcessSetupPreview }>(
+        `/structures/${structureId}/process-setup/preview`,
+        input,
+      );
+      return res.data.data;
+    },
+  });
+}
+
+/** Sella el setup. A partir de acá la estructura puede calcular. */
+export function useCompleteProcessSetup(structureId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: ProcessSetupInput) => {
+      const res = await api.post(`/structures/${structureId}/process-setup`, input);
+      return res.data.data;
+    },
+    onSuccess: () => {
+      // Sellar el setup crea departamentos y desbloquea el cálculo: se refresca
+      // todo lo de la estructura en vez de adivinar qué quedó viejo.
+      void qc.invalidateQueries({ queryKey: ['structures', structureId] });
+    },
   });
 }
