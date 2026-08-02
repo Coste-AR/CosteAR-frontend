@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { Select } from '@/components/ui/Select';
 import { formatMoney, formatPercent, cn } from '@/lib/utils';
 import { apiErrorMessage } from '@/lib/api';
 import { usePeriods } from '../period-hooks';
@@ -298,37 +299,23 @@ export function PeriodComparison({ structureId }: { structureId: string }) {
           description="Qué cambió de un mes al otro, y de dónde vino el cambio."
         />
         <CardBody className="flex flex-wrap items-end gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-ink-soft">Desde</span>
-            <select
-              value={from ?? c?.from.code ?? ''}
-              onChange={(e) => setFrom(e.target.value || undefined)}
-              className="rounded-xl border border-line bg-white px-3 py-2 text-sm focus:border-granate focus:outline-none"
-            >
-              {periods.map((p) => (
-                <option key={p.id} value={p.code}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Desde"
+            className="w-auto"
+            value={from ?? c?.from.code ?? ''}
+            onChange={(e) => setFrom(e.target.value || undefined)}
+            options={periods.map((p) => ({ value: p.code, label: p.label }))}
+          />
 
           <span className="pb-2.5 text-ink-soft">→</span>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-ink-soft">Hasta</span>
-            <select
-              value={to ?? c?.to.code ?? ''}
-              onChange={(e) => setTo(e.target.value || undefined)}
-              className="rounded-xl border border-line bg-white px-3 py-2 text-sm focus:border-granate focus:outline-none"
-            >
-              {periods.map((p) => (
-                <option key={p.id} value={p.code}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Hasta"
+            className="w-auto"
+            value={to ?? c?.to.code ?? ''}
+            onChange={(e) => setTo(e.target.value || undefined)}
+            options={periods.map((p) => ({ value: p.code, label: p.label }))}
+          />
 
           {c && (
             <div className="flex items-center gap-2 pb-1">

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { AlertTriangle, CalendarDays, Lock, LockOpen, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Select } from '@/components/ui/Select';
+import { PortalOverlay } from '@/components/ui/PortalOverlay';
 import { apiErrorMessage, isUnimputedError, unimputedDatosFromError } from '@/lib/api';
 import { cn, formatMoney } from '@/lib/utils';
 import { IncompleteNotice } from '../ImputacionResolver';
@@ -115,18 +117,15 @@ export function PeriodBar({
             Período de costo: {legacyPeriod ?? '—'}
           </span>
         ) : (
-          <select
+          <Select
             value={selectedId ?? ''}
             onChange={(e) => onSelect(e.target.value)}
-            className="h-7 rounded-full border border-granate/20 bg-granate-tenue px-2.5 text-[11px] font-bold uppercase tracking-wide text-granate-deep outline-none focus:border-granate"
-          >
-            {periods.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-                {p.status === 'CLOSED' ? ' (cerrado)' : ''}
-              </option>
-            ))}
-          </select>
+            className="h-7 w-auto rounded-full border-granate/20 bg-granate-tenue px-2.5 text-[11px] font-bold uppercase tracking-wide text-granate-deep"
+            options={periods.map((p) => ({
+              value: p.id,
+              label: `${p.label}${p.status === 'CLOSED' ? ' (cerrado)' : ''}`,
+            }))}
+          />
         )}
 
         {selected && <PeriodStatusPill status={selected.status} />}
@@ -288,6 +287,7 @@ function OpenPeriodDialog({
   const blocked = !!preview?.openingStockError;
 
   return (
+    <PortalOverlay>
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4">
       <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-5 shadow-xl">
         <div className="mb-3 flex items-start justify-between gap-3">
@@ -328,6 +328,7 @@ function OpenPeriodDialog({
         </div>
       </div>
     </div>
+    </PortalOverlay>
   );
 }
 
@@ -480,6 +481,7 @@ function ReopenDialog({
   const tooShort = reason.trim().length < 10;
 
   return (
+    <PortalOverlay>
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
         <div className="mb-3 flex items-start justify-between gap-3">
@@ -524,5 +526,6 @@ function ReopenDialog({
         </div>
       </div>
     </div>
+    </PortalOverlay>
   );
 }

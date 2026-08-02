@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Building2, FileText, Factory } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { PortalOverlay } from '@/components/ui/PortalOverlay';
 import { cn } from '@/lib/utils';
 import { parseAIAnalysis, fmt, DOC_TYPE_OPTIONS, SECTION_LABELS } from './helpers';
 import type { DataEntry } from '../validaciones-hooks';
@@ -80,6 +82,7 @@ export function ReviewValidationModal({
   }, [showDepartmentPicker, departments, finalSection]);
 
   return (
+    <PortalOverlay>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
       onClick={onCancel}
@@ -157,40 +160,20 @@ export function ReviewValidationModal({
         {reviewing.action === "CORRECTED" && (
           <>
             <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label className="block text-[12px] font-medium uppercase tracking-wide text-ink-soft mb-1.5">
-                  Tipo correcto
-                </label>
-                <select
-                  className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-ink transition-colors focus:border-granate focus:outline-none"
-                  value={correctedType}
-                  onChange={(e) => setCorrectedType(e.target.value)}
-                >
-                  <option value="">— sin cambiar —</option>
-                  {Object.entries(DOC_TYPE_OPTIONS).map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[12px] font-medium uppercase tracking-wide text-ink-soft mb-1.5">
-                  Sección correcta
-                </label>
-                <select
-                  className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-ink transition-colors focus:border-granate focus:outline-none"
-                  value={correctedSection}
-                  onChange={(e) => setCorrectedSection(e.target.value)}
-                >
-                  <option value="">— sin cambiar —</option>
-                  {Object.entries(SECTION_LABELS).map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Tipo correcto"
+                value={correctedType}
+                onChange={(e) => setCorrectedType(e.target.value)}
+                placeholder="— sin cambiar —"
+                options={Object.entries(DOC_TYPE_OPTIONS).map(([v, l]) => ({ value: v, label: l }))}
+              />
+              <Select
+                label="Sección correcta"
+                value={correctedSection}
+                onChange={(e) => setCorrectedSection(e.target.value)}
+                placeholder="— sin cambiar —"
+                options={Object.entries(SECTION_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+              />
             </div>
             <div className="mb-4">
               <label className="block text-[12px] font-medium uppercase tracking-wide text-ink-soft mb-1.5">
@@ -215,18 +198,14 @@ export function ReviewValidationModal({
               ¿A qué departamento de <strong>{targetStructure?.productName}</strong> pertenece este monto? Sin elegirlo,
               queda pendiente de asignar.
             </p>
-            <select
-              className="mt-2.5 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-ink transition-colors focus:border-violet-500 focus:outline-none"
+            <Select
+              className="mt-2.5 border-violet-200"
+              ariaLabel="Departamento"
               value={processDepartmentId ?? ''}
               onChange={(e) => setProcessDepartmentId(e.target.value || null)}
-            >
-              <option value="">— sin asignar (queda pendiente) —</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.sequence}. {d.name}
-                </option>
-              ))}
-            </select>
+              placeholder="— sin asignar (queda pendiente) —"
+              options={departments.map((d) => ({ value: d.id, label: `${d.sequence}. ${d.name}` }))}
+            />
             {departments.length === 0 && (
               <p className="mt-2 text-[11px] text-violet-700">
                 Esta estructura todavía no tiene departamentos cargados — creálos desde Costeo por Procesos.
@@ -278,5 +257,6 @@ export function ReviewValidationModal({
         </div>
       </div>
     </div>
+    </PortalOverlay>
   );
 }

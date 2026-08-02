@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useParams, useNavigate } from '@tanstack/react-router';
 import { Edit2, Trash2, ArrowLeft, Users, FileSpreadsheet, BookOpen, History } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useCompany, useCostStructures, useDeleteCompany } from './company-hooks';
 import { apiErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -19,21 +20,15 @@ export function CompanyDetailPage() {
   const { id } = useParams({ from: '/companies/$id' });
   const navigate = useNavigate();
   const { data: company } = useCompany(id);
-  const { data: structures } = useCostStructures(id);
+  const { data: structures, isLoading: structuresLoading } = useCostStructures(id);
   const delCompany = useDeleteCompany();
   
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'structures' | 'ledger' | 'history' | 'operators'>('structures');
 
-  const handleDeleteCompany = async () => {
-    if (window.confirm(`¿Estás seguro de eliminar a ${company?.name}? Esta acción eliminará permanentemente la empresa, todas sus estructuras de costos, libro de costos, firmas y operadores vinculados.`)) {
-      try {
-        await delCompany.mutateAsync(id);
-        navigate({ to: '/companies' });
-      } catch (e) {
-        toast.error('Error al eliminar la empresa: ' + apiErrorMessage(e));
-      }
-    }
+  const handleDeleteCompany = () => {
+    setShowDeleteConfirm(true);
   };
 
   return (
@@ -68,8 +63,15 @@ export function CompanyDetailPage() {
         </div>
       </div>
 
-      {/* Asistente de Configuración Inicial (IA) */}
-      <AiSuggesterSection companyName={company?.name ?? ''} />
+      {/* Asistente de Configuración Inicial (IA) — solo tiene sentido antes de
+          que exista la primera estructura: una vez armada, el costista ya
+          sabe cómo se hace y el botón flotante es puro ruido. Se espera a que
+          la consulta resuelva (!structuresLoading) para no ocultarlo/mostrarlo
+          de golpe mientras structures todavía es undefined. `attention` pulsa
+          el botón en vez de abrirlo solo — abrir lo decide el costista. */}
+      {!structuresLoading && (structures?.length ?? 0) === 0 && (
+        <AiSuggesterSection companyName={company?.name ?? ''} attention />
+      )}
 
       {/* Monitor de Desvíos */}
       {id && <DeviationWidget companyId={id} />}
@@ -128,6 +130,25 @@ export function CompanyDetailPage() {
       {showEditModal && company && (
         <CompanyInfoForm company={company} onClose={() => setShowEditModal(false)} />
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Eliminar cliente"
+        message={`¿Estás seguro de eliminar a ${company?.name}? Esta acción eliminará permanentemente la empresa, todas sus estructuras de costos, libro de costos, firmas y operadores vinculados.`}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        tone="danger"
+        onConfirm={async () => {
+          try {
+            await delCompany.mutateAsync(id);
+            navigate({ to: '/companies' });
+          } catch (e) {
+            toast.error('Error al eliminar la empresa: ' + apiErrorMessage(e));
+          }
+          setShowDeleteConfirm(false);
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </AppShell>
   );
 }

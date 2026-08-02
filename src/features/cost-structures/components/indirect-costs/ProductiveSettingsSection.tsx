@@ -1,5 +1,6 @@
 import { Plus, Trash2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { UseFormRegister, UseFieldArrayReturn } from 'react-hook-form';
 import { fmtBudget } from './helpers';
 import { centerLabel } from '@/lib/utils';
@@ -63,18 +64,19 @@ export function ProductiveSettingsSection({
             {prodSettings.fields.map((f, i) => (
               <tr key={f.id} className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-3 sm:table-row sm:gap-0 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0">
                 <td data-label="Centro" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
-                  <select className="w-full rounded border border-line bg-surface px-2 py-1 text-sm text-ink focus:border-granate focus:outline-none sm:w-auto" {...register(`productiveSettings.${i}.centerId`)}>
-                    <option value="">Elegir…</option>
-                    {productiveCenters
+                  <Select
+                    className="sm:w-auto"
+                    {...register(`productiveSettings.${i}.centerId`)}
+                    defaultValue={(f as any).centerId}
+                    placeholder="Elegir…"
+                    options={productiveCenters
                       .filter(c => {
                         const usedInOtherRows = (watchedProdSettings ?? [])
                           .some((p, j) => j !== i && p.centerId === c.id);
                         return !usedInOtherRows;
                       })
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>{centerLabel(c)}</option>
-                      ))}
-                  </select>
+                      .map((c) => ({ value: c.id, label: centerLabel(c) }))}
+                  />
                 </td>
                 <td data-label="Presup. fijo $ (calculado, no editable)" className="block rounded-lg bg-surface-alt/40 p-1.5 before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-action before:content-[attr(data-label)] sm:table-cell sm:rounded-none sm:bg-surface-alt/40 sm:px-2 sm:py-1.5 sm:before:hidden">
                   <div className="flex w-full items-center justify-end gap-1 rounded border border-dashed border-action/30 bg-surface-alt px-2 py-1 text-right font-mono text-sm text-ink-soft sm:w-28" title="Calculado automáticamente por el prorrateo (no editable)">

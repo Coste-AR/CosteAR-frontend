@@ -5,11 +5,16 @@ import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { StatCard } from '@/components/ui/StatCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { PortalOverlay } from '@/components/ui/PortalOverlay';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { formatMoney, formatDate } from '@/lib/utils';
 import { useCompanies } from '@/features/companies/company-hooks';
 import { useLedger, useDeleteLedgerEntry, type LedgerEntry } from './libro-hooks';
 import { ClientReport } from './ClientReport';
 import { LedgerEntryModal } from './LedgerEntryModal';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 
 const SECTION_LABELS_FULL: Record<string, string> = {
   MATERIA_PRIMA: 'Materia Prima',
@@ -73,8 +78,6 @@ const SECTION_ICONS: Record<string, typeof Boxes> = {
   GASTO_FINANCIERO: Landmark,
 };
 
-const selectClass = 'h-11 w-full rounded-xl border border-line bg-surface px-3.5 text-[13px] font-semibold text-ink shadow-sm transition-colors focus:border-granate focus:outline-none sm:w-auto';
-
 function periodLabel(p: string): string {
   const [y, m] = p.split('-');
   const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -91,14 +94,19 @@ export function LibroCostosPage() {
   const [showReport, setShowReport] = useState(false);
   const [editing, setEditing] = useState<LedgerEntry | null>(null);
   const [adding, setAdding] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<LedgerEntry | null>(null);
 
   const selectedCompanyName = companies.find((c) => c.id === companyId)?.name ?? 'Todas las empresas';
 
-  const handleDelete = async (e: LedgerEntry) => {
-    if (window.confirm(`¿Borrar "${e.description}" (${formatMoney(e.amount)})? Esto no se puede deshacer.`)) {
-      await del.mutateAsync(e.id);
-    }
+  const handleDelete = (e: LedgerEntry) => {
+    setEntryToDelete(e);
   };
+
+  useKeyboardShortcut({ key: 'n', altKey: true }, () => {
+    if (!lightbox && !showReport && !editing && entryToDelete === null) {
+      setAdding(true);
+    }
+  });
 
   const entries = data?.entries ?? [];
   const grouped = SECTION_ORDER
@@ -114,26 +122,20 @@ export function LibroCostosPage() {
 
       {/* Filtros */}
       <div className="mb-6 flex flex-col gap-3 rounded-[28px] border border-line bg-surface p-5 shadow-[0_10px_30px_rgba(74,21,27,0.015)] sm:flex-row sm:flex-wrap sm:items-center">
-        <select
-          className={selectClass}
+        <Select
+          className="sm:w-56"
           value={companyId}
           onChange={(e) => setCompanyId(e.target.value)}
-        >
-          <option value="">Todas mis empresas</option>
-          {companies.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-        <select
-          className={selectClass}
+          placeholder="Todas mis empresas"
+          options={companies.map((c) => ({ value: c.id, label: c.name }))}
+        />
+        <Select
+          className="sm:w-48"
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-        >
-          <option value="">Todos los períodos</option>
-          {(data?.periods ?? []).map((p) => (
-            <option key={p} value={p}>{periodLabel(p)}</option>
-          ))}
-        </select>
+          placeholder="Todos los períodos"
+          options={(data?.periods ?? []).map((p) => ({ value: p, label: periodLabel(p) }))}
+        />
         <div className="flex flex-wrap gap-2 sm:ml-auto">
           <Button size="sm" variant="ghost" onClick={() => setAdding(true)} title={companyId ? '' : 'Elegí una empresa para cargar manual'}>
             <Plus className="size-4" /> Agregar manual
@@ -167,7 +169,41 @@ export function LibroCostosPage() {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-ink-soft">Cargando…</p>
+        <div className="space-y-5">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <CardHeader
+                title={<Skeleton className="h-5 w-40" />}
+                action={<Skeleton className="h-7 w-24 rounded-full" />}
+              />
+              <div className="divide-y divide-line">
+                {[1, 2, 3].map((j) => (
+                  <div key={j} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:gap-3.5 sm:px-6">
+                    <div className="flex items-center gap-3.5 sm:contents">
+                      <Skeleton className="size-11 shrink-0 rounded-xl" />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Skeleton className="h-4 w-48" />
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-3 w-16" />
+                          <Skeleton className="h-3 w-16 rounded-full" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 sm:contents">
+                      <div className="shrink-0 text-right">
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Skeleton className="size-7 rounded-xl" />
+                        <Skeleton className="size-7 rounded-xl" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ))}
+        </div>
       ) : entries.length === 0 ? (
         <Card>
           <CardBody className="py-16 text-center">
@@ -222,11 +258,27 @@ export function LibroCostosPage() {
       )}
 
       {lightbox && (
+        <PortalOverlay>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setLightbox(null)}>
           <img src={lightbox} alt="Comprobante" className="max-h-full max-w-full rounded-2xl object-contain shadow-2xl" onClick={(ev) => ev.stopPropagation()} />
           <button type="button" onClick={() => setLightbox(null)} className="absolute right-4 top-4 flex size-9 items-center justify-center rounded-full bg-black/50 text-lg text-white shadow-lg transition-colors hover:bg-black/70">✕</button>
         </div>
+        </PortalOverlay>
       )}
+
+      <ConfirmDialog
+        open={entryToDelete !== null}
+        title="Borrar entrada"
+        message={`¿Estás seguro de borrar "${entryToDelete?.description}" (${entryToDelete ? formatMoney(entryToDelete.amount) : ''})? Esta acción no se puede deshacer.`}
+        confirmLabel="Borrar"
+        cancelLabel="Cancelar"
+        tone="danger"
+        onConfirm={async () => {
+          if (entryToDelete) await del.mutateAsync(entryToDelete.id);
+          setEntryToDelete(null);
+        }}
+        onCancel={() => setEntryToDelete(null)}
+      />
     </AppShell>
   );
 }

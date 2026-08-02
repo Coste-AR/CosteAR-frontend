@@ -17,6 +17,7 @@ import {
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { PortalOverlay } from '@/components/ui/PortalOverlay';
 import { CompanyChips, ActionCard, needsCompanySelection } from './components/ChatBubble';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -262,12 +263,16 @@ export function CostitaChat({ companies = [] }: { companies?: Company[] }) {
   // --- Render ---
 
   return (
+    <PortalOverlay>
     <>
-      {/* ── Botón flotante ────────────────────────────────────────────────── */}
+      {/* ── Botón flotante. bottom-24 en las dos resoluciones: en mobile
+          despeja la barra de navegación inferior, en desktop despeja el
+          footer del AppShell (~80px) — con lg:bottom-6 quedaba tapado
+          por el footer cuando la página tenía poco contenido. ──────────── */}
       <button
         onClick={() => setOpen(true)}
         className={cn(
-          'fixed bottom-24 right-4 lg:bottom-6 lg:right-6 z-40 flex items-center gap-2 rounded-full px-4 py-3',
+          'fixed bottom-24 right-4 lg:right-6 z-40 flex items-center gap-2 rounded-full px-4 py-3',
           'bg-gray-900 text-white shadow-xl hover:bg-gray-800 transition-all hover:scale-105',
           'text-[13px] font-semibold',
           open && 'opacity-0 pointer-events-none',
@@ -289,7 +294,7 @@ export function CostitaChat({ companies = [] }: { companies?: Company[] }) {
       <div
         className={cn(
           'fixed bottom-0 right-0 z-50 flex flex-col',
-          'w-full lg:w-[420px] h-[85vh] lg:h-[620px] lg:bottom-6 lg:right-6',
+          'w-full lg:w-[420px] h-[85vh] lg:h-[620px] lg:bottom-24 lg:right-6',
           'rounded-t-2xl lg:rounded-2xl bg-white shadow-2xl',
           'transition-all duration-300 ease-out',
           open ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0 pointer-events-none',
@@ -523,6 +528,7 @@ export function CostitaChat({ companies = [] }: { companies?: Company[] }) {
         </div>
       </div>
     </>
+    </PortalOverlay>
   );
 }
 

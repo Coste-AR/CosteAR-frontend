@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import { Trash2 } from 'lucide-react';
 import { UseFormRegister, UseFieldArrayReturn, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
+import { Select } from '@/components/ui/Select';
 import { BaseSelect } from './BaseSelect';
 import { type AllocationBase } from '../../allocation-base-hooks';
 import { centerLabel } from '@/lib/utils';
@@ -105,25 +106,31 @@ export function SecondaryAllocationSection({
                   </span>
                 </td>
                 <td data-label="Centro de servicio" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
-                  <select className="w-full rounded border border-line bg-surface px-2 py-1 text-sm text-ink focus:border-granate focus:outline-none" {...register(`serviceDistributions.${i}.serviceCenterId`)}>
-                    <option value="">Elegir…</option>
-                    {serviceCenters
+                  <Select
+                    key={`center-${f.id}`}
+                    {...register(`serviceDistributions.${i}.serviceCenterId`)}
+                    defaultValue={selfId}
+                    placeholder="Elegir…"
+                    options={serviceCenters
                       .filter(c => {
                         if (c.id === selfId) return true; // el centro ya elegido en ESTA fila jamás se quita de la lista
                         const usedInOtherRows = (watchedServiceDists ?? [])
                           .some((d, j) => j !== i && d.serviceCenterId === c.id);
                         return !usedInOtherRows;
                       })
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>{centerLabel(c)}</option>
-                      ))}
-                  </select>
+                      .map((c) => ({ value: c.id, label: centerLabel(c) }))}
+                  />
                 </td>
                 <td data-label="Modo" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
-                  <select className="w-full rounded border border-line bg-surface px-2 py-1 text-sm text-ink focus:border-granate focus:outline-none" {...register(`serviceDistributions.${i}.distributionMode`)}>
-                    <option value="manual">Manual (%)</option>
-                    <option value="base">Automático (por base)</option>
-                  </select>
+                  <Select
+                    key={`mode-${f.id}`}
+                    {...register(`serviceDistributions.${i}.distributionMode`)}
+                    defaultValue={(f as any).distributionMode}
+                    options={[
+                      { value: 'manual', label: 'Manual (%)' },
+                      { value: 'base', label: 'Automático (por base)' },
+                    ]}
+                  />
                 </td>
                 {rowMode === 'base' ? (
                   <td colSpan={targetCenters.length * 2} className="block sm:table-cell sm:px-2 sm:py-1.5">

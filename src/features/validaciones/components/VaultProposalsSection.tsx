@@ -1,13 +1,16 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { BookOpen, CheckCircle2, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiErrorMessage } from '@/lib/api';
 
 export function VaultProposalsSection() {
   const queryClient = useQueryClient();
+  const [proposalToReject, setProposalToReject] = useState<string | null>(null);
   const { data: proposals, isLoading } = useQuery({
     queryKey: ['vault-proposals'],
     queryFn: () => api.get('/vault/proposals').then(res => res.data.data),
@@ -46,6 +49,7 @@ export function VaultProposalsSection() {
   }
 
   return (
+    <>
     <div className="space-y-4">
       {proposals.map((p: any) => (
         <Card key={p.id} className="border-amber-200 bg-amber-50/30">
@@ -72,9 +76,7 @@ export function VaultProposalsSection() {
             <div className="flex justify-end gap-3 mt-2">
               <Button 
                 variant="ghost" 
-                onClick={() => {
-                  if (window.confirm('¿Rechazar esta propuesta de la IA?')) reject.mutate(p.id);
-                }}
+                onClick={() => setProposalToReject(p.id)}
                 disabled={reject.isPending || approve.isPending}
                 className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
               >
@@ -94,5 +96,20 @@ export function VaultProposalsSection() {
         </Card>
       ))}
     </div>
+
+      <ConfirmDialog
+        open={proposalToReject !== null}
+        title="Rechazar propuesta"
+        message="¿Estás seguro de rechazar esta propuesta de la IA?"
+        confirmLabel="Rechazar"
+        cancelLabel="Cancelar"
+        tone="danger"
+        onConfirm={() => {
+          if (proposalToReject) reject.mutate(proposalToReject);
+          setProposalToReject(null);
+        }}
+        onCancel={() => setProposalToReject(null)}
+      />
+    </>
   );
 }
