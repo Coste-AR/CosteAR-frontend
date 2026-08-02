@@ -284,3 +284,62 @@ export interface ProcessProductionReport {
   finalDepartmentName: string;
   departments: ProcessDepartmentResult[];
 }
+
+// ---------------------------------------------------------------------------
+// SETUP PREVIO OBLIGATORIO (el "CTO inicial")
+//
+// Antes de costear por procesos, el cliente declara su mapa productivo. Con eso
+// la IA deja de adivinar a qué departamento va cada documento que entra por
+// ingesta y solo tiene que adjudicarlo.
+// ---------------------------------------------------------------------------
+
+export interface SetupDepartment {
+  name: string;
+  /** 1 = primer departamento de la cadena. Define quién recibe de quién. */
+  sequence: number;
+}
+
+/** Un operario de la empresa cliente y si puede informar el grado de avance. */
+export interface SetupOperario {
+  membershipId: string;
+  nombre: string;
+  email: string;
+  informaRecuento: boolean;
+}
+
+export interface ProcessSetupState {
+  completado: boolean;
+  completadoEl: string | null;
+  hasJointProducts: boolean;
+  /** Cada cuántos días puede la PLANTA contar la producción en proceso. */
+  wipCountFrequencyDays: number | null;
+  /** Cada cuántos días QUIERE costear el costista (si eligió ciclos fijos). */
+  periodLengthDays: number | null;
+  departments: (SetupDepartment & { id: string })[];
+  operarios: SetupOperario[];
+}
+
+/** Lo que se manda a validar o a sellar. */
+export interface ProcessSetupInput {
+  departments: SetupDepartment[];
+  hasJointProducts: boolean;
+  wipCountFrequencyDays?: number | null;
+  periodLengthDays?: number | null;
+  wipReporterMembershipIds?: string[];
+}
+
+/** `field` ubica el paso del wizard donde está el problema. */
+export interface SetupIssue {
+  field: string;
+  message: string;
+}
+
+/**
+ * Los problemas bloquean; los avisos no. La diferencia es deliberada: bloquear
+ * lo que es una mala idea pero no un error deja al costista sin salida cuando su
+ * caso es legítimo.
+ */
+export interface ProcessSetupPreview {
+  problemas: SetupIssue[];
+  avisos: SetupIssue[];
+}

@@ -12,10 +12,12 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   suffix?: string;
   /** Para montos: aplica tipografía monoespaciada alineada a la derecha. */
   numeric?: boolean;
+  /** Estado de éxito: marca el campo en verde indicando que el valor es válido. */
+  success?: boolean;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, hint, info, suffix, numeric, id, ...props }, ref) => {
+  ({ className, label, error, hint, info, suffix, numeric, success, id, ...props }, ref) => {
     const generatedId = useId();
     const inputId = id ?? generatedId;
 
@@ -51,11 +53,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              'h-11 w-full rounded-xl border bg-surface px-3 text-sm text-ink transition-colors',
-              'placeholder:text-idle focus:border-granate',
+              'h-11 w-full rounded-xl border bg-surface px-3 text-sm text-ink transition-all duration-200',
+              'placeholder:text-idle focus:outline-none focus:ring-[3px]',
               numeric && 'tabular text-right',
               suffix && 'pr-8',
-              error ? 'border-danger' : 'border-line',
+              error 
+                ? 'border-danger focus:border-danger focus:ring-danger/15' 
+                : success 
+                  ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500/15'
+                  : 'border-line focus:border-granate focus:ring-granate/15',
               className,
             )}
             aria-invalid={!!error}

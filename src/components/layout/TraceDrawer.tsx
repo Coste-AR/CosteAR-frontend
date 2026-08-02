@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { TraceCard } from '@/features/cost-structures/DerivationTree';
 import { DerivationCard } from '@/components/layout/DerivationCard';
 import { useTraceMode } from '@/stores/trace-mode-store';
+import { PortalOverlay } from '@/components/ui/PortalOverlay';
 
 /**
  * PANEL LATERAL DE TRAZABILIDAD (U10).
@@ -33,6 +34,7 @@ export function TraceDrawer() {
   if (!abierto) return null;
 
   return (
+    <PortalOverlay>
     <>
       <div
         className="fixed inset-0 z-40 bg-granate-deep/40 transition-opacity"
@@ -74,5 +76,6 @@ export function TraceDrawer() {
         </div>
       </aside>
     </>
+    </PortalOverlay>
   );
 }

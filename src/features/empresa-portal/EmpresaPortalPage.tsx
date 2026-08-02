@@ -11,7 +11,7 @@ import { CosteARLogo } from '@/components/layout/CosteARLogo';
 
 // Import modular components
 import { SidebarDock } from './components/SidebarDock';
-import { CompanyStructuresList } from './components/StructureSelector';
+import { CompanyStructuresList, type PortalStructure } from './components/StructureSelector';
 import { ChatTimeline, Submission } from './components/ChatTimeline';
 import { ChatComposer } from './components/ChatComposer';
 import { SubmissionGrid } from './components/SubmissionGrid';
@@ -108,6 +108,13 @@ export function EmpresaPortalPage() {
 
   const activeCompany = companies.find((c) => c.connectionId === activeConnectionId);
 
+  // Misma query key que CompanyStructuresList (sidebar) y StructureSelectDropdown
+  // (el "Imputar a" del composer) — comparten cache, no hace falta un fetch propio.
+  const { data: activeStructures = [] } = useQuery<PortalStructure[]>({
+    queryKey: ['portal-structures', activeConnectionId],
+    enabled: false,
+  });
+
   // ── Accept invite ──────────────────────────────────────────────────────────
 
   const acceptInvite = useMutation({
@@ -134,6 +141,13 @@ export function EmpresaPortalPage() {
     if ((!text.trim() && !file) || sending) return;
     if (!activeConnectionId) {
       setSendError('Seleccioná una empresa primero.');
+      return;
+    }
+    // Con un solo producto activo no hace falta elegir (no hay ambigüedad
+    // posible). Con más de uno, mandar sin "Imputar a" deja el comprobante sin
+    // atribuir y el costista tiene que adivinar a qué producto pertenece.
+    if (activeStructures.length > 1 && !activeStructureId) {
+      setSendError('Elegí a qué producto imputar este envío (abajo, "Imputar a").');
       return;
     }
 

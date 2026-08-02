@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { PortalOverlay } from '@/components/ui/PortalOverlay';
 import { api } from '@/lib/api';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -33,6 +34,7 @@ export function WhatsappConfigModal({
   };
 
   return (
+    <PortalOverlay>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
         <div className="mb-6 flex items-center gap-3">
@@ -74,5 +76,6 @@ export function WhatsappConfigModal({
         </form>
       </div>
     </div>
+    </PortalOverlay>
   );
 }

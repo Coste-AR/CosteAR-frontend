@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { Plus, Table, BookOpen, FileDown, ImageIcon, PenLine, Pencil, Trash2 } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { PortalOverlay } from '@/components/ui/PortalOverlay';
 import { useLedger, useDeleteLedgerEntry } from '@/features/libro/libro-hooks';
 import { LedgerEntryModal } from '@/features/libro/LedgerEntryModal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { formatMoney, formatDate } from '@/lib/utils';
 
 export function CompanyLedgerTab({ companyId, companyName }: { companyId: string; companyName: string }) {
@@ -13,11 +16,10 @@ export function CompanyLedgerTab({ companyId, companyName }: { companyId: string
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [editing, setEditing] = useState<any>(null);
   const [adding, setAdding] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<any>(null);
 
-  const handleDelete = async (e: any) => {
-    if (window.confirm(`¿Borrar "${e.description}" (${formatMoney(e.amount)})? Esto no se puede deshacer.`)) {
-      await del.mutateAsync(e.id);
-    }
+  const handleDelete = (e: any) => {
+    setEntryToDelete(e);
   };
 
   const entries = data?.entries ?? [];
@@ -70,16 +72,13 @@ export function CompanyLedgerTab({ companyId, companyName }: { companyId: string
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center justify-between">
-        <select
-          className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 focus:border-granate focus:outline-none shadow-xs"
+        <Select
+          className="sm:w-48"
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-        >
-          <option value="">Todos los períodos</option>
-          {(data?.periods ?? []).map((p) => (
-            <option key={p} value={p}>{periodLabel(p)}</option>
-          ))}
-        </select>
+          placeholder="Todos los períodos"
+          options={(data?.periods ?? []).map((p) => ({ value: p, label: periodLabel(p) }))}
+        />
         <div className="flex gap-2 font-medium">
           <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
             <Plus className="size-4" /> Agregar Manual
@@ -145,11 +144,27 @@ export function CompanyLedgerTab({ companyId, companyName }: { companyId: string
       )}
 
       {lightbox && (
+        <PortalOverlay>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={() => setLightbox(null)}>
           <img src={lightbox} alt="Comprobante" className="max-h-full max-w-full rounded-lg object-contain shadow-2xl" onClick={(ev) => ev.stopPropagation()} />
           <button type="button" onClick={() => setLightbox(null)} className="absolute right-4 top-4 size-9 rounded-full bg-black/50 text-lg text-white hover:bg-black/70">✕</button>
         </div>
+        </PortalOverlay>
       )}
+
+      <ConfirmDialog
+        open={entryToDelete !== null}
+        title="Borrar entrada"
+        message={`¿Estás seguro de borrar "${entryToDelete?.description}" (${entryToDelete ? formatMoney(entryToDelete.amount) : ''})? Esta acción no se puede deshacer.`}
+        confirmLabel="Borrar"
+        cancelLabel="Cancelar"
+        tone="danger"
+        onConfirm={async () => {
+          if (entryToDelete) await del.mutateAsync(entryToDelete.id);
+          setEntryToDelete(null);
+        }}
+        onCancel={() => setEntryToDelete(null)}
+      />
     </div>
   );
 }

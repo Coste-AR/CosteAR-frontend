@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { useCreateAllocationBase, type AllocationBase } from '../../allocation-base-hooks';
 
 export function BaseSelect({ bases, value, companyId, onSelect }: {
@@ -39,24 +40,24 @@ export function BaseSelect({ bases, value, companyId, onSelect }: {
 
   return (
     <div className="space-y-1.5">
-      <select
+      <Select
+        className="sm:w-56"
         value={value || ''}
         onChange={(e) => {
           const v = e.target.value;
           if (v === '__new__') { setShowCreate(true); return; }
           onSelect(v);
         }}
-        className="w-full rounded border border-line bg-surface px-2 py-1 text-sm text-ink focus:border-granate focus:outline-none sm:w-56"
-      >
-        <option value="">Elegir base…</option>
-        {list.map((b) => (
-          <option key={b.id} value={b.code}>
-            {b.name}{b.unit ? ` (${b.unit})` : ''}{b.isSystem ? '' : ' · propia'}
-          </option>
-        ))}
-        {value && !inCatalog && <option value={value}>{value} (fuera del catálogo)</option>}
-        <option value="__new__">+ Crear base nueva…</option>
-      </select>
+        placeholder="Elegir base…"
+        options={[
+          ...list.map((b) => ({
+            value: b.code,
+            label: `${b.name}${b.unit ? ` (${b.unit})` : ''}${b.isSystem ? '' : ' · propia'}`,
+          })),
+          ...(value && !inCatalog ? [{ value, label: `${value} (fuera del catálogo)` }] : []),
+          { value: '__new__', label: '+ Crear base nueva…' },
+        ]}
+      />
 
       {showCreate && (
         <div className="space-y-1.5 rounded-lg border border-line bg-surface p-2">

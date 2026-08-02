@@ -8,6 +8,7 @@ import { AppShell, PageHeader } from '@/components/layout/AppShell';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { StatCard } from '@/components/ui/StatCard';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -42,8 +43,6 @@ const PRESETS = [
   { label: 'USD +5%', factor: 1.05, code: 'BCRA', indicatorCode: 'USD_OFICIAL' },
   { label: 'IPC +3%', factor: 1.03, code: 'INDEC', indicatorCode: 'IPC_NACIONAL' },
 ];
-
-const selectClass = 'h-11 w-full rounded-xl border border-line bg-surface px-3.5 text-sm font-medium text-ink shadow-sm transition-colors focus:border-granate focus:outline-none';
 
 // ─── componente principal ────────────────────────────────────────────────────
 
@@ -135,21 +134,17 @@ export function PropagacionPage() {
       <Card className="mb-6">
         <CardBody>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <label className="block text-[12px] font-medium uppercase tracking-wide text-ink-soft mb-1.5">
-                Tipo de variable
-              </label>
-              <select
-                className={selectClass}
-                value={source}
-                onChange={(e) => setSource(e.target.value as typeof source)}
-              >
-                <option value="PARITARIA">Paritaria / Convenio</option>
-                <option value="BCRA">BCRA — Tipo de cambio</option>
-                <option value="INDEC">INDEC — Índice</option>
-                <option value="ARCA">ARCA — Tarifa / Energía</option>
-              </select>
-            </div>
+            <Select
+              label="Tipo de variable"
+              value={source}
+              onChange={(e) => setSource(e.target.value as typeof source)}
+              options={[
+                { value: 'PARITARIA', label: 'Paritaria / Convenio' },
+                { value: 'BCRA', label: 'BCRA — Tipo de cambio' },
+                { value: 'INDEC', label: 'INDEC — Índice' },
+                { value: 'ARCA', label: 'ARCA — Tarifa / Energía' },
+              ]}
+            />
             <Input
               label="Descripción"
               placeholder="Ej: UATRE paritaria Nov 2025"

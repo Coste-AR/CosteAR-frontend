@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { UseFormRegister, UseFieldArrayReturn, UseFormSetValue } from 'react-hook-form';
 import { BaseSelect } from './BaseSelect';
 import { type AllocationBase } from '../../allocation-base-hooks';
@@ -138,10 +139,14 @@ export function PrimaryAllocationSection({
                   <input type="number" step="0.01" className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none sm:w-28" {...register(`concepts.${i}.amount.variable`, { valueAsNumber: true })} />
                 </td>
                 <td data-label="Modo" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
-                  <select className="w-full rounded border border-line bg-surface px-2 py-1 text-sm text-ink focus:border-granate focus:outline-none" {...register(`concepts.${i}.allocationMode`)}>
-                    <option value="percent">Manual (%)</option>
-                    <option value="base">Automático (por base)</option>
-                  </select>
+                  <Select
+                    {...register(`concepts.${i}.allocationMode`)}
+                    defaultValue={(f as any).allocationMode}
+                    options={[
+                      { value: 'percent', label: 'Manual (%)' },
+                      { value: 'base', label: 'Automático (por base)' },
+                    ]}
+                  />
                 </td>
                 {cMode === 'base' ? (
                   <td colSpan={watchedCenters?.length ?? 1} className="block sm:table-cell sm:px-2 sm:py-1.5">

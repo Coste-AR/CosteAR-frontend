@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { PortalOverlay } from '@/components/ui/PortalOverlay';
 import { useCreateCostStructure } from '@/features/cost-structures/cost-structure-hooks';
 import {
   CostingSystemSelector,
@@ -24,7 +25,7 @@ export function CompanyStructuresList({ companyId, periodicity, structures }: { 
   const [showForm, setShowForm] = useState(false);
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader
         title="Estructuras de costos"
         description="Por producto y período"
@@ -35,19 +36,35 @@ export function CompanyStructuresList({ companyId, periodicity, structures }: { 
         }
       />
       {showForm && (
-        <div className="border-b border-zinc-100 px-6 py-5">
-          <NewStructureForm
-            companyId={companyId}
-            periodicity={periodicity}
-            onDone={() => setShowForm(false)}
-          />
-        </div>
+        <PortalOverlay>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in">
+            <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl animate-rise border border-zinc-150">
+              <h3 className="text-lg font-bold text-zinc-900 mb-4">Nueva estructura</h3>
+              <NewStructureForm
+                companyId={companyId}
+                periodicity={periodicity}
+                onDone={() => setShowForm(false)}
+              />
+            </div>
+          </div>
+        </PortalOverlay>
       )}
-      <CardBody className="p-0">
+      <CardBody className={structures?.length ? "p-0" : "p-6"}>
         {!structures?.length ? (
-          <div className="flex flex-col items-center gap-3 py-14 text-center">
-            <FileSpreadsheet className="size-8 text-zinc-300" />
-            <p className="text-sm text-zinc-400">Sin estructuras de costos todavía.</p>
+          <div className="flex flex-col items-center justify-center py-12 text-center rounded-2xl border border-dashed border-line bg-zinc-50/50">
+            <div className="flex size-14 items-center justify-center rounded-full bg-granate-tenue text-granate shadow-sm mb-5 relative">
+              <FileSpreadsheet className="size-6" />
+              <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                <Plus className="size-3.5 text-granate" />
+              </div>
+            </div>
+            <h3 className="text-[16px] font-bold text-ink">Empezá a Costear</h3>
+            <p className="mt-1.5 text-[13px] text-ink-soft max-w-sm mb-6">
+              Creá la primera estructura de costos para este cliente. Podrás importar datos desde Excel o configurar el modelo manualmente.
+            </p>
+            <Button size="sm" onClick={() => setShowForm(true)} className="gap-2 bg-granate hover:bg-granate-deep text-white shadow-md">
+              <Plus className="size-4" /> Crear Estructura
+            </Button>
           </div>
         ) : (
           <ul className="divide-y divide-zinc-100">
@@ -89,13 +106,18 @@ function NewStructureForm({
 }) {
   const create = useCreateCostStructure(companyId);
   const [error, setError] = useState<string | null>(null);
-  // El sistema de costeo se elige acá y prácticamente no se cambia después (solo
-  // mientras no haya cálculos). Órdenes es el default porque es el sistema con el
-  // que la app viene funcionando.
-  const [costingSystem, setCostingSystem] = useState<CostingSystem>('ORDERS');
+  // El sistema de costeo define toda la estructura de ahí en adelante y
+  // prácticamente no se puede cambiar después (solo mientras no haya cálculos
+  // hechos). Arranca sin elegir a propósito: forzar un clic activo evita crear
+  // una estructura con el sistema equivocado solo porque nadie tocó el campo.
+  const [costingSystem, setCostingSystem] = useState<CostingSystem | null>(null);
   const { register, handleSubmit, formState } = useForm<{ productName: string }>();
 
   const onSubmit = handleSubmit(async (values) => {
+    if (!costingSystem) {
+      setError('Elegí un sistema de costeo antes de crear la estructura.');
+      return;
+    }
     setError(null);
     try {
       await create.mutateAsync({ productName: values.productName, costingSystem });
@@ -106,13 +128,14 @@ function NewStructureForm({
   });
 
   return (
-    <form onSubmit={onSubmit} className="animate-rise space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
       <Input label="Producto" placeholder="Ej: Mesa de roble" {...register('productName', { required: true })} />
 
       <CostingSystemSelector
         value={costingSystem}
         onChange={setCostingSystem}
         idPrefix="nueva-estructura-costeo"
+        stacked
       />
 
       <div className="flex items-start gap-2.5 rounded-lg bg-zinc-50 border border-zinc-100 px-3.5 py-3">
@@ -132,7 +155,7 @@ function NewStructureForm({
       )}
 
       <div className="flex gap-2">
-        <Button type="submit" size="sm" loading={formState.isSubmitting}>
+        <Button type="submit" size="sm" loading={formState.isSubmitting} disabled={!costingSystem}>
           Crear
         </Button>
         <Button type="button" variant="ghost" size="sm" onClick={onDone}>

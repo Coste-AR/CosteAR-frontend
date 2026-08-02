@@ -1,5 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { UseFormRegister, UseFieldArrayReturn } from 'react-hook-form';
 
 export function CostCentersSection({ centers, register }: {
@@ -39,10 +40,15 @@ export function CostCentersSection({ centers, register }: {
                   <input className="w-full rounded border border-line bg-surface px-2 py-1 text-sm text-ink focus:border-granate focus:outline-none" placeholder="Nombre del centro" {...register(`centers.${i}.name`)} />
                 </td>
                 <td data-label="Tipo" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
-                  <select className="w-full rounded border border-line bg-surface px-2 py-1 text-sm text-ink focus:border-granate focus:outline-none sm:w-auto" {...register(`centers.${i}.type`)}>
-                    <option value="productive">Productivo</option>
-                    <option value="service">Servicio</option>
-                  </select>
+                  <Select
+                    className="sm:w-auto"
+                    {...register(`centers.${i}.type`)}
+                    defaultValue={(f as any).type}
+                    options={[
+                      { value: 'productive', label: 'Productivo' },
+                      { value: 'service', label: 'Servicio' },
+                    ]}
+                  />
                 </td>
                 <td className="flex justify-end sm:table-cell sm:px-2 sm:py-1.5 sm:text-center">
                   <button type="button" onClick={() => centers.remove(i)} className="text-ink-soft hover:text-danger"><Trash2 className="size-4" /></button>

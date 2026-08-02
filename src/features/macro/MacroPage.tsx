@@ -6,6 +6,7 @@ import { AppShell, PageHeader } from '@/components/layout/AppShell';
 import { AdvisorPanel } from '@/features/advisor/AdvisorPanel';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { api, apiErrorMessage } from '@/lib/api';
 import type { MacroSnapshot } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
@@ -191,19 +192,17 @@ function ManualEntryForm({ onDone }: { onDone: () => void }) {
       />
       <CardBody>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-ink-soft">Fuente</label>
-            <select
-              className="h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink transition-colors focus:border-granate focus:outline-none"
-              value={source}
-              onChange={(e) => setSource(e.target.value as typeof source)}
-            >
-              <option value="PARITARIA">Paritaria</option>
-              <option value="ARCA">ARCA / Energía</option>
-              <option value="BCRA">BCRA</option>
-              <option value="INDEC">INDEC</option>
-            </select>
-          </div>
+          <Select
+            label="Fuente"
+            value={source}
+            onChange={(e) => setSource(e.target.value as typeof source)}
+            options={[
+              { value: 'PARITARIA', label: 'Paritaria' },
+              { value: 'ARCA', label: 'ARCA / Energía' },
+              { value: 'BCRA', label: 'BCRA' },
+              { value: 'INDEC', label: 'INDEC' },
+            ]}
+          />
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-ink-soft">Código indicador</label>
             <input

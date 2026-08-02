@@ -47,7 +47,8 @@ export function CostingSystemSelector({
   idPrefix = 'costing-system',
   stacked = false,
 }: {
-  value: CostingSystem;
+  /** `null` = todavía sin elegir (alta nueva): ninguna tarjeta aparece marcada. */
+  value: CostingSystem | null;
   onChange: (value: CostingSystem) => void;
   disabled?: boolean;
   idPrefix?: string;

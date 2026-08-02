@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { MessageSquare, FileText, Image } from 'lucide-react';
+import { FileText, Image, Camera, Send, Pointer } from 'lucide-react';
 import { CosteARLogo } from '@/components/layout/CosteARLogo';
 import { cn, formatDate } from '@/lib/utils';
 
@@ -94,14 +94,46 @@ export function ChatTimeline({
       {/* Mensajes del Chat */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 pb-24">
         {submissions.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4">
-            <div className="size-16 rounded-3xl bg-granate text-white flex items-center justify-center mb-6 shadow-xl shadow-granate/20 rotate-[-5deg] hover:rotate-0 transition-transform">
-              <MessageSquare className="size-8" />
-            </div>
-            <h3 className="text-xl font-black text-ink font-outfit tracking-tight">Iniciá una conversación</h3>
-            <p className="text-[14px] text-ink-soft/90 mt-2 font-medium leading-relaxed px-4">
-              Escribí notas sobre gastos, subí fotos de comprobantes o facturas en PDF. El sistema te dará una devolución instantánea sobre el estado de clasificación.
+          <div className="h-full flex flex-col items-center justify-center text-center max-w-lg mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4 py-10">
+            <h3 className="text-2xl font-black text-ink font-outfit tracking-tight mb-2">¡Bienvenido al portal!</h3>
+            <p className="text-[14px] text-ink-soft/90 mb-10 font-medium leading-relaxed px-4">
+              Aquí podés subir las facturas y comprobantes para que tu costista los clasifique.
             </p>
+            
+            <div className="grid gap-6 sm:grid-cols-3 w-full">
+              <div className="flex flex-col items-center p-5 rounded-[24px] bg-white border border-line shadow-sm relative overflow-hidden group">
+                <div className="absolute top-0 right-0 size-16 bg-granate/5 rounded-bl-[100%] transition-transform group-hover:scale-150" />
+                <div className="size-12 rounded-2xl bg-granate-tenue text-granate flex items-center justify-center mb-4 shadow-sm z-10">
+                  <Camera className="size-5" />
+                </div>
+                <h4 className="text-sm font-bold text-ink mb-1 z-10">1. Foto clara</h4>
+                <p className="text-[12px] text-ink-soft z-10">Sacale una foto al comprobante que sea fácil de leer.</p>
+              </div>
+
+              <div className="flex flex-col items-center p-5 rounded-[24px] bg-white border border-line shadow-sm relative overflow-hidden group">
+                <div className="absolute top-0 right-0 size-16 bg-blue-500/5 rounded-bl-[100%] transition-transform group-hover:scale-150" />
+                <div className="size-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4 shadow-sm z-10">
+                  <Pointer className="size-5" />
+                </div>
+                <h4 className="text-sm font-bold text-ink mb-1 z-10">2. Imputación</h4>
+                <p className="text-[12px] text-ink-soft z-10">Elegí abajo a qué producto pertenece este gasto.</p>
+              </div>
+
+              <div className="flex flex-col items-center p-5 rounded-[24px] bg-white border border-line shadow-sm relative overflow-hidden group">
+                <div className="absolute top-0 right-0 size-16 bg-emerald-500/5 rounded-bl-[100%] transition-transform group-hover:scale-150" />
+                <div className="size-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 shadow-sm z-10">
+                  <Send className="size-5 ml-1" />
+                </div>
+                <h4 className="text-sm font-bold text-ink mb-1 z-10">3. Enviar</h4>
+                <p className="text-[12px] text-ink-soft z-10">Subilo y tu costista te avisará cuando esté procesado.</p>
+              </div>
+            </div>
+            
+            <div className="mt-10 animate-bounce">
+              <span className="text-granate-deep font-bold text-xs uppercase tracking-widest bg-granate-tenue px-4 py-2 rounded-full">
+                Empezá abajo ↓
+              </span>
+            </div>
           </div>
         ) : (
           <div className="space-y-8">

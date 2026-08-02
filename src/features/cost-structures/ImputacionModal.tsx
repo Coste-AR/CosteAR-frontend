@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { PortalOverlay } from '@/components/ui/PortalOverlay';
 import type { ImputacionOption } from './trazabilidad-types';
 
 /**
@@ -18,6 +19,7 @@ export function ImputacionModal({
 }) {
   if (!open) return null;
   return (
+    <PortalOverlay>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-xl">
         <h3 className="mb-1 text-[15px] font-bold text-granate-deep">¿A qué período imputamos este dato?</h3>
@@ -46,5 +48,6 @@ export function ImputacionModal({
         </button>
       </div>
     </div>
+    </PortalOverlay>
   );
 }

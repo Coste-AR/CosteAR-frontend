@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Inbox, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Select } from '@/components/ui/Select';
 import { apiErrorMessage } from '@/lib/api';
 import {
   useUnassignedDataEntries,
@@ -110,19 +111,15 @@ export function PendingDocumentsTab({ structureId }: { structureId: string }) {
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                <select
-                  className="rounded-xl border border-line bg-surface px-3 py-2 text-[13px] text-ink focus:border-granate focus:outline-none"
+                <Select
+                  className="w-auto"
+                  ariaLabel="Departamento"
                   value={selected[entry.id] ?? ''}
                   onChange={(e) => setSelected((s) => ({ ...s, [entry.id]: e.target.value }))}
                   disabled={departments.length === 0}
-                >
-                  <option value="">Elegí un departamento…</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.sequence}. {d.name}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Elegí un departamento…"
+                  options={departments.map((d) => ({ value: d.id, label: `${d.sequence}. ${d.name}` }))}
+                />
                 <button
                   type="button"
                   disabled={!selected[entry.id] || asignar.isPending}

@@ -14,6 +14,7 @@ import {
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
 import {
   usePendingEntries,
   useReviewEntry,
@@ -244,8 +245,25 @@ export function ValidacionesPage() {
           )}
 
           {isLoading ? (
-            <div className="py-16 text-center text-[13px] font-semibold text-ink-soft">
-              Cargando…
+            <div className="space-y-4">
+              <div className="mb-4 flex gap-2">
+                <Skeleton className="h-8 w-28 rounded-full" />
+                <Skeleton className="h-8 w-32 rounded-full" />
+              </div>
+              <div className="rounded-2xl border border-line bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center gap-3 border-b border-line pb-4">
+                  <Skeleton className="size-10 rounded-xl" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                  ))}
+                </div>
+              </div>
             </div>
           ) : !data?.items.length ? (
             <Card>
