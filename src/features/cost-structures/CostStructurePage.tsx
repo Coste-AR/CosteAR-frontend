@@ -43,12 +43,13 @@ import { ResultTab, EmptyResult } from './components/tabs/ResultTab';
 import { HistoryTab } from './components/tabs/HistoryTab';
 import { CostingSystemBadge } from './components/shared/CostingSystemBadge';
 import { DepartmentsTab } from './components/process/DepartmentsTab';
+import { ProcessSetupWizard } from './components/process/ProcessSetupWizard';
 import { PendingDocumentsTab } from './components/process/PendingDocumentsTab';
 import { UnitMovementTab } from './components/process/UnitMovementTab';
 import { EquivalentProductionTab } from './components/process/EquivalentProductionTab';
 import { JointCostsTab } from './components/process/JointCostsTab';
 import { ProductionCostReportView } from './components/process/ProductionCostReportView';
-import { useProcessDepartments } from './process-costing-hooks';
+import { useProcessDepartments, useProcessSetup } from './process-costing-hooks';
 import {
   tabsFor,
   defaultTabFor,
@@ -122,6 +123,15 @@ export function CostStructurePage() {
   const readOnly = selectedPeriod?.status === 'CLOSED';
 
   const [activeTab, setActiveTab] = useState<SectionTab>('raw-material');
+
+  // ¿Esta estructura de Procesos todavía no declaró su mapa productivo? Mientras
+  // no lo haga, el backend rechaza el cálculo, así que la pantalla muestra el
+  // wizard en lugar de las secciones. `shownTab` en null apaga todo el contenido
+  // de pestañas sin tener que envolverlo bloque por bloque.
+  const { data: processSetup } = useProcessSetup(id);
+  const needsProcessSetup =
+    structure?.costingSystem === 'PROCESSES' && processSetup?.completado === false;
+  const shownTab: SectionTab | null = needsProcessSetup ? null : activeTab;
   // La estructura llega después del primer render, y al cambiar el sistema de
   // costeo el juego de pestañas cambia entero: si la que estaba activa no existe
   // en el sistema nuevo, la pantalla quedaría en blanco. Se cae a la primera del
@@ -441,15 +451,27 @@ export function CostStructurePage() {
         </div>
       )}
 
+      {/* SETUP PREVIO OBLIGATORIO.
+          Una estructura de Procesos sin configurar no puede calcular: el backend
+          la frena con un 422. Mostrar las pestañas igual dejaría al costista
+          cargando datos durante media hora para chocarse con el bloqueo recién
+          al apretar Calcular. El wizard va primero y en lugar de todo lo demás. */}
+      {needsProcessSetup && (
+        <ProcessSetupWizard
+          structureId={id}
+          onCompleted={() => setActiveTab(defaultTabFor(structure?.costingSystem))}
+        />
+      )}
+
       {/* Aviso de progreso */}
-      {!allReady && !readOnly && (
+      {!needsProcessSetup && !allReady && !readOnly && (
         <div className="mb-4 rounded-xl border border-action/20 bg-action/5 px-4 py-2.5 text-[13px] text-ink">
           Completá las 4 secciones para habilitar el cálculo.
         </div>
       )}
 
       {/* Tab bar — con gap entre pestañas para evitar errar de botón al cargar datos */}
-      <div className="mb-8 flex gap-4 overflow-x-auto border-b border-line">
+      <div className={cn('mb-8 flex gap-4 overflow-x-auto border-b border-line', needsProcessSetup && 'hidden')}>
         {tabsFor(structure?.costingSystem).map(({ id: tabId, label, icon: Icon, configKey }) => {
           const isDone = configKey ? configured[configKey] : !!shown;
           return (
@@ -570,7 +592,7 @@ export function CostStructurePage() {
 
       {/* En Procesos el resultado es el informe de costos por departamento, no el
           estado de costos de Órdenes: son dos informes distintos. */}
-      {activeTab === 'result' && isProcesses && (
+      {shownTab === 'result' && isProcesses && (
         <ProductionCostReportView
           structureId={id}
           periodId={periodId}
@@ -580,7 +602,7 @@ export function CostStructurePage() {
         />
       )}
 
-      {activeTab === 'result' && !isProcesses && (
+      {shownTab === 'result' && !isProcesses && (
         <div className="space-y-4">
           {incompletitud?.incompleto && (
             <IncompleteNotice
@@ -607,28 +629,28 @@ export function CostStructurePage() {
         </div>
       )}
 
-      {activeTab === 'simulate' && (
+      {shownTab === 'simulate' && (
         <ScenarioSimulator structureId={id} currentResult={shown?.result || null} />
       )}
 
-      {activeTab === 'comparison' && (
+      {shownTab === 'comparison' && (
         <PeriodComparison structureId={id} />
       )}
 
-      {activeTab === 'history' && (
+      {shownTab === 'history' && (
         <HistoryTab structureId={id} />
       )}
 
       {/* Costeo por Procesos (U04-U08). */}
-      {activeTab === 'process-departments' && (
+      {shownTab === 'process-departments' && (
         <DepartmentsTab structureId={id} readOnly={readOnly} />
       )}
 
-      {activeTab === 'process-pending' && (
+      {shownTab === 'process-pending' && (
         <PendingDocumentsTab structureId={id} />
       )}
 
-      {activeTab === 'process-movement' && (
+      {shownTab === 'process-movement' && (
         <UnitMovementTab
           structureId={id}
           periodId={periodId}
@@ -639,7 +661,7 @@ export function CostStructurePage() {
         />
       )}
 
-      {activeTab === 'process-equivalent' && (
+      {shownTab === 'process-equivalent' && (
         <EquivalentProductionTab
           structureId={id}
           periodId={periodId}
@@ -649,7 +671,7 @@ export function CostStructurePage() {
         />
       )}
 
-      {activeTab === 'process-joint-costs' && (
+      {shownTab === 'process-joint-costs' && (
         <JointCostsTab
           structureId={id}
           periodId={periodId}
