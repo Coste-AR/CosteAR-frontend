@@ -9,6 +9,9 @@ import type {
   CostElement,
   Incompletitud,
   MpMovement,
+  ResultadoVigente,
+  LateDataDecision,
+  LateDataChoice,
 } from './trazabilidad-types';
 
 /** Corre el motor con árbol persistido (Trazabilidad Total v1, D.1). Endpoint
@@ -39,6 +42,10 @@ export function useCalculationTree(runId: string | null | undefined) {
   });
 }
 
+/**
+ * Historial de corridas. Trae TODAS por defecto, incluidas las automáticas sin
+ * validar: es la vista de trazabilidad y su razón de ser es no esconder nada.
+ */
 export function useStructureRuns(structureId: string) {
   return useQuery({
     queryKey: ['structures', structureId, 'runs'],
@@ -47,6 +54,68 @@ export function useStructureRuns(structureId: string) {
       return res.data.data;
     },
     enabled: !!structureId,
+  });
+}
+
+/** El resultado que vale hoy: la última validada, o la última automática marcada. */
+export function useResultadoVigente(structureId: string) {
+  return useQuery({
+    queryKey: ['structures', structureId, 'resultado-vigente'],
+    queryFn: async () => {
+      const res = await api.get<{ data: ResultadoVigente }>(
+        `/structures/${structureId}/resultado-vigente`,
+      );
+      return res.data.data;
+    },
+    enabled: !!structureId,
+  });
+}
+
+/** Un humano da por buena una corrida automática. No existe el inverso. */
+export function useValidateRun(structureId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (runId: string) => {
+      const res = await api.post<{ data: { id: string; validated: boolean } }>(
+        `/calculation-runs/${runId}/validate`,
+        {},
+      );
+      return res.data.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['structures', structureId, 'runs'] });
+      void qc.invalidateQueries({ queryKey: ['structures', structureId, 'resultado-vigente'] });
+    },
+  });
+}
+
+/** Datos que llegaron para un período ya cerrado y esperan decisión. */
+export function useLateDataDecisions() {
+  return useQuery({
+    queryKey: ['late-data-decisions'],
+    queryFn: async () => {
+      const res = await api.get<{ data: LateDataDecision[] }>('/late-data-decisions');
+      return res.data.data;
+    },
+  });
+}
+
+export function useResolveLateData() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (v: { id: string; choice: LateDataChoice; reason: string }) => {
+      const res = await api.post(`/late-data-decisions/${v.id}/resolve`, {
+        choice: v.choice,
+        reason: v.reason,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['late-data-decisions'] });
+      // La decisión puede haber reabierto un mes y movido los siguientes: se
+      // invalida todo lo de estructuras en vez de adivinar qué quedó viejo.
+      void qc.invalidateQueries({ queryKey: ['structures'] });
+    },
   });
 }
 
