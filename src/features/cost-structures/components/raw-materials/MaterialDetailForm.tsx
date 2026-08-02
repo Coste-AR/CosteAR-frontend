@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, ArrowLeft, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { formatDate, formatDateOnly } from '@/lib/utils';
 import { useCreateDataPoint, useImputar, useMpMovements } from '../../trazabilidad-hooks';
@@ -381,10 +382,16 @@ export function MaterialDetailForm({ structureId, period, material, onBack, onSa
                       )}
                     </td>
                     <td data-label="Tipo" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
-                      <select className="w-full rounded border border-line bg-surface px-2 py-1 text-sm text-ink focus:border-granate focus:outline-none sm:w-auto" {...register(`movements.${i}.type`)}>
-                        <option value="purchase">Compra</option>
-                        <option value="consumption">Consumo</option>
-                      </select>
+                      <Select
+                        key={`type-${field.id}`}
+                        className="sm:w-auto"
+                        {...register(`movements.${i}.type`)}
+                        defaultValue={(field as any).type}
+                        options={[
+                          { value: 'purchase', label: 'Compra' },
+                          { value: 'consumption', label: 'Consumo' },
+                        ]}
+                      />
                     </td>
                     <td data-label="Detalle" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
                       <input className="w-full rounded border border-line bg-surface px-2 py-1 text-sm text-ink focus:border-granate focus:outline-none" placeholder="Detalle…" {...register(`movements.${i}.detail`)} />

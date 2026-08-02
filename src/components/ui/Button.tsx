@@ -12,15 +12,18 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 /*
  * Botones según la guía: una sola acción primaria por vista. El primario usa
- * el rojo de acción; el secundario, borde granate sobre blanco; el destructivo,
- * rojo de estado (más oscuro) reservado para acciones irreversibles.
+ * negro/casi-negro — el secundario, borde granate sobre blanco; el destructivo,
+ * rojo de estado, reservado para acciones irreversibles. El primario dejó de
+ * ser rojo a propósito: compartía familia de color con "danger" (ambos
+ * #b3xxxx) y un "Guardar" quedaba a un tono de un "Eliminar". Negro no compite
+ * con ningún otro token semántico de la app.
  * Radio rounded-xl (32px, ver --radius-xl en index.css) que en botones de
  * 36-44px de alto se comporta como pill — mismo efecto que los botones
  * "Ver Todos"/"Auditar" del dashboard, sin necesidad de override manual.
  */
 const variants: Record<Variant, string> = {
   primary:
-    'bg-action text-white hover:bg-action-soft active:bg-action shadow-sm hover:shadow-md',
+    'bg-zinc-950 text-white hover:bg-zinc-800 active:bg-zinc-950 shadow-sm hover:shadow-md',
   secondary:
     'bg-surface text-granate border border-granate hover:bg-granate-tenue shadow-sm',
   ghost: 'bg-transparent text-granate hover:bg-granate-tenue',

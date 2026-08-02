@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { PortalOverlay } from '@/components/ui/PortalOverlay';
 
 export function FullScreenCalculatorLoader({ active }: { active: boolean }) {
   const [step, setStep] = useState(0);
@@ -28,6 +29,7 @@ export function FullScreenCalculatorLoader({ active }: { active: boolean }) {
   const current = steps[step]!;
 
   return (
+    <PortalOverlay>
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md p-6 text-white animate-fade-in">
       <div className="w-full max-w-sm text-center space-y-6">
         <div className="relative flex justify-center">
@@ -54,5 +56,6 @@ export function FullScreenCalculatorLoader({ active }: { active: boolean }) {
         </div>
       </div>
     </div>
+    </PortalOverlay>
   );
 }

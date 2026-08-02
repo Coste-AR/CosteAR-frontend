@@ -1,4 +1,5 @@
 import { Layers } from 'lucide-react';
+import { Select } from '@/components/ui/Select';
 import type { ProcessDepartment } from '../../process-costing-types';
 
 /**
@@ -25,7 +26,7 @@ export function DepartmentSelector({
   const actual = departments.find((d) => d.id === value) ?? departments[0]!;
 
   return (
-    <label className="group inline-flex items-center gap-3 rounded-xl border border-line bg-surface py-1.5 pl-3 pr-1.5 transition-colors hover:border-line-strong">
+    <div className="group inline-flex items-center gap-3 rounded-xl border border-line bg-surface py-1.5 pl-3 pr-1.5 transition-colors hover:border-line-strong">
       <span className="flex items-center gap-2">
         <Layers className="size-4 shrink-0 text-granate" aria-hidden />
         <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
@@ -39,17 +40,13 @@ export function DepartmentSelector({
         {actual.sequence}
       </span>
 
-      <select
+      <Select
+        ariaLabel={label}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8 min-w-0 max-w-[15rem] border-none bg-transparent py-0 pl-0 pr-7 text-[13.5px] font-semibold text-ink hover:bg-transparent focus:shadow-none"
-      >
-        {departments.map((d) => (
-          <option key={d.id} value={d.id}>
-            {d.sequence}º — {d.name}
-          </option>
-        ))}
-      </select>
-    </label>
+        className="h-8 w-auto min-w-0 max-w-[15rem] border-none bg-transparent py-0 pl-0 pr-7 text-[13.5px] font-semibold shadow-none"
+        options={departments.map((d) => ({ value: d.id, label: `${d.sequence}º — ${d.name}` }))}
+      />
+    </div>
   );
 }

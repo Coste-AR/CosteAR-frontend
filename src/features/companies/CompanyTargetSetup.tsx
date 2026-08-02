@@ -8,23 +8,28 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { ArrowLeft, Check, Percent, Target } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
+import { useCompany } from "./company-hooks";
+import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 
 export function CompanyTargetSetup() {
   const { id } = useParams({ from: '/companies/$id/setup' });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: company } = useQuery({
-    queryKey: ["companies", id],
-    queryFn: () => api.get(`/companies/${id}`).then(res => res.data),
-  });
+  // Comparte hook y query key con CompanyDetailPage (useCompany en
+  // company-hooks.ts) a propósito: antes esta pantalla tenía su propio fetch
+  // ad-hoc con ["companies", id] que desempaquetaba res.data en vez de
+  // res.data.data, y esa forma corrupta quedaba cacheada bajo la misma key —
+  // la ficha del cliente mostraba "Cliente" en vez del nombre real hasta
+  // recargar la página. Reusar el hook elimina la duplicación que causaba el bug.
+  const { data: company } = useCompany(id);
 
   const { data: targetBudget } = useQuery({
     queryKey: ["companies", id, "target-budget"],
     queryFn: () => api.get(`/companies/${id}/target-budget`).then(res => res.data),
   });
 
-  const industry = company?.data?.industry;
+  const industry = company?.industry;
   const { data: industryBenchmark } = useQuery({
     queryKey: ["benchmarks", industry],
     queryFn: () => api.get(`/benchmarks/${encodeURIComponent(industry ?? '')}`).then(res => res.data).catch(() => null),
@@ -79,6 +84,14 @@ export function CompanyTargetSetup() {
     });
   };
 
+  useKeyboardShortcut({ key: 's', ctrlKey: true }, () => {
+    if (isPerfect && !updateMutation.isPending) {
+      handleSave();
+    } else if (!isPerfect) {
+      toast.error("La suma debe ser 100% para guardar");
+    }
+  });
+
   const marketReference = industryBenchmark?.data 
     ? `Promedio en ${industry}`
     : "Promedio General PyME";
@@ -98,7 +111,7 @@ export function CompanyTargetSetup() {
             Configuración de Estructura Objetivo
           </h1>
           <p className="text-[14px] text-ink-soft">
-            Definamos los márgenes ideales para <strong className="text-ink">{company?.data?.name || "tu cliente"}</strong>.
+            Definamos los márgenes ideales para <strong className="text-ink">{company?.name || "tu cliente"}</strong>.
           </p>
         </div>
       </div>
@@ -119,36 +132,36 @@ export function CompanyTargetSetup() {
               {/* Sliders Area */}
               <div className="space-y-6">
                 
-                <SliderRow 
-                  label="Materia Prima / Insumos" 
-                  value={rawMaterialsPct} 
-                  onChange={setRawMaterialsPct} 
-                  color="bg-amber-500" 
-                  reference={benchmark ? `${benchmark.rawMaterialsPct}%` : "..."} 
+                <SliderRow
+                  label="Materia Prima / Insumos"
+                  value={rawMaterialsPct}
+                  onChange={setRawMaterialsPct}
+                  accentHex="#f59e0b"
+                  reference={benchmark ? `${benchmark.rawMaterialsPct}%` : "..."}
                 />
-                
-                <SliderRow 
-                  label="Mano de Obra" 
-                  value={laborPct} 
-                  onChange={setLaborPct} 
-                  color="bg-blue-500" 
-                  reference={benchmark ? `${benchmark.laborPct}%` : "..."} 
+
+                <SliderRow
+                  label="Mano de Obra"
+                  value={laborPct}
+                  onChange={setLaborPct}
+                  accentHex="#3b82f6"
+                  reference={benchmark ? `${benchmark.laborPct}%` : "..."}
                 />
-                
-                <SliderRow 
-                  label="Costos Indirectos (CIF)" 
-                  value={cifPct} 
-                  onChange={setCifPct} 
-                  color="bg-purple-500" 
-                  reference={benchmark ? `${benchmark.cifPct}%` : "..."} 
+
+                <SliderRow
+                  label="Costos Indirectos (CIF)"
+                  value={cifPct}
+                  onChange={setCifPct}
+                  accentHex="#a855f7"
+                  reference={benchmark ? `${benchmark.cifPct}%` : "..."}
                 />
-                
-                <SliderRow 
-                  label="Margen de Ganancia Neto" 
-                  value={marginPct} 
-                  onChange={setMarginPct} 
-                  color="bg-emerald-500" 
-                  reference={benchmark ? `${benchmark.marginPct}%` : "..."} 
+
+                <SliderRow
+                  label="Margen de Ganancia Neto"
+                  value={marginPct}
+                  onChange={setMarginPct}
+                  accentHex="#10b981"
+                  reference={benchmark ? `${benchmark.marginPct}%` : "..."}
                 />
 
               </div>
@@ -230,18 +243,24 @@ export function CompanyTargetSetup() {
   );
 }
 
-function SliderRow({ 
-  label, 
-  value, 
-  onChange, 
-  color, 
-  reference 
-}: { 
-  label: string, 
-  value: number, 
-  onChange: (v: number) => void, 
-  color: string, 
-  reference: string 
+function SliderRow({
+  label,
+  value,
+  onChange,
+  accentHex,
+  reference
+}: {
+  label: string,
+  value: number,
+  onChange: (v: number) => void,
+  /**
+   * Hex fijo, no una clase Tailwind dinámica: `text-${x}` construido en
+   * runtime (el patrón anterior) no lo detecta el escaneo estático de
+   * Tailwind v4, así que la clase nunca se generaba — CIF y Margen quedaban
+   * negros en vez de morado/verde. El hex evita depender del JIT acá.
+   */
+  accentHex: string,
+  reference: string
 }) {
   return (
     <div>
@@ -262,13 +281,21 @@ function SliderRow({
           </div>
         </div>
       </div>
-      <input 
-        type="range" 
-        min="0" 
-        max="100" 
-        value={value} 
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={value}
         onChange={e => onChange(Number(e.target.value))}
-        className={cn("w-full h-2 rounded-full appearance-none bg-zinc-100 cursor-pointer accent-current", color.replace('bg-', 'text-'))}
+        // El fill (izquierda del thumb = "ocupado") se arma a mano con un
+        // gradient: appearance-none apaga el relleno nativo del navegador.
+        // color: accentHex también alimenta currentColor, así el borde del
+        // thumb (index.css) hace juego con el fill sin una segunda variable.
+        style={{
+          color: accentHex,
+          background: `linear-gradient(to right, currentColor ${value}%, var(--color-line) ${value}%)`,
+        }}
+        className="w-full rounded-full cursor-pointer"
       />
     </div>
   );

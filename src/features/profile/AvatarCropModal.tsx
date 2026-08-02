@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import { Button } from '@/components/ui/Button';
+import { PortalOverlay } from '@/components/ui/PortalOverlay';
 import { getCroppedImage, type Area } from './crop-image';
 
 interface Props {
@@ -31,6 +32,7 @@ export function AvatarCropModal({ imageSrc, saving, onCancel, onSave }: Props) {
   };
 
   return (
+    <PortalOverlay>
     <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/40 backdrop-blur-sm px-4 py-8">
       <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-5 shadow-[0_24px_60px_rgba(74,21,27,0.18)] sm:rounded-[28px] sm:p-7">
         <h3 className="mb-4 text-[13px] font-extrabold uppercase tracking-wider text-granate-deep sm:mb-5">Recortá tu foto</h3>
@@ -70,5 +72,6 @@ export function AvatarCropModal({ imageSrc, saving, onCancel, onSave }: Props) {
         </div>
       </div>
     </div>
+    </PortalOverlay>
   );
 }

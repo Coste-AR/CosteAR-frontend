@@ -14,6 +14,9 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   useCompanies,
   useCreateCompany,
@@ -95,20 +98,11 @@ export function CompaniesPage() {
       formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   };
+  const [companyToDelete, setCompanyToDelete] = useState<{ id: string, name: string } | null>(null);
   const deleteCompany = useDeleteCompany();
 
-  const handleDelete = async (companyId: string, name: string) => {
-    if (
-      window.confirm(
-        `¿Estás seguro de eliminar a ${name}? Esta acción eliminará permanentemente la empresa, todas sus estructuras de costos, libro de costos, firmas y operadores vinculados.`,
-      )
-    ) {
-      try {
-        await deleteCompany.mutateAsync(companyId);
-      } catch (e) {
-        toast.error("Error al eliminar la empresa: " + apiErrorMessage(e));
-      }
-    }
+  const handleDelete = (companyId: string, name: string) => {
+    setCompanyToDelete({ id: companyId, name });
   };
 
   const totalStructures = companies.reduce(
@@ -204,8 +198,27 @@ export function CompaniesPage() {
       )}
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <p className="text-sm text-ink-soft">Cargando clientes…</p>
+        <div className="space-y-4">
+          <div className="grid gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex flex-col gap-3 p-4 border border-line rounded-xl bg-white sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Skeleton className="size-11 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-20 rounded-full" />
+                      <Skeleton className="h-4 w-24 rounded-full" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2 pl-14 sm:pl-0 sm:shrink-0 sm:justify-end">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="size-5 ml-2" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : !companies?.length ? (
         <Card className="border border-line">
@@ -299,6 +312,26 @@ export function CompaniesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={companyToDelete !== null}
+        title="Eliminar cliente"
+        message={`¿Estás seguro de eliminar a ${companyToDelete?.name}? Esta acción eliminará permanentemente la empresa, todas sus estructuras de costos, libro de costos, firmas y operadores vinculados.`}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        tone="danger"
+        onConfirm={async () => {
+          if (companyToDelete) {
+            try {
+              await deleteCompany.mutateAsync(companyToDelete.id);
+            } catch (e) {
+              toast.error("Error al eliminar la empresa: " + apiErrorMessage(e));
+            }
+          }
+          setCompanyToDelete(null);
+        }}
+        onCancel={() => setCompanyToDelete(null)}
+      />
     </AppShell>
   );
 }
@@ -313,8 +346,11 @@ function NewCompanyForm({ onDone }: { onDone: () => void }) {
     customIndustry?: string;
     cuit?: string;
     description?: string;
-    periodicity: Periodicity;
-  }>({ defaultValues: { periodicity: "MONTHLY" } });
+    // '' = todavía sin elegir. No se puede cambiar una vez que la empresa
+    // tenga períodos cargados, así que —igual que Rubro— no debe quedar
+    // fijado en Mensual sin que el costista lo haya elegido a propósito.
+    periodicity: Periodicity | '';
+  }>({ defaultValues: { periodicity: '' } });
 
   const selectedIndustry = watch("industry");
 
@@ -332,7 +368,7 @@ function NewCompanyForm({ onDone }: { onDone: () => void }) {
         industry: finalIndustry || undefined,
         cuit: values.cuit || undefined,
         description: values.description || undefined,
-        periodicity: values.periodicity,
+        periodicity: values.periodicity as Periodicity,
       });
       // Redirect to the target budget setup screen
       navigate({ to: "/companies/$id/setup", params: { id: company.id } });
@@ -382,15 +418,11 @@ function NewCompanyForm({ onDone }: { onDone: () => void }) {
             <label className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
               Rubro / Sector Industrial *
             </label>
-            <select
+            <Select
               {...register("industry", { required: true })}
-              className="w-full rounded-lg border border-line bg-white px-4 py-3 text-sm text-ink focus:border-granate focus:outline-none focus:ring-2 focus:ring-granate/10"
-            >
-              <option value="">Seleccioná un rubro</option>
-              {PREDEFINED_INDUSTRIES.map((ind) => (
-                <option key={ind} value={ind}>{ind}</option>
-              ))}
-            </select>
+              placeholder="Seleccioná un rubro"
+              options={PREDEFINED_INDUSTRIES.map((ind) => ({ value: ind, label: ind }))}
+            />
             {selectedIndustry === 'Otro' && (
               <Input
                 placeholder="Ingresá tu rubro..."
@@ -403,16 +435,11 @@ function NewCompanyForm({ onDone }: { onDone: () => void }) {
             <label className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
               Ritmo de Costeo *
             </label>
-            <select
+            <Select
               {...register("periodicity", { required: true })}
-              className="w-full rounded-lg border border-line bg-white px-4 py-3 text-sm text-ink focus:border-granate focus:outline-none focus:ring-2 focus:ring-granate/10"
-            >
-              {PERIODICITY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              placeholder="Seleccioná un ritmo"
+              options={PERIODICITY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            />
             <p className="text-xs text-ink-soft mt-2">
               Cada cuánto esta empresa cierra un período de costos. Define los
               períodos de todas sus estructuras.{" "}

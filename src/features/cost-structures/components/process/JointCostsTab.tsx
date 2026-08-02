@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Select } from '@/components/ui/Select';
 import { apiErrorMessage } from '@/lib/api';
 import { useJointCosts, useSaveJointCosts } from '../../process-costing-hooks';
 import type {
@@ -321,18 +322,14 @@ export function JointCostsTab({
               </div>
               <div className="sm:col-span-2">
                 <label className="text-[11px] text-ink-soft">Tipo</label>
-                <select
+                <Select
+                  ariaLabel="Tipo"
                   value={fila.kind}
                   disabled={readOnly}
                   onChange={(e) => setFila(i, 'kind', e.target.value)}
-                  className="w-full rounded-sm border border-line-strong px-2 py-1.5 text-[13px] disabled:bg-surface-alt"
-                >
-                  {KINDS.map((k) => (
-                    <option key={k.value} value={k.value}>
-                      {k.label}
-                    </option>
-                  ))}
-                </select>
+                  className="h-9 text-[13px]"
+                  options={KINDS.map((k) => ({ value: k.value, label: k.label }))}
+                />
               </div>
               <div className="sm:col-span-2">
                 <label className="text-[11px] text-ink-soft">Unidades</label>

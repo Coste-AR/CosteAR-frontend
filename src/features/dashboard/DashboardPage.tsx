@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useCompanies } from '@/features/companies/company-hooks';
 import { useAlerts } from '@/features/alerts/alert-hooks';
 import { usePendingCount, usePendingEntries, useAttention } from '@/features/validaciones/validaciones-hooks';
@@ -24,10 +25,11 @@ import {
   greet,
 } from './components/DashboardHelpers';
 import { StatCard } from './components/StatCard';
+import { IndustryChart } from './components/IndustryChart';
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
-  const { data: companies = [] } = useCompanies();
+  const { data: companies = [], isLoading: isLoadingCompanies } = useCompanies();
   const { data: alerts = [] } = useAlerts();
   const { data: pendingCount = 0 } = usePendingCount();
   const { data: pendingEntries } = usePendingEntries(1);
@@ -217,8 +219,8 @@ export function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 
-          {/* Bento 4: Prioritized Feed (Alerts & Warnings) (Col: 12) */}
-          <div className="lg:col-span-12 rounded-[28px] border border-line bg-white p-6 flex flex-col justify-between shadow-sm hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300">
+          {/* Bento 4: Prioritized Feed (Alerts & Warnings) (Col: 8) */}
+          <div className="lg:col-span-8 rounded-[28px] border border-line bg-white p-6 flex flex-col justify-between shadow-sm hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300">
             <div>
               <div className="flex items-center justify-between mb-4.5 px-1">
                 <h2 className="text-[13px] font-extrabold text-granate-deep uppercase tracking-wider flex items-center gap-1.5">
@@ -239,7 +241,7 @@ export function DashboardPage() {
                 </div>
               ) : (
                 <ul className="space-y-2.5">
-                  {alerts.filter((a) => !a.isRead).slice(0, 4).map((a) => (
+                  {alerts.filter((a) => !a.isRead).slice(0, 3).map((a) => (
                     <li key={a.id} className="p-3.5 bg-white border border-line rounded-2xl flex items-start gap-3 hover:border-granate/10 transition-all duration-200 shadow-[0_2px_8px_rgba(74,21,27,0.005)]">
                       <AlertTriangle className="size-4 shrink-0 text-amber-600 mt-0.5" />
                       <div className="min-w-0">
@@ -265,6 +267,20 @@ export function DashboardPage() {
                 <ChevronRight className="size-4 text-action group-hover:translate-x-0.5 transition-transform" />
               </Link>
             )}
+          </div>
+
+          {/* Bento 4.5: Distribución de Cartera (Col: 4) */}
+          <div className="lg:col-span-4 rounded-[28px] border border-line bg-white p-6 flex flex-col justify-between shadow-sm hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300">
+            <h2 className="text-[13px] font-extrabold text-granate-deep uppercase tracking-wider mb-2 px-1.5 text-center">
+              Composición de Cartera
+            </h2>
+            <div className="flex-1 flex flex-col justify-center min-h-[160px]">
+              {companies.length > 0 ? (
+                <IndustryChart companies={companies} />
+              ) : (
+                <p className="text-[11px] text-ink-soft text-center px-4">Agregá clientes para ver estadísticas.</p>
+              )}
+            </div>
           </div>
 
         </div>
@@ -306,7 +322,13 @@ export function DashboardPage() {
               </div>
             </div>
 
-            {companies.length === 0 ? (
+            {isLoadingCompanies ? (
+              <div className="p-6 space-y-4">
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className="h-16 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : companies.length === 0 ? (
               <div className="flex flex-col items-center py-16 px-6 text-center">
                 <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-white border border-line text-granate shadow-sm">
                   <Building2 className="size-6" />

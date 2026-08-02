@@ -1,5 +1,6 @@
 import { AlertTriangle, RotateCcw, X } from 'lucide-react';
 import { Button } from './Button';
+import { PortalOverlay } from './PortalOverlay';
 import { cn } from '@/lib/utils';
 
 interface ConfirmDialogProps {
@@ -36,6 +37,7 @@ export function ConfirmDialog({
   const isDanger = tone === 'danger';
 
   return (
+    <PortalOverlay>
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
         <div className="mb-3 flex items-start justify-between gap-3">
@@ -72,5 +74,6 @@ export function ConfirmDialog({
         </div>
       </div>
     </div>
+    </PortalOverlay>
   );
 }

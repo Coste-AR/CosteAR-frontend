@@ -500,28 +500,34 @@ export function CostStructurePage() {
         </div>
       )}
 
-      {/* Tab bar — con gap entre pestañas para evitar errar de botón al cargar datos */}
-      <div className={cn('mb-8 flex gap-4 overflow-x-auto border-b border-line', needsProcessSetup && 'hidden')}>
-        {tabsFor(structure?.costingSystem).map(({ id: tabId, label, icon: Icon, configKey }) => {
-          const isDone = configKey ? configured[configKey] : !!shown;
-          return (
-            <button
-              key={tabId}
-              type="button"
-              onClick={() => setActiveTab(tabId)}
-              className={cn(
-                'flex shrink-0 items-center gap-2 border-b-2 px-5 py-3 text-[13px] font-medium transition-colors',
-                activeTab === tabId
-                  ? 'border-granate text-granate'
-                  : 'border-transparent text-ink-soft hover:text-ink',
-              )}
-            >
-              <Icon className="size-4" />
-              {label}
-              {isDone && <CheckCircle2 className="size-3.5 text-ok" />}
-            </button>
-          );
-        })}
+      {/* Tab bar — scrollable horizontal menu for systems with many tabs (e.g. Costeo por Procesos) */}
+      <div className={cn("relative mb-8 border-b border-line", needsProcessSetup && "hidden")}>
+        <div className="flex gap-2 overflow-x-auto scrollbar-hidden pb-[2px] snap-x snap-mandatory">
+          {tabsFor(structure?.costingSystem).map(({ id: tabId, label, icon: Icon, configKey }) => {
+            const isDone = configKey ? configured[configKey] : !!shown;
+            const active = activeTab === tabId;
+            return (
+              <button
+                key={tabId}
+                type="button"
+                onClick={() => setActiveTab(tabId)}
+                className={cn(
+                  'flex shrink-0 snap-start items-center gap-2 px-4 py-3 text-[13px] font-medium transition-all relative',
+                  active
+                    ? 'text-granate'
+                    : 'text-ink-soft hover:text-ink hover:bg-zinc-50/50 rounded-t-xl',
+                )}
+              >
+                <Icon className="size-4" />
+                <span className="whitespace-nowrap">{label}</span>
+                {isDone && <CheckCircle2 className="size-3.5 text-ok" />}
+                {active && (
+                  <span className="absolute bottom-[-2px] left-0 right-0 h-[2px] bg-granate rounded-t-sm" />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Tab content — los 4 formularios de carga se mantienen MONTADOS (solo se

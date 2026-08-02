@@ -86,19 +86,14 @@ input[type='number'] {
 }
 
 /* ---------------------------------------------------------------------------
- * SELECTS — un solo lugar para todos.
+ * SELECTS — regla histórica, hoy de bajo alcance.
  *
- * La app tiene ~26 `<select>` sueltos en 20 archivos, cada uno con sus clases:
- * el resultado era el desplegable gris del sistema operativo, que rompe con el
- * resto de los campos. En vez de tocar los 20 archivos, se estilan acá: cambia
- * TODA la app de una vez y lo nuevo nace bien por defecto.
- *
- * Se toma la misma forma que `Input` (borde, radio, foco granate) y se le suma
- * lo propio de un desplegable: flecha propia en vez de la del SO, y cursor de
- * mano, que es la señal de "esto se despliega".
- *
- * Va sin `@layer` a propósito pero con selector de baja especificidad, así
- * cualquier clase de Tailwind puesta en el elemento le sigue ganando.
+ * Todos los desplegables de la app pasaron a components/ui/Select.tsx (menú
+ * propio, no el popup nativo del SO). Cada uno mantiene por dentro un
+ * <select> real pero visualmente oculto (sr-only) como puente con
+ * react-hook-form, así que esta regla ya no le pinta nada visible a nadie.
+ * Se deja por si en algún punto se necesita un <select> nativo suelto —
+ * nace con la misma forma que `Input` en vez del gris del sistema operativo.
  * --------------------------------------------------------------------------- */
 select {
   appearance: none;
@@ -134,6 +129,59 @@ select:disabled {
   color: var(--color-ink-soft);
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------------------
+ * RANGE SLIDERS (input[type=range]) — usados en "Distribución de Ingresos".
+ *
+ * appearance-none saca el thumb y el track nativos del navegador, incluido el
+ * relleno automático que Chrome pinta con accent-color. Sin CSS propio queda
+ * una barra plana con un puntito, sin señal de "cuánto ocupa". El fill real
+ * se arma por elemento con un `linear-gradient` inline (ver SliderRow), que
+ * necesita `currentColor` — por eso el thumb también usa currentColor de
+ * borde en vez de un color fijo: hereda el mismo acento que pasa cada fila.
+ * --------------------------------------------------------------------------- */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  background: var(--color-line);
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: transparent;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -4px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 3px solid currentColor;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+input[type='range']::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: transparent;
+}
+input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 3px solid currentColor;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+input[type='range']:focus-visible {
+  outline: 2px solid var(--color-action);
+  outline-offset: 3px;
 }
 
 /* Scrollbar sobria coherente con la estética premium. */
@@ -180,6 +228,27 @@ select:disabled {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+/* Pulso de atención prolijo, con box-shadow en vez de transform:scale.
+   El botón es una píldora ancha (237×43px aprox): un scale() por porcentaje
+   crece muchos más píxeles a los costados que arriba/abajo en un rectángulo
+   así (14% de 237px son ~33px, 14% de 43px son ~6px — la mitad de eso a
+   cada lado), por eso "solo se notaba a los costados". Un anillo de sombra
+   crece la MISMA cantidad de píxeles en las cuatro direcciones sin importar
+   el ancho/alto del elemento — es la técnica correcta para un pulso parejo
+   en algo que no es cuadrado. Va directo en el botón, no en un span aparte. */
+@keyframes soft-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(17, 24, 39, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(17, 24, 39, 0);
+  }
+}
+
+.animate-soft-pulse {
+  animation: soft-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .animate-zoom-in {

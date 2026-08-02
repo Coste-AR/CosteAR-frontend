@@ -88,7 +88,28 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <Toaster position="top-center" toastOptions={{ duration: 4000, style: { background: '#1c1c1c', color: '#fff', fontSize: '13px', fontWeight: 'bold' } }} />
+        <Toaster 
+          position="bottom-right" 
+          toastOptions={{ 
+            duration: 4000, 
+            style: { 
+              background: '#fff', 
+              color: '#09090b', 
+              fontSize: '13px', 
+              fontWeight: 600,
+              border: '1px solid #e4e4e7',
+              borderRadius: '12px',
+              boxShadow: '0 10px 25px -5px rgba(74, 21, 27, 0.1)',
+              padding: '12px 16px'
+            },
+            success: {
+              iconTheme: { primary: '#10b981', secondary: '#fff' }
+            },
+            error: {
+              iconTheme: { primary: '#ef4444', secondary: '#fff' }
+            }
+          }} 
+        />
         <AuthBootstrap>
           <RouterProvider router={router} />
         </AuthBootstrap>

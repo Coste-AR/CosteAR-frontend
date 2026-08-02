@@ -3,6 +3,7 @@ import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { Plus, Trash2, Sparkles, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { fractionToPercentInput, percentInputToFraction } from '@/lib/utils';
 import { catedraExample } from './catedra-example';
@@ -234,28 +235,25 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
             cátedra y el sistema lo manda a la lista correcta. Si prefiere
             hacerlo a mano, usa el "Agregar" de cada lista (clasificación manual). */}
         <div className="mt-3 rounded-lg border border-dashed border-action/40 bg-surface-alt/40 p-2.5">
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-ink-soft">
-              Agregar del catálogo — lo clasifica el sistema
-            </span>
-            <select
-              value=""
-              onChange={(e) => addFromCatalog(e.target.value)}
-              className="w-full rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink focus:border-granate focus:outline-none sm:w-80"
-            >
-              <option value="">Elegir concepto…</option>
-              <optgroup label="Remunerativas — generan cargas derivadas">
-                {SOCIAL_CHARGES_CATALOG.filter((c) => c.kind === 'remunerative').map((c) => (
-                  <option key={c.name} value={c.name}>{c.name}</option>
-                ))}
-              </optgroup>
-              <optgroup label="No remunerativas — NO generan derivadas">
-                {SOCIAL_CHARGES_CATALOG.filter((c) => c.kind === 'nonRemunerative').map((c) => (
-                  <option key={c.name} value={c.name}>{c.name}</option>
-                ))}
-              </optgroup>
-            </select>
-          </label>
+          <Select
+            label="Agregar del catálogo — lo clasifica el sistema"
+            value=""
+            onChange={(e) => addFromCatalog(e.target.value)}
+            className="sm:w-80"
+            placeholder="Elegir concepto…"
+            options={[
+              ...SOCIAL_CHARGES_CATALOG.filter((c) => c.kind === 'remunerative').map((c) => ({
+                value: c.name,
+                label: c.name,
+                group: 'Remunerativas — generan cargas derivadas',
+              })),
+              ...SOCIAL_CHARGES_CATALOG.filter((c) => c.kind === 'nonRemunerative').map((c) => ({
+                value: c.name,
+                label: c.name,
+                group: 'No remunerativas — NO generan derivadas',
+              })),
+            ]}
+          />
           <p className="mt-1.5 text-[10.5px] leading-snug text-ink-soft">
             Según la cátedra, de las cargas inciertas <strong className="font-medium text-ink">solo las remunerativas generan cargas derivadas</strong> (IAP, PAP y PPP).
             Clasificar mal un concepto desvía el costo. Si preferís decidirlo vos, cargalo a mano con <em>Agregar</em> en la lista que corresponda.
