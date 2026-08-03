@@ -226,7 +226,12 @@ export function ProductionCostReportView({
     setError(null);
     try {
       const r = await calcular.mutateAsync();
-      setRunId(r.run.id);
+      // El server manda `runId`, no `run.id`. Leer la forma equivocada devolvía
+      // undefined, rompía acá y pintaba "ocurrió un error inesperado" sobre un
+      // cálculo que había guardado perfecto (200 y la corrida en la base).
+      // Peor: sin el id, el árbol de derivación no aparecía NUNCA — la pantalla
+      // que muestra de dónde sale cada número, que es la promesa del producto.
+      setRunId(r.runId);
     } catch (e) {
       setError(apiErrorMessage(e));
     }
