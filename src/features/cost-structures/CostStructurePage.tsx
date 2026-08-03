@@ -185,7 +185,21 @@ export function CostStructurePage() {
     cip:   !!structure?.indirectCostConfig,
     sales: !!(structure?.salesUnitPrice && structure?.salesQuantity),
   };
-  const allReady = configured.mp && configured.mod && configured.cip && configured.sales;
+  // "LISTO PARA CALCULAR" NO SIGNIFICA LO MISMO EN LOS DOS SISTEMAS.
+  //
+  // En Órdenes son las cuatro secciones (MP, MOD, CIP y Venta). En Procesos esas
+  // secciones no existen —los costos viven en el cuadro de movimiento— así que
+  // `allReady` nunca daba true: el botón Calcular quedaba gris para siempre, el
+  // cartel "Completá las 4 secciones" no se iba nunca aunque estuviera todo
+  // cargado y calculando bien, y los tildes de las pestañas jamás se encendían.
+  //
+  // Los tres juntos hacían parecer que el módulo estaba a medio hacer cuando en
+  // realidad funcionaba: es buena parte de por qué se creyó que había que
+  // rehacerlo.
+  //
+  // En Procesos lo que habilita el cálculo es tener departamentos y un período.
+  const ordersReady = configured.mp && configured.mod && configured.cip && configured.sales;
+  const allReady = isProcesses ? processDepartments.length > 0 && !!periodId : ordersReady;
   const shown    = result ?? (latest ? { result: latestToResult(latest), calculationId: latest.id } : null);
 
   const IMPORTED_KEY_BY_SECTION = {
@@ -405,9 +419,14 @@ export function CostStructurePage() {
               <Upload className="size-4" /> Importar desde Excel
             </Button>
           )}
-          <Button variant="secondary" size="sm" onClick={runExport} loading={exportExcel.isPending} disabled={!allReady}>
-            <Download className="size-4" /> Exportar
-          </Button>
+          {/* El Excel reproduce el estado de costos de Órdenes: en Procesos no
+              aplica y el servidor lo rechaza. Un botón que siempre da error es
+              peor que no tenerlo. */}
+          {!isProcesses && (
+            <Button variant="secondary" size="sm" onClick={runExport} loading={exportExcel.isPending} disabled={!allReady}>
+              <Download className="size-4" /> Exportar
+            </Button>
+          )}
           <Button
             onClick={runCalculate}
             loading={calculate.isPending}
@@ -496,7 +515,9 @@ export function CostStructurePage() {
       {/* Aviso de progreso */}
       {!needsProcessSetup && !allReady && !readOnly && (
         <div className="mb-4 rounded-xl border border-action/20 bg-action/5 px-4 py-2.5 text-[13px] text-ink">
-          Completá las 4 secciones para habilitar el cálculo.
+          {isProcesses
+            ? 'Agregá al menos un departamento y abrí un período para poder calcular.'
+            : 'Completá las 4 secciones para habilitar el cálculo.'}
         </div>
       )}
 
@@ -504,7 +525,12 @@ export function CostStructurePage() {
       <div className={cn("relative mb-8 border-b border-line", needsProcessSetup && "hidden")}>
         <div className="flex gap-2 overflow-x-auto scrollbar-hidden pb-[2px] snap-x snap-mandatory">
           {tabsFor(structure?.costingSystem).map(({ id: tabId, label, icon: Icon, configKey }) => {
-            const isDone = configKey ? configured[configKey] : !!shown;
+            // En Procesos las secciones de Órdenes no existen, así que su tilde
+            // no puede depender de ellas: se enciende cuando la pestaña tiene su
+            // propio contenido cargado.
+            const isDone = isProcesses
+              ? (configKey ? processDepartments.length > 0 : !!shown)
+              : (configKey ? configured[configKey] : !!shown);
             const active = activeTab === tabId;
             return (
               <button
