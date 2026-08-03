@@ -136,12 +136,26 @@ export function JointCostsTab({
       setMetodo('NET_REALIZABLE_VALUE');
       setTotal('');
     }
-    if (data?.result?.lines.length) {
+    // Se rehidrata desde lo GUARDADO, no desde el resultado calculado.
+    //
+    // `result.lines` solo tiene nombre y unidades, así que al volver a la
+    // pestaña el precio de mercado y los gastos de comercialización aparecían
+    // vacíos aunque estuvieran guardados. El peligro no era estético: si el
+    // costista tocaba cualquier cosa y volvía a apretar "Guardar reparto" sin
+    // retipearlos, el reparto se recalculaba con los campos en blanco y cambiaba
+    // solo, sin avisar.
+    const txt = (v: number | null | undefined) => (v == null ? '' : String(v));
+    if (data?.saved?.products?.length) {
       setFilas(
-        data.result.lines.map((l) => ({
+        data.saved.products.map((p) => ({
           ...filaVacia(),
-          productName: l.productName,
-          unitsObtained: String(l.unitsObtained),
+          productName: p.productName,
+          kind: p.kind,
+          unitsObtained: txt(p.unitsObtained),
+          yieldPct: txt(p.yieldPct),
+          marketPrice: txt(p.marketPrice),
+          sellingCostVarPct: txt(p.sellingCostVarPct),
+          sellingCostFixedPerUnit: txt(p.sellingCostFixedPerUnit),
         })),
       );
     } else {

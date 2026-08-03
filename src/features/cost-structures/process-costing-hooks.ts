@@ -226,7 +226,9 @@ export function useProcessCalculate(structureId: string, periodId: string | null
   return useMutation({
     mutationFn: async () => {
       const res = await api.post<{
-        data: { run: { id: string }; period: string; results: ProcessCalculationResult };
+        // Contrato real de `POST .../calculate`. Estaba tipado como `run: { id }`
+        // y el server nunca mandó eso: el tipo mentía y el front le creía.
+        data: { runId: string; runN: number; period: string; results: ProcessCalculationResult };
       }>(`/structures/${structureId}/process/periods/${periodId}/calculate`, {});
       return res.data.data;
     },
