@@ -195,7 +195,26 @@ export interface JointCostResponse {
   department: string;
   period: string;
   exists: boolean;
-  saved: { method: JointAllocationMethod; jointCostTotal: number } | null;
+  /**
+   * Lo que quedó GUARDADO, tal cual se cargó. El tipo declaraba solo `method` y
+   * `jointCostTotal`, y el servidor siempre mandó también las líneas con sus
+   * precios: el tipo escondía datos que ya estaban ahí, y la pantalla —que le
+   * creía— rehidrataba desde `result`, que solo tiene nombre y unidades.
+   */
+  saved: {
+    method: JointAllocationMethod;
+    jointCostTotal: number;
+    products: Array<{
+      productName: string;
+      kind: ByProductKind;
+      unitsObtained: number;
+      yieldPct: number | null;
+      marketPrice: number | null;
+      sellingCostVarPct: number | null;
+      sellingCostFixedPerUnit: number | null;
+      byproductRecognition: string | null;
+    }>;
+  } | null;
   result: JointCostResult | null;
   traces: Record<string, string | null> | null;
 }
