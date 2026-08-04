@@ -316,6 +316,14 @@ export interface SetupDepartment {
   name: string;
   /** 1 = primer departamento de la cadena. Define quién recibe de quién. */
   sequence: number;
+  /** Unidad física de este departamento (H12): "toneladas", "litros", "kg". */
+  unit?: string | null;
+  /**
+   * Cuántas unidades de ESTE departamento produce cada unidad recibida del
+   * anterior (ej. 1 tonelada de fruta → 550 litros de jugo ⇒ 550). Solo
+   * aplica desde el segundo departamento; el primero no recibe de nadie.
+   */
+  conversionFromPrevious?: number | null;
 }
 
 /** Un operario de la empresa cliente y si puede informar el grado de avance. */

@@ -47,8 +47,13 @@ export function ProcessSetupWizard({
     if (!setup) return;
     setDepartments(
       setup.departments.length > 0
-        ? setup.departments.map((d) => ({ name: d.name, sequence: d.sequence }))
-        : [{ name: '', sequence: 1 }],
+        ? setup.departments.map((d) => ({
+            name: d.name,
+            sequence: d.sequence,
+            unit: d.unit ?? null,
+            conversionFromPrevious: d.conversionFromPrevious ?? null,
+          }))
+        : [{ name: '', sequence: 1, unit: null, conversionFromPrevious: null }],
     );
     setHasJointProducts(setup.hasJointProducts);
     setRecuentoDias(setup.wipCountFrequencyDays?.toString() ?? '');
@@ -57,7 +62,14 @@ export function ProcessSetupWizard({
 
   const input = useMemo(
     () => ({
-      departments: departments.map((d, i) => ({ name: d.name, sequence: i + 1 })),
+      departments: departments.map((d, i) => ({
+        name: d.name,
+        sequence: i + 1,
+        unit: d.unit?.trim() || null,
+        // El primero no recibe de nadie: el factor no le corresponde aunque
+        // haya quedado cargado de un reordenamiento previo.
+        conversionFromPrevious: i === 0 ? null : (d.conversionFromPrevious ?? null),
+      })),
       hasJointProducts,
       wipCountFrequencyDays: recuentoDias === '' ? null : Number(recuentoDias),
       periodLengthDays: setup?.periodLengthDays ?? null,
@@ -172,8 +184,13 @@ function PasoDepartamentos({
   departments: SetupDepartment[];
   onChange: (d: SetupDepartment[]) => void;
 }) {
-  const set = (i: number, name: string) =>
-    onChange(departments.map((d, j) => (j === i ? { ...d, name } : d)));
+  const set = (i: number, patch: Partial<SetupDepartment>) =>
+    onChange(departments.map((d, j) => (j === i ? { ...d, ...patch } : d)));
+
+  // ¿Alguno declaró una unidad? Si ninguno lo hizo, el factor de conversión
+  // solo agrega ruido a un caso (una sola unidad en toda la cadena) que sigue
+  // siendo el más común — se muestra recién cuando empieza a hacer falta.
+  const usaUnidades = departments.some((d) => d.unit?.trim());
 
   return (
     <div className="space-y-3">
@@ -186,29 +203,72 @@ function PasoDepartamentos({
 
       <div className="space-y-2">
         {departments.map((d, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <span className="w-6 text-right text-[12px] text-ink-soft">{i + 1}.</span>
-            <input
-              value={d.name}
-              onChange={(e) => set(i, e.target.value)}
-              placeholder="Ej.: Molienda"
-              className="flex-1 rounded-md border border-line px-3 py-1.5 text-[13px]"
-            />
-            <button
-              type="button"
-              onClick={() => onChange(departments.filter((_, j) => j !== i))}
-              disabled={departments.length === 1}
-              className="text-[12px] text-ink-soft hover:text-danger disabled:opacity-30"
-            >
-              Quitar
-            </button>
+          <div key={i} className="space-y-1.5 rounded-md border border-line p-2.5">
+            <div className="flex items-center gap-2">
+              <span className="w-6 text-right text-[12px] text-ink-soft">{i + 1}.</span>
+              <input
+                value={d.name}
+                onChange={(e) => set(i, { name: e.target.value })}
+                placeholder="Ej.: Molienda"
+                className="flex-1 rounded-md border border-line px-3 py-1.5 text-[13px]"
+              />
+              <input
+                value={d.unit ?? ''}
+                onChange={(e) => set(i, { unit: e.target.value })}
+                placeholder="Unidad (ej.: litros)"
+                className="w-36 rounded-md border border-line px-3 py-1.5 text-[13px]"
+              />
+              <button
+                type="button"
+                onClick={() => onChange(departments.filter((_, j) => j !== i))}
+                disabled={departments.length === 1}
+                className="text-[12px] text-ink-soft hover:text-danger disabled:opacity-30"
+              >
+                Quitar
+              </button>
+            </div>
+
+            {usaUnidades && i > 0 && (
+              <div className="ml-8 flex items-center gap-2 text-[12px] text-ink-soft">
+                <span>
+                  Cada unidad que recibe de «{departments[i - 1]?.name || 'el anterior'}» produce
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={d.conversionFromPrevious ?? ''}
+                  onChange={(e) =>
+                    set(i, {
+                      conversionFromPrevious: e.target.value === '' ? null : Number(e.target.value),
+                    })
+                  }
+                  placeholder="1"
+                  className="w-20 rounded-md border border-line px-2 py-1 text-[12.5px]"
+                />
+                <span>{d.unit?.trim() || 'unidades'} acá.</span>
+              </div>
+            )}
           </div>
         ))}
       </div>
 
+      {usaUnidades && (
+        <p className="text-[11.5px] text-ink-soft">
+          Si dejás el factor vacío, el sistema exige que las unidades recibidas sean
+          exactamente las que transfirió el departamento anterior — es lo correcto cuando
+          los dos miden lo mismo.
+        </p>
+      )}
+
       <button
         type="button"
-        onClick={() => onChange([...departments, { name: '', sequence: departments.length + 1 }])}
+        onClick={() =>
+          onChange([
+            ...departments,
+            { name: '', sequence: departments.length + 1, unit: null, conversionFromPrevious: null },
+          ])
+        }
         className="rounded-md border border-granate px-3 py-1 text-[12.5px] font-semibold text-granate"
       >
         + Agregar departamento
@@ -367,7 +427,9 @@ function PasoRevision({
       <div className="rounded-md border border-line p-3 text-[12.5px]">
         <p className="font-medium text-ink">Tu proceso</p>
         <p className="text-ink-soft">
-          {input.departments.map((d, i) => `${i + 1}. ${d.name || '(sin nombre)'}`).join('  →  ')}
+          {input.departments
+            .map((d, i) => `${i + 1}. ${d.name || '(sin nombre)'}${d.unit ? ` (${d.unit})` : ''}`)
+            .join('  →  ')}
         </p>
         <p className="mt-2 text-ink-soft">
           {input.hasJointProducts ? 'Con coproductos o subproductos' : 'Un solo producto'}
