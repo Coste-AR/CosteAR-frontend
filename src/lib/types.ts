@@ -29,6 +29,14 @@ export interface Company {
   _count?: { costStructures: number };
 }
 
+/**
+ * Qué hacer con un dato cuya fecha cae en un período ya cerrado (la factura de
+ * junio que aparece en agosto). `ASK` es el default y le pregunta al costista
+ * cada vez; los otros dos dejan la decisión tomada de antemano, y esa elección
+ * previa es su autorización.
+ */
+export type LateDataPolicy = 'ASK' | 'CURRENT_PERIOD' | 'REOPEN';
+
 export interface CostStructure {
   id: string;
   companyId: string;
@@ -36,6 +44,7 @@ export interface CostStructure {
   period: string;
   status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
   costingSystem?: 'ORDERS' | 'PROCESSES';
+  lateDataPolicy?: LateDataPolicy;
   rawMaterialConfig: unknown | null;
   directLaborConfig: unknown | null;
   indirectCostConfig: unknown | null;

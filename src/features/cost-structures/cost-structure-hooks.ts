@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { CostStructure, CalculationResult, CostCalculation } from '@/lib/types';
+import type { CostStructure, CalculationResult, CostCalculation, LateDataPolicy } from '@/lib/types';
 import type { RawMaterialConfig, DirectLaborConfig, IndirectCostConfig } from './cost-structure-types';
 
 /**
@@ -140,6 +140,28 @@ export function useUpdateCostingSystem(id: string) {
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cost-structures', id] }),
+  });
+}
+
+/**
+ * Deja elegida de antemano la política de datos atrasados (I8).
+ *
+ * El motor respeta las tres desde que se construyó la bandeja de atrasados; lo
+ * que faltaba era poder elegirla. Al volver hay que refrescar la estructura y
+ * también la bandeja: si la política pasa a resolver sola, lo que estaba
+ * esperando una decisión puede dejar de esperarla.
+ */
+export function useUpdateLateDataPolicy(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (lateDataPolicy: LateDataPolicy) => {
+      const res = await api.patch(`/cost-structures/${id}/late-data-policy`, { lateDataPolicy });
+      return res.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['cost-structures', id] });
+      void qc.invalidateQueries({ queryKey: ['late-data-decisions'] });
+    },
   });
 }
 

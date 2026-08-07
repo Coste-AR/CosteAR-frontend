@@ -5,6 +5,7 @@ import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { RunHistoryPanel } from '../RunHistoryPanel';
 import { LateDataInbox } from '../LateDataInbox';
+import { LateDataPolicySelector } from '../LateDataPolicySelector';
 
 /**
  * Pestaña Historial. Arriba, lo que requiere una decisión (datos atrasados) y el
@@ -17,6 +18,9 @@ export function HistoryTab({ structureId }: { structureId: string }) {
   return (
     <div className="space-y-4">
       <LateDataInbox />
+      {/* Debajo de la bandeja a propósito: primero lo que espera una decisión,
+          y recién después la forma de dejar de tener que tomarla cada vez. */}
+      <LateDataPolicySelector structureId={structureId} />
       <RunHistoryPanel structureId={structureId} />
       <LegacyCalculationHistory structureId={structureId} />
     </div>
