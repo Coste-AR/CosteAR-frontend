@@ -63,8 +63,15 @@ export interface UnitMovementInput {
   initialWipCostCif?: number;
 }
 
+/**
+ * De dónde salió el recuento de la existencia FINAL (D7). La cátedra distingue
+ * lo que informa la oficina técnica de lo que estima el área de costos: los dos
+ * se aceptan, pero no valen lo mismo y el informe tiene que poder decir cuál fue.
+ */
+export type CountSource = 'TECHNICAL_OFFICE' | 'COSTIST_ESTIMATE' | 'CARRIED_OVER' | 'NOT_COUNTED';
+
 /** Lo persistido, tal cual: `null` = no cargado. */
-export interface UnitMovementSaved extends Record<string, number | null> {
+export interface UnitMovementSaved {
   initialWip: number | null;
   startedInProduction: number | null;
   receivedFromPrevious: number | null;
@@ -88,6 +95,16 @@ export interface UnitMovementSaved extends Record<string, number | null> {
   initialWipCostCif: number | null;
   /** Solo lectura: lo escribe la apertura del período (B18), no el costista. */
   initialWipCostPrevDept: number | null;
+
+  /**
+   * Procedencia del recuento, con su fecha y quién lo informó. Solo lectura: lo
+   * decide el servidor según quién guardó los grados de avance de la existencia
+   * final, no el formulario. `NOT_COUNTED` es el estado real de un mes que
+   * abrió el arrastre y cuya existencia final todavía no contó nadie.
+   */
+  countSource: CountSource | null;
+  countedAt: string | null;
+  countedByName: string | null;
 }
 
 /** El cuadro RESUELTO: con los derivados por diferencia ya calculados. */
