@@ -16,6 +16,12 @@ export interface Submission {
   fileMimeType: string | null;
   fileUrl: string | null;
   connectionId: string;
+  /**
+   * Quién lo subió. `null` en los envíos anteriores a que el portal empezara a
+   * registrarlo (I5a): no se sabe quién los mandó, y la pantalla lo dice en vez
+   * de atribuírselos a quien está mirando.
+   */
+  uploadedBy: string | null;
   connection: { company: { name: string } };
 }
 
@@ -155,7 +161,12 @@ export function ChatTimeline({
                       )}
                     </div>
                     <div className="flex items-center justify-end gap-1.5 text-[10px] text-ink-soft/70 px-1 font-medium tracking-wide">
-                      <span className="font-bold">Tú</span>
+                      {/* Antes decía "Tú" en todos, y la lista traía los envíos
+                          de toda la empresa: le atribuía a cada operario los
+                          documentos de sus compañeros. Ahora la lista es propia,
+                          y los anteriores al registro de autor —de los que
+                          genuinamente no se sabe quién los mandó— lo dicen. */}
+                      <span className="font-bold">{s.uploadedBy ? 'Tú' : 'Autor no registrado'}</span>
                       <span>•</span>
                       <span>{formatDate(s.createdAt)}</span>
                     </div>
