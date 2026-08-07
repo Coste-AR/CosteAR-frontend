@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useForm } from 'react-hook-form';
 import { Plus, FileSpreadsheet, ChevronRight, CalendarClock } from 'lucide-react';
@@ -13,6 +13,7 @@ import {
   type CostingSystem,
 } from '@/features/cost-structures/components/shared/CostingSystemSelector';
 import { PERIODICITY_LABEL, type Periodicity } from '@/lib/types';
+import { recentPeriodCodes } from '@/lib/period-codes';
 import { apiErrorMessage } from '@/lib/api';
 
 const STATUS: Record<string, { label: string; status: 'ok' | 'warn' | 'idle' }> = {
@@ -113,6 +114,26 @@ function NewStructureForm({
   const [costingSystem, setCostingSystem] = useState<CostingSystem | null>(null);
   const { register, handleSubmit, formState } = useForm<{ productName: string }>();
 
+  /**
+   * PERÍODO DE ARRANQUE (I7).
+   *
+   * El endpoint acepta un `period` opcional desde siempre; el formulario nunca
+   * lo mandaba, así que toda estructura arrancaba en el período que corre hoy y
+   * no había forma de corregirlo después. Un cliente que entra en agosto y
+   * quiere cargar su historia desde marzo —para tener comparativos desde el día
+   * uno— no tenía camino: o abría y cerraba cinco períodos vacíos, o se lo
+   * creaba un dev por atrás.
+   *
+   * No es un campo de texto: el formato del código depende del ritmo de la
+   * empresa y no son intercambiables. Se ofrecen los que su empresa usa.
+   */
+  const periodos = useMemo(
+    () => (periodicity ? recentPeriodCodes(periodicity) : []),
+    [periodicity],
+  );
+  // Vacío = el que corre hoy, que es exactamente lo que el servidor pone solo.
+  const [period, setPeriod] = useState('');
+
   const onSubmit = handleSubmit(async (values) => {
     if (!costingSystem) {
       setError('Elegí un sistema de costeo antes de crear la estructura.');
@@ -120,7 +141,13 @@ function NewStructureForm({
     }
     setError(null);
     try {
-      await create.mutateAsync({ productName: values.productName, costingSystem });
+      await create.mutateAsync({
+        productName: values.productName,
+        costingSystem,
+        // Solo se manda si el costista eligió otro: si no, que lo derive el
+        // servidor, que es el único que conoce el calendario de verdad.
+        ...(period ? { period } : {}),
+      });
       onDone();
     } catch (e) {
       setError(apiErrorMessage(e));
@@ -140,14 +167,42 @@ function NewStructureForm({
 
       <div className="flex items-start gap-2.5 rounded-lg bg-zinc-50 border border-zinc-100 px-3.5 py-3">
         <CalendarClock className="size-4 shrink-0 text-zinc-400 mt-0.5" />
-        <p className="text-[13px] text-zinc-500 leading-relaxed">
-          El período de arranque lo pone el sistema: el que corre hoy según el ritmo{' '}
-          <strong className="text-zinc-700">
-            {periodicity ? PERIODICITY_LABEL[periodicity].toLowerCase() : 'de costeo'}
-          </strong>{' '}
-          de esta empresa. Después lo cerrás y abrís el siguiente desde la pantalla de
-          la estructura.
-        </p>
+        {periodos.length > 0 ? (
+          <div className="min-w-0 flex-1 space-y-2">
+            <label
+              htmlFor="nueva-estructura-periodo"
+              className="block text-[13px] text-zinc-500 leading-relaxed"
+            >
+              El período de arranque. Por defecto es el que corre hoy según el ritmo{' '}
+              <strong className="text-zinc-700">
+                {PERIODICITY_LABEL[periodicity!].toLowerCase()}
+              </strong>{' '}
+              de esta empresa. Elegí uno anterior si vas a cargar la historia previa: la cadena
+              de períodos arranca ahí y no se puede mover después.
+            </label>
+            <select
+              id="nueva-estructura-periodo"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-700"
+            >
+              <option value="">{periodos[0]!.label} — el que corre hoy</option>
+              {periodos.slice(1).map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          // Sin el ritmo de la empresa no se pueden armar códigos válidos, y
+          // ofrecer un campo libre sería invitar a que rebote el alta.
+          <p className="text-[13px] text-zinc-500 leading-relaxed">
+            El período de arranque lo pone el sistema: el que corre hoy según el ritmo de costeo
+            de esta empresa. Después lo cerrás y abrís el siguiente desde la pantalla de la
+            estructura.
+          </p>
+        )}
       </div>
 
       {error && (
