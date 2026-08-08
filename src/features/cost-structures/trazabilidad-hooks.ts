@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { usePeriods } from './period-hooks';
 import type {
   CalculationTree,
   RunSummary,
@@ -55,6 +56,36 @@ export function useStructureRuns(structureId: string) {
     },
     enabled: !!structureId,
   });
+}
+
+/**
+ * La corrida vigente de un (estructura, PERÍODO).
+ *
+ * Costeo por Procesos calcula siempre contra un período concreto, así que el
+ * árbol de derivación no puede salir de un `useState` que se llena cuando
+ * alguien aprieta un botón en esta sesión: se pierde al recargar y no aparece
+ * nunca si el cálculo se disparó desde otra pantalla. Sale del server, igual
+ * que en Órdenes.
+ *
+ * No agrega endpoint ni cache nueva: compone `useStructureRuns` (que ya trae
+ * las corridas con su período) con la lista de períodos, que es lo único que
+ * traduce el `periodId` que maneja la pantalla al `code` que trae cada corrida.
+ */
+export function useRunForPeriod(structureId: string, periodId: string | null) {
+  const runs = useStructureRuns(structureId);
+  const periods = usePeriods(structureId);
+
+  const code = periods.data?.find((p) => p.id === periodId)?.code ?? null;
+  // `listRuns` devuelve del más nuevo al más viejo: la primera del período es la
+  // vigente. Si no hay ninguna de ESTE período no se cae a la de otro: sería
+  // pintar un árbol con los números de otro mes.
+  const run = code ? (runs.data?.find((r) => r.periodo?.code === code) ?? null) : null;
+
+  return {
+    runId: run?.id ?? null,
+    run,
+    isLoading: runs.isLoading || periods.isLoading,
+  };
 }
 
 /** El resultado que vale hoy: la última validada, o la última automática marcada. */

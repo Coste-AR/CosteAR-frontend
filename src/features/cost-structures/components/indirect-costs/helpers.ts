@@ -161,3 +161,27 @@ export function fmtBudget(value: unknown): string {
   if (!isFinite(n) || n === 0) return '—';
   return n.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
+
+/**
+ * Centros productivos que quedarían guardados sin capacidad normal.
+ *
+ * La capacidad normal es el divisor de la cuota de costos indirectos. En cero,
+ * la cuota da cero, el producto sale costeado sin carga fabril y el margen
+ * parece sano: es un número plausible y mal, que es el peor tipo de número.
+ *
+ * El backend lo rechaza con un 422 que nombra el centro (corrección C-02). Esta
+ * función existe para avisarlo en la pantalla antes de mandar el guardado, para
+ * que el costista no pierda el viaje. El 422 se mantiene como red de atrás: hay
+ * otros caminos de escritura (el poblador automático de documentos) que no pasan
+ * por este formulario.
+ *
+ * Devuelve los NOMBRES de los centros, nunca sus ids.
+ */
+export function centrosSinCapacidadNormal(
+  productiveSettings: { centerId?: string; normalCapacity?: number }[] | undefined,
+  centers: { id?: string; name?: string }[] | undefined,
+): string[] {
+  return (productiveSettings ?? [])
+    .filter((p) => !p.normalCapacity || p.normalCapacity <= 0)
+    .map((p) => centers?.find((c) => c.id === p.centerId)?.name?.trim() || 'sin nombre');
+}

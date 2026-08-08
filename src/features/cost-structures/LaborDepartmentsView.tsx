@@ -1,8 +1,10 @@
 import { useState, type ReactNode } from 'react';
-import { ArrowLeft, ChevronRight, Users, Pencil, Info, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ChevronDown, Users, Pencil, Info, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Money } from '@/components/ui/Money';
 import { cn } from '@/lib/utils';
+import { buildItcsBreakdown } from './social-charges-catalog';
+import { ItcsBreakdownPanel, formatItcsPercent } from './components/labor/ItcsBreakdownPanel';
 import type { DirectLaborConfig } from './cost-structure-types';
 import type { CalculationResult } from '@/lib/types';
 
@@ -17,7 +19,9 @@ interface Props {
 
 const fmt = (n: number | undefined) =>
   n == null ? '—' : n.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-const pct = (n: number | undefined) => (n == null ? '—' : `${n.toFixed(2)}%`);
+// Mismo formato de porcentaje que el desglose: en la misma pantalla no pueden
+// convivir "8.33%" y "8,3333 %" para el mismo índice.
+const pct = formatItcsPercent;
 
 /**
  * Mano de Obra — LISTA de departamentos → FICHA por departamento (Parte 3.2).
@@ -36,6 +40,7 @@ export function LaborDepartmentsView({ config, directLabor, onEdit, onLoadExampl
         dept={departments[selected]}
         data={directLabor?.departments?.[selected]}
         directLabor={directLabor}
+        config={config}
         onBack={() => setSelected(null)}
       />
     );
@@ -62,11 +67,18 @@ export function LaborDepartmentsView({ config, directLabor, onEdit, onLoadExampl
 
       {/* Datos compartidos de la estructura (alimentan todas las tarifas) */}
       {hasResult && (
-        <div className="grid gap-2 sm:grid-cols-3">
-          <MiniStat label="Días hábiles efectivos" value={`${fmt(directLabor!.workingDays)} días`} />
-          <MiniStat label="IAP — Inasistencias pagas" value={pct(directLabor!.iapPercent)} hint={directLabor!.paidDays != null ? `${directLabor!.paidDays} pagos / ${fmt(directLabor!.workingDays)} efectivos` : undefined} />
-          <MiniStat label="ITCS" value={pct(directLabor!.itcsPercent)} hint="CSC + B40 + F40 + B47" />
-        </div>
+        <>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <MiniStat label="Días hábiles efectivos" value={`${fmt(directLabor!.workingDays)} días`} />
+            <MiniStat label="IAP — Inasistencias pagas" value={pct(directLabor!.iapPercent)} hint={directLabor!.paidDays != null ? `${directLabor!.paidDays} pagos / ${fmt(directLabor!.workingDays)} efectivos` : undefined} />
+            <MiniStat
+              label="Índice total de cargas sociales aplicado"
+              value={pct(directLabor!.itcsPercent)}
+              hint="cargas ciertas + inciertas + derivadas"
+            />
+          </div>
+          <ItcsBreakdownDisclosure config={config} directLabor={directLabor!} />
+        </>
       )}
 
       {!hasResult && (
@@ -120,15 +132,17 @@ export function LaborDepartmentsView({ config, directLabor, onEdit, onLoadExampl
 // ── Ficha de un departamento ─────────────────────────────────────────────────
 
 function DepartmentCard({
-  dept, data, directLabor, onBack,
+  dept, data, directLabor, config, onBack,
 }: {
   dept: DirectLaborConfig['departments'][number];
   data?: NonNullable<DetailMOD['departments']>[number];
   directLabor?: DetailMOD;
+  config: DirectLaborConfig;
   onBack: () => void;
 }) {
-  const bd = directLabor?.itcsBreakdown;
   const realHours = dept.realHours ?? data?.realHours;
+  // Lectura del índice que ya calculó el motor: concepto por concepto.
+  const breakdown = directLabor ? buildItcsBreakdown(config.itcs, directLabor) : null;
 
   return (
     <div className="space-y-4 pt-3">
@@ -143,20 +157,26 @@ function DepartmentCard({
           <div className="grid gap-2 sm:grid-cols-3">
             <Stat label="Días efectivos" value={`${fmt(directLabor.workingDays)} días`} />
             <Stat label="IAP — Inasistencias pagas" value={pct(directLabor.iapPercent)} hint={directLabor.paidDays != null ? `${directLabor.paidDays} días pagos / ${fmt(directLabor.workingDays)} efectivos · derivado` : undefined} />
-            <Stat label="ITCS total" value={pct(directLabor.itcsPercent)} hint="CSC + B40 + F40 + B47" />
+            <Stat
+              label="Índice total de cargas sociales"
+              value={pct(directLabor.itcsPercent)}
+              hint="cargas ciertas + inciertas + derivadas"
+            />
           </div>
         </Section>
       )}
 
-      {/* ITCS con su árbol */}
-      {bd && (
-        <Section title="ITCS — Índice Total de Cargas Sociales (árbol)">
-          <div className="grid gap-2 sm:grid-cols-4">
-            <Stat label="Cargas ciertas (CSC)" value={pct(bd.certain)} />
-            <Stat label="Inciertas remun. (B40)" value={pct(bd.uncertainRemunerative)} />
-            <Stat label="Derivadas (F40)" value={pct(bd.derived)} />
-            <Stat label="No remun. (B47)" value={pct(bd.uncertainNonRemunerative)} />
-          </div>
+      {/* De dónde sale el índice: cada concepto con su porcentaje */}
+      {breakdown && (
+        <Section title="Composición de la carga social — de dónde sale el índice">
+          <ItcsBreakdownPanel
+            breakdown={breakdown}
+            money={data ? {
+              basicRemuneration: data.basicRemuneration,
+              socialChargesCost: data.socialChargesCost,
+              totalMod: data.totalMod,
+            } : undefined}
+          />
         </Section>
       )}
 
@@ -219,6 +239,41 @@ function DepartmentCard({
             </table>
           </div>
         </Section>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "¿De dónde salió este porcentaje?" — el desglose del índice, plegado por
+ * defecto para no tapar la lista, disponible de un click. El índice es de la
+ * estructura (uno solo para todos los departamentos), por eso va acá arriba.
+ */
+function ItcsBreakdownDisclosure({ config, directLabor }: { config: DirectLaborConfig; directLabor: DetailMOD }) {
+  const [open, setOpen] = useState(false);
+  const breakdown = buildItcsBreakdown(config.itcs, directLabor);
+
+  return (
+    <div className="rounded-xl border border-line bg-surface">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left"
+      >
+        <span className="text-[12.5px] font-medium text-ink">
+          Ver de dónde sale el {formatItcsPercent(directLabor.itcsPercent)} de cargas sociales
+          {breakdown.onlyUnavoidableApplies && (
+            <span className="ml-2 rounded-full border border-warn/30 bg-warn/10 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-warn">
+              Configuraste todo en cero
+            </span>
+          )}
+        </span>
+        <ChevronDown className={cn('size-4 shrink-0 text-ink-soft transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="border-t border-line px-4 py-3">
+          <ItcsBreakdownPanel breakdown={breakdown} />
+        </div>
       )}
     </div>
   );

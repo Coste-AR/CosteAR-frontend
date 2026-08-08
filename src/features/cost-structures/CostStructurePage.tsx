@@ -661,6 +661,10 @@ export function CostStructurePage() {
           departments={processDepartments}
           deptId={processDeptId}
           onDeptChange={setProcessDeptId}
+          // La marca F04 sale de la mutación del botón de la cabecera, que es el
+          // único "Calcular" que quedó. Antes la leía una mutación propia de la
+          // pestaña, así que calcular desde arriba tampoco pintaba el aviso.
+          incompletitud={processCalculate.data?.results.incompletitud ?? null}
         />
       )}
 

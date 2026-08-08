@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch, type Control } from 'react-hook-form';
 import { Plus, Trash2, Sparkles, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -7,7 +7,7 @@ import { Select } from '@/components/ui/Select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { fractionToPercentInput, percentInputToFraction } from '@/lib/utils';
 import { catedraExample } from './catedra-example';
-import { SOCIAL_CHARGES_CATALOG, classifySocialCharge } from './social-charges-catalog';
+import { SOCIAL_CHARGES_CATALOG, classifySocialCharge, buildItcsBreakdown } from './social-charges-catalog';
 import type { DirectLaborConfig } from './cost-structure-types';
 
 interface Props {
@@ -231,6 +231,8 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
           <Input label="ART fija" type="number" step="0.01" numeric suffix="%" placeholder="Ej: 1.5" info="Alícuota fija de ART. En porcentaje (ej: 1.5 = 1,5%)." {...register('itcs.fixedArt', { valueAsNumber: true })} />
         </div>
 
+        <CertainChargesPreview control={control} />
+
         {/* D-1 — Clasificación AUTOMÁTICA: el costista elige del catálogo de la
             cátedra y el sistema lo manda a la lista correcta. Si prefiere
             hacerlo a mano, usa el "Agregar" de cada lista (clasificación manual). */}
@@ -409,6 +411,59 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
       onCancel={() => setPending(null)}
     />
     </>
+  );
+}
+
+/**
+ * Muestra, mientras el costista escribe, las cargas CIERTAS que resultan de lo
+ * que cargó — incluido el SAC, que se devenga por ley y por eso aparece aunque
+ * ponga todo en cero. Es lectura: la cuenta final la hace el motor al calcular.
+ */
+function CertainChargesPreview({ control }: { control: Control<DirectLaborConfig> }) {
+  const base = useWatch({ control, name: 'itcs.derivationBase' });
+  const art = useWatch({ control, name: 'itcs.fixedArt' });
+
+  const certain = buildItcsBreakdown({
+    derivationBase: percentInputToFraction(base),
+    fixedArt: percentInputToFraction(art),
+  }).blocks.find((b) => b.key === 'certain');
+  if (!certain) return null;
+
+  const pct = (n: number) =>
+    `${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} %`;
+
+  return (
+    <div className="mt-2 rounded-lg border border-line bg-surface-alt/40 px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
+        Cargas ciertas que resultan de estos dos valores
+      </p>
+      <ul className="mt-1 space-y-0.5">
+        {certain.lines.map((l, i) => (
+          <li key={i} className="flex items-baseline justify-between gap-3 text-[11.5px]">
+            <span className={l.alwaysApplies ? 'font-medium text-ink' : 'text-ink-soft'}>
+              {l.label}
+              {l.alwaysApplies && (
+                <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-granate">
+                  se aplica siempre
+                </span>
+              )}
+            </span>
+            <span className="tabular-nums text-ink">{pct(l.percent)}</span>
+          </li>
+        ))}
+        <li className="flex items-baseline justify-between gap-3 border-t border-line pt-1 text-[11.5px] font-semibold">
+          <span className="text-ink">Subtotal de cargas ciertas</span>
+          <span className="tabular-nums text-ink">{pct(certain.percent)}</span>
+        </li>
+      </ul>
+      <p className="mt-1.5 text-[10.5px] leading-snug text-ink-soft">
+        El <strong className="font-medium text-ink">SAC (aguinaldo)</strong> es una carga cierta:
+        un doceavo de la remuneración. Se suma siempre, aun con todo lo demás en cero — por eso el
+        costo de mano de obra nunca queda igual a la remuneración básica. A esto todavía le faltan
+        las cargas inciertas y sus derivadas; el índice completo se ve en la lista de departamentos
+        después de calcular.
+      </p>
+    </div>
   );
 }
 
