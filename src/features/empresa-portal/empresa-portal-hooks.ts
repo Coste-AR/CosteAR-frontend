@@ -30,10 +30,29 @@ export function useOperators(companyId: string) {
 export function useGenerateOperatorAccess(companyId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ operatorName, operatorEmail }: { operatorName: string; operatorEmail: string }) => {
+    mutationFn: async ({
+      operatorName,
+      operatorEmail,
+      /**
+       * El PUESTO en la empresa ("Jefe de Depósito"), no el rol de login.
+       * Opcional: si el costista no lo sabe, "no consta" es más honesto que un
+       * puesto inventado. Se estampa en cada dato que cargue esta persona.
+       */
+      jobTitle,
+    }: {
+      operatorName: string;
+      operatorEmail: string;
+      jobTitle?: string;
+    }) => {
       const res = await api.post<{ data: GeneratedAccess }>(
         `/empresa-portal/${companyId}/operators`,
-        { operatorName, operatorEmail },
+        {
+          operatorName,
+          operatorEmail,
+          // El servidor exige 2 caracteres como mínimo. Un puesto de una letra
+          // no es un puesto, así que no se manda: mejor "no consta" que un 400.
+          ...((jobTitle?.trim().length ?? 0) >= 2 ? { jobTitle: jobTitle!.trim() } : {}),
+        },
       );
       return res.data.data;
     },
