@@ -24,7 +24,13 @@ import {
 } from "./company-hooks";
 import { apiErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { PERIODICITY_OPTIONS, type Periodicity } from "@/lib/types";
+import {
+  PERIODICITY_OPTIONS,
+  CONDICION_IVA_OPTIONS,
+  CONDICION_IVA_AYUDA,
+  type Periodicity,
+  type CondicionIva,
+} from "@/lib/types";
 import { useDictation } from "@/lib/use-dictation";
 import toast from 'react-hot-toast';
 const PREDEFINED_INDUSTRIES = [
@@ -350,7 +356,11 @@ function NewCompanyForm({ onDone }: { onDone: () => void }) {
     // tenga períodos cargados, así que —igual que Rubro— no debe quedar
     // fijado en Mensual sin que el costista lo haya elegido a propósito.
     periodicity: Periodicity | '';
-  }>({ defaultValues: { periodicity: '' } });
+    // '' = todavía sin elegir, igual que el ritmo. Decide si el IVA de cada
+    // comprobante entra al costo: dejarlo fijado en Responsable Inscripto sin
+    // que nadie lo mire es exactamente el agujero que este campo tapa.
+    condicionIva: CondicionIva | '';
+  }>({ defaultValues: { periodicity: '', condicionIva: '' } });
 
   const selectedIndustry = watch("industry");
 
@@ -369,6 +379,7 @@ function NewCompanyForm({ onDone }: { onDone: () => void }) {
         cuit: values.cuit || undefined,
         description: values.description || undefined,
         periodicity: values.periodicity as Periodicity,
+        condicionIva: values.condicionIva as CondicionIva,
       });
       // Redirect to the target budget setup screen
       navigate({ to: "/companies/$id/setup", params: { id: company.id } });
@@ -447,6 +458,19 @@ function NewCompanyForm({ onDone }: { onDone: () => void }) {
                 Se elige ahora y no se puede cambiar
               </strong>{" "}
               una vez que haya períodos cargados.
+            </p>
+          </div>
+          <div>
+            <label className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
+              Condición frente al IVA *
+            </label>
+            <Select
+              {...register("condicionIva", { required: true })}
+              placeholder="Seleccioná la condición"
+              options={CONDICION_IVA_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            />
+            <p className="text-xs text-ink-soft mt-2">
+              {CONDICION_IVA_AYUDA}
             </p>
           </div>
         </div>
