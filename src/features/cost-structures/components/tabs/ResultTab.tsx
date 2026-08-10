@@ -2,6 +2,10 @@ import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Money, Percent } from '@/components/ui/Money';
 import { TraceableValue, toDerivation } from '@/components/ui/TraceableValue';
 import { useCalculationTree, useResultadoVigente } from '@/features/cost-structures/trazabilidad-hooks';
+import { useCostStructure } from '@/features/cost-structures/cost-structure-hooks';
+import { buildIdleCapacity } from '../labor/idle-capacity';
+import { IdleCapacityResultLine } from '../labor/IdleCapacityPanel';
+import type { DirectLaborConfig } from '@/features/cost-structures/cost-structure-types';
 import { ProvisionalBanner } from '../RunHistoryPanel';
 import { StatusBadge, marginStatus, isResultTrustworthy } from '@/components/ui/StatusBadge';
 import { AdvisorPanel } from '@/features/advisor/AdvisorPanel';
@@ -69,6 +73,19 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
    * un número sin respaldo no debe parecer trazable.
    */
   const { data: arbol } = useCalculationTree(runId ?? null);
+
+  /**
+   * CAPACIDAD OCIOSA (C-04). Las horas netas productivas son parte de la
+   * configuración de Mano de Obra, no del resultado, así que la línea se arma
+   * leyendo la estructura (misma query que ya tiene cacheada la pantalla) y los
+   * importes del cálculo. Si la estructura no declara horas productivas —todas
+   * las cargadas hasta hoy— no hay ociosidad y no se muestra nada.
+   */
+  const { data: estructura } = useCostStructure(structureId ?? '');
+  const laborConfig = estructura?.directLaborConfig as DirectLaborConfig | null | undefined;
+  const idleCapacity = laborConfig
+    ? buildIdleCapacity(laborConfig, result.detail.directLabor)
+    : null;
 
   const raiz = (nombre: string) => {
     const nodo = arbol?.tree.find((n) => n.label.toLowerCase() === nombre.toLowerCase());
@@ -343,6 +360,11 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
                 <span><Money value={rate} className="font-medium" /><span className="ml-1 text-[11px] text-ink-soft">/h</span></span>
               </div>
             ))}
+            {/* C-04 — la capacidad ociosa NUNCA se pliega dentro de las órdenes:
+                si hay horas pagadas sin trabajo asignado, van en su propia línea
+                con sus horas y su costo. Sin horas netas productivas cargadas la
+                línea no existe y el detalle se ve igual que siempre. */}
+            {idleCapacity?.anyDeclared && <IdleCapacityResultLine summary={idleCapacity} />}
           </CardBody>
         </Card>
 

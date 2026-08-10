@@ -79,7 +79,8 @@ export interface DirectLaborConfig {
   departments: Array<{
     name: string;
     basicRemuneration: number;
-    hoursWorked: number; // horas PRESUPUESTADAS (capacidad normal)
+    hoursWorked: number; // HORAS PAGADAS — presencia en fábrica (cátedra, Clase 10)
+    productiveHours?: number; // HORAS NETAS PRODUCTIVAS = presencia − tiempos perdidos informados
     realHours?: number; // dato real de fin de mes (no afecta el cálculo)
     operators?: Array<{ name: string; category?: string; bankedHours?: number; individualAbsenceDays?: number }>;
   }>;

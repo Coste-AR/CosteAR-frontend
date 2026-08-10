@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useForm, useFieldArray, useWatch, type Control } from 'react-hook-form';
-import { Plus, Trash2, Sparkles, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Sparkles, AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { fractionToPercentInput, percentInputToFraction } from '@/lib/utils';
 import { catedraExample } from './catedra-example';
 import { SOCIAL_CHARGES_CATALOG, classifySocialCharge, buildItcsBreakdown } from './social-charges-catalog';
+import { formatHours } from './components/labor/idle-capacity';
 import type { DirectLaborConfig } from './cost-structure-types';
 
 interface Props {
@@ -85,6 +86,10 @@ function cleanDirectLaborForForm(cfg?: DirectLaborConfig): any {
       ...d,
       basicRemuneration: d.basicRemuneration === 0 ? '' : (d.basicRemuneration ?? ''),
       hoursWorked: d.hoursWorked === 0 ? '' : (d.hoursWorked ?? ''),
+      // Horas netas productivas: vacío = no se declaró ociosidad. El cero SÍ se
+      // conserva (sería un departamento sin una sola hora productiva), por eso
+      // acá no se vacía como en los demás campos.
+      productiveHours: d.productiveHours == null ? '' : d.productiveHours,
       realHours: d.realHours === 0 || d.realHours == null ? '' : d.realHours,
     })),
   };
@@ -131,6 +136,12 @@ function cleanDirectLaborForSubmit(data: any): DirectLaborConfig {
       ...d,
       basicRemuneration: fallbackNum(d.basicRemuneration),
       hoursWorked: fallbackNum(d.hoursWorked),
+      // Sin dato → no viaja el campo: el motor asume que toda la presencia fue
+      // productiva y calcula exactamente igual que antes (retrocompatibilidad).
+      productiveHours:
+        d.productiveHours === '' || d.productiveHours == null || isNaN(Number(d.productiveHours))
+          ? undefined
+          : fallbackNum(d.productiveHours),
       realHours: d.realHours === '' || d.realHours == null ? undefined : fallbackNum(d.realHours),
     })),
   };
@@ -171,6 +182,8 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
   // con la clasificación CONTRARIA (una mala clasificación desvía el costo).
   const watchedRem = useWatch({ control, name: 'itcs.uncertainRemunerative' });
   const watchedNonRem = useWatch({ control, name: 'itcs.uncertainNonRemunerative' });
+  // C-04: mientras tipea las horas, el costista ve cuántas quedan ociosas.
+  const watchedDepts = useWatch({ control, name: 'departments' });
 
   /** Agrega el concepto del catálogo a la lista que le corresponde (auto). */
   const addFromCatalog = (name: string) => {
@@ -341,9 +354,20 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
           </Button>
         </div>
         <p className="mb-2 text-[11px] leading-snug text-ink-soft">
-          Las <strong className="font-medium text-ink">horas presupuestadas</strong> son la capacidad normal
-          del departamento (con las que se calcula la tarifa horaria). No son las horas realmente trabajadas:
-          esas son el dato real de fin de mes.
+          Las <strong className="font-medium text-ink">horas pagadas</strong> son la presencia en fábrica:
+          las horas por las que la empresa paga, trabaje o no el operario (la capacidad normal presupuestada
+          del departamento). Las <strong className="font-medium text-ink">horas netas productivas</strong> son
+          esa presencia menos los tiempos perdidos informados, y son las únicas que se imputan a las órdenes.
+          Ninguna de las dos son las horas realmente trabajadas: ese es el dato real de fin de mes.
+        </p>
+        <p className="mb-2 flex items-start gap-1.5 rounded-lg border border-line bg-surface-alt/40 px-2.5 py-1.5 text-[11px] leading-snug text-ink-soft">
+          <Info className="mt-0.5 size-3.5 shrink-0 text-ink-soft" />
+          <span>
+            Si dejás las <strong className="font-medium text-ink">horas netas productivas vacías</strong>, el
+            sistema entiende que toda la presencia fue productiva: <strong className="font-medium text-ink">no
+            hay capacidad ociosa</strong> y el cálculo queda exactamente igual que hasta ahora. Cargalas solo
+            cuando quieras separar las horas que se pagaron y no se pudieron asignar a ninguna orden.
+          </span>
         </p>
         <div className="overflow-x-auto rounded-xl border border-line p-2 sm:p-0">
           <table className="block w-full text-sm sm:table">
@@ -351,7 +375,8 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Departamento</th>
                 <th className="px-3 py-2 text-right font-medium">Remuneración básica $</th>
-                <th className="px-3 py-2 text-right font-medium text-action">Horas presupuestadas</th>
+                <th className="px-3 py-2 text-right font-medium text-action">Horas pagadas (presencia en fábrica)</th>
+                <th className="px-3 py-2 text-right font-medium text-action">Horas netas productivas</th>
                 <th className="border-l-2 border-line px-3 py-2 text-right font-medium">Horas reales (fin de mes)</th>
                 <th className="px-3 py-2" />
               </tr>
@@ -365,8 +390,12 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
                   <td data-label="Remuneración básica $" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
                     <input type="number" step="0.01" className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none" {...register(`departments.${i}.basicRemuneration`, { valueAsNumber: true })} />
                   </td>
-                  <td data-label="Horas presupuestadas" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
-                    <input type="number" step="1" className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none" {...register(`departments.${i}.hoursWorked`, { valueAsNumber: true })} />
+                  <td data-label="Horas pagadas (presencia en fábrica)" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
+                    <input type="number" step="1" title="Horas pagadas — presencia en fábrica: se paguen o no se trabajen." className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none" {...register(`departments.${i}.hoursWorked`, { valueAsNumber: true })} />
+                  </td>
+                  <td data-label="Horas netas productivas" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
+                    <input type="number" step="1" placeholder="opcional — sin ociosidad" title="Horas netas productivas = presencia en fábrica − tiempos perdidos informados. Vacío = toda la presencia fue productiva." className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none" {...register(`departments.${i}.productiveHours`, { valueAsNumber: true })} />
+                    <IdleHoursHint dept={watchedDepts?.[i]} />
                   </td>
                   <td data-label="Horas reales (fin de mes)" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:border-l-2 sm:border-line sm:px-2 sm:py-1.5 sm:before:hidden">
                     <input type="number" step="1" placeholder="opcional" className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none" {...register(`departments.${i}.realHours`, { valueAsNumber: true })} />
@@ -377,7 +406,7 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
                 </tr>
               ))}
               {deptFields.length === 0 && (
-                <tr className="block sm:table-row"><td colSpan={5} className="block px-4 py-6 text-center text-[13px] text-ink-soft sm:table-cell">Sin departamentos — agregá al menos uno.</td></tr>
+                <tr className="block sm:table-row"><td colSpan={6} className="block px-4 py-6 text-center text-[13px] text-ink-soft sm:table-cell">Sin departamentos — agregá al menos uno.</td></tr>
               )}
             </tbody>
           </table>
@@ -411,6 +440,39 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
       onCancel={() => setPending(null)}
     />
     </>
+  );
+}
+
+/**
+ * Mientras el costista carga las horas del departamento, le devuelve al toque
+ * cuántas quedan OCIOSAS (presencia pagada − netas productivas). Sin horas
+ * productivas cargadas no dice nada: no hay ociosidad que informar y la fila
+ * tiene que verse igual que siempre.
+ */
+function IdleHoursHint({ dept }: { dept?: DirectLaborConfig['departments'][number] }) {
+  const paid = Number(dept?.hoursWorked);
+  const raw = dept?.productiveHours;
+  const declared = raw !== undefined && raw !== null && String(raw) !== '' && !isNaN(Number(raw));
+  if (!declared || !Number.isFinite(paid) || paid <= 0) return null;
+
+  const productive = Number(raw);
+  if (productive > paid) {
+    return (
+      <p className="mt-1 flex items-start gap-1 text-[10.5px] leading-snug text-warn">
+        <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+        <span>No se puede producir más de lo que se paga: el cálculo las recorta a las horas pagadas.</span>
+      </p>
+    );
+  }
+  const idle = paid - productive;
+  if (idle <= 0) {
+    return <p className="mt-1 text-[10.5px] leading-snug text-ink-soft">Sin capacidad ociosa.</p>;
+  }
+  return (
+    <p className="mt-1 text-[10.5px] leading-snug text-ink">
+      <strong className="font-semibold">{formatHours(idle)}</strong> de capacidad ociosa — se muestran
+      en su propia línea, aparte de las órdenes.
+    </p>
   );
 }
 

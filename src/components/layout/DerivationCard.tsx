@@ -1,6 +1,7 @@
 import { CornerDownRight, FileText } from 'lucide-react';
 import { useTraceMode, type DerivationDetail } from '@/stores/trace-mode-store';
 import { cn } from '@/lib/utils';
+import { FinDeCadena, clasificarFinDeCadena } from '@/components/ui/FinDeCadena';
 
 /**
  * CÓMO SE CALCULÓ UN NÚMERO (U10, rama de derivación).
@@ -64,6 +65,12 @@ function Nodo({ node, depth }: { node: DerivationDetail; depth: number }) {
             Ver la ficha de este dato
           </button>
         )}
+
+        {/* T-03 — sólo las HOJAS declaran fin de cadena. Un nodo que se sigue
+            descomponiendo no termina acá: termina más abajo, y ahí lo dirá. */}
+        {node.children.length === 0 && (
+          <FinDeCadena estado={clasificarFinDeCadena(node)} />
+        )}
       </div>
 
       {node.children.length > 0 && (
@@ -107,9 +114,15 @@ export function DerivationCard({ detail }: { detail: DerivationDetail }) {
           </div>
         </div>
       ) : (
-        <p className="text-[13px] text-ink-soft">
-          Este número no se descompone más: es el resultado directo de la fórmula de arriba.
-        </p>
+        <div>
+          <p className="text-[13px] text-ink-soft">
+            Este número no se descompone más: es el resultado directo de la fórmula de arriba.
+          </p>
+          {/* Lo de arriba habla de PROFUNDIDAD ("no baja más"); esto habla de
+              PROCEDENCIA ("de dónde salió"). Son dos preguntas distintas y al
+              costista le importan las dos. */}
+          <FinDeCadena estado={clasificarFinDeCadena(detail)} />
+        </div>
       )}
     </div>
   );

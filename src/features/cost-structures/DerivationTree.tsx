@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Money } from '@/components/ui/Money';
 import { cn } from '@/lib/utils';
 import { apiErrorMessage } from '@/lib/api';
+import { FinDeCadena, clasificarFinDeCadena } from '@/components/ui/FinDeCadena';
 import { useCalculationTree, useDataPointTrace, usePedirRevision } from './trazabilidad-hooks';
 import type { TreeNode, DataStatus } from './trazabilidad-types';
 
@@ -172,6 +173,19 @@ function TreeRow({
         </span>
       </div>
 
+      {/* T-03 — la hoja dice dónde termina la cadena. Antes, un nodo sin origen
+          se renderizaba como un <button disabled> y nada más: en la corrida de
+          Órdenes eso fueron 20 de 21 filas visibles, mudas. Sólo las hojas: un
+          nodo que se descompone no termina acá. */}
+      {!hasChildren && (
+        <div style={{ paddingLeft: `${36 + depth * 20}px` }} className="pb-1.5 pr-4">
+          <FinDeCadena
+            estado={clasificarFinDeCadena({ dataPointId, formula: node.formula })}
+            className="mt-0"
+          />
+        </div>
+      )}
+
       {isOpen && (
         <div style={{ paddingLeft: `${16 + depth * 20}px` }} className="pb-2 pr-4">
           <TraceCard dataPointId={dataPointId!} period={period} onClose={() => setOpenDataPointId(null)} />
@@ -273,7 +287,13 @@ export function TraceCard({ dataPointId, period, onClose }: { dataPointId: strin
                 <FileText className="size-3.5" /> {trace.evidence.kind}: {trace.evidence.reference}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1"><FileText className="size-3.5" /> Sin comprobante</span>
+              // T-03 — "Sin comprobante" a secas se leía como una falla. El dato
+              // existe y tiene autor: lo que no hay es una factura atrás, y eso
+              // es un fin de cadena legítimo, no un error. Se dice cuál de los
+              // dos es.
+              <span className="inline-flex items-center gap-1">
+                <FileText className="size-3.5" /> Cargado a mano — sin comprobante asociado
+              </span>
             )}
             {trace.evidence?.fileUrl && (
               <a href={trace.evidence.fileUrl} target="_blank" rel="noreferrer">
