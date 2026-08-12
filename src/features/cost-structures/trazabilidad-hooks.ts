@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { usePeriods } from './period-hooks';
+import type { CalculationResult } from '@/lib/types';
 import type {
   CalculationTree,
   RunSummary,
@@ -24,11 +25,27 @@ export function useCalculateTraced(structureId: string) {
       const res = await api.post<{
         // `incompleto` (F04): marca de datos sin imputar para pintar la
         // advertencia en la pestaña Resultado en vez de un margen "sano".
-        data: { runId: string; runN: number; results: unknown; tree: unknown; incompleto: Incompletitud };
+        // T-07 — `results` es el MISMO objeto que alimentó el árbol y que se
+        // persistió en la fila legada: una sola ejecución del motor. Antes esta
+        // llamada solo servía para el árbol y los números venían de otra corrida.
+        data: {
+          runId: string;
+          runN: number;
+          calculationId: string;
+          results: CalculationResult;
+          tree: unknown;
+          incompleto: Incompletitud;
+        };
       }>(`/structures/${structureId}/calculate`, {});
       return res.data.data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['structures', structureId, 'runs'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['structures', structureId, 'runs'] });
+      // La fila legada la escribe ahora esta misma corrida, así que el Historial
+      // y la Comparación de períodos —que la leen— quedan desactualizados si no
+      // se invalidan acá.
+      void qc.invalidateQueries({ queryKey: ['cost-structures', structureId, 'calculations'] });
+    },
   });
 }
 

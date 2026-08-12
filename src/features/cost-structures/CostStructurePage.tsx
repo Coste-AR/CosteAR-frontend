@@ -11,7 +11,7 @@ import {
   useCostStructure,
   useUpdateCostSection,
   useUpdateSales,
-  useCalculate,
+
   useLatestCalculation,
   useExportExcel,
   useImportExcel,
@@ -91,7 +91,6 @@ export function CostStructurePage() {
   const { data: structure, isLoading } = useCostStructure(id);
   const updateSection = useUpdateCostSection(id);
   const updateSales   = useUpdateSales(id);
-  const calculate     = useCalculate(id);
   const exportExcel   = useExportExcel(id);
   const importExcel   = useImportExcel(id);
   const { data: latest } = useLatestCalculation(id);
@@ -103,7 +102,6 @@ export function CostStructurePage() {
   const calculateTraced = useCalculateTraced(id);
   const { data: runsList } = useStructureRuns(id);
   const [tracedRunId, setTracedRunId] = useState<string | null>(null);
-  const [tracedError, setTracedError] = useState<string | null>(null);
   const [incompletitud, setIncompletitud] = useState<Incompletitud | null>(null);
   const effectiveRunId = tracedRunId ?? runsList?.[0]?.id ?? null;
 
@@ -202,6 +200,20 @@ export function CostStructurePage() {
   const allReady = isProcesses ? processDepartments.length > 0 && !!periodId : ordersReady;
   const shown    = result ?? (latest ? { result: latestToResult(latest), calculationId: latest.id } : null);
 
+  /**
+   * T-07 §5.1 — "nunca números sin run asociado".
+   *
+   * Desde que hay UNA sola corrida, si el cálculo falla no se muestra ningún
+   * número: el peligro que atacaba T-08 —ver costo unitario y margen mientras la
+   * corrida que conoce la incompletitud no terminó— quedó eliminado de raíz.
+   *
+   * Lo que SÍ puede pasar todavía es entrar a una estructura calculada ANTES de
+   * que existiera la trazabilidad: `latest` trae los números viejos y no hay
+   * ninguna corrida detrás. Ahí no se puede abrir nada ni verificar la
+   * imputación, y hay que decirlo en vez de mostrarlos como si fueran normales.
+   */
+  const resultadoSinCorrida = !isProcesses && !!shown && !effectiveRunId;
+
   const IMPORTED_KEY_BY_SECTION = {
     'raw-material': 'rawMaterialConfig',
     'direct-labor': 'directLaborConfig',
@@ -237,7 +249,7 @@ export function CostStructurePage() {
 
   const runCalculate = async () => {
     setError(null);
-    setTracedError(null);
+
     setIncompletitud(null);
     if (blockedByClosedPeriod()) return;
 
@@ -267,21 +279,30 @@ export function CostStructurePage() {
       return;
     }
 
-    try {
-      const data = await calculate.mutateAsync();
-      setResult(data);
-      setActiveTab('result');
-    } catch (e) { setError(apiErrorMessage(e)); return; }
-
-    // Corrida de trazabilidad (árbol persistido): no bloquea ni tapa el
-    // resultado de arriba si falla (ej. hay datos sin imputar) — el aviso
-    // queda solo dentro de la caja del árbol.
+    // T-07 — UNA sola corrida del motor.
+    //
+    // Antes esto disparaba dos: primero `/cost-structures/:id/calculate` (el
+    // camino legado, cuyo resultado era el que se PINTABA) y después
+    // `/structures/:id/calculate` (el trazable, que solo armaba el árbol). Eran
+    // dos ejecuciones contra dos lecturas de configuración hechas en dos
+    // momentos: que coincidieran era casualidad, no garantía.
+    //
+    // El manual (§1.4): "el motor lo emite y persiste al calcular. Así el número
+    // mostrado y su explicación son, por construcción, el mismo cálculo."
+    //
+    // Ahora la corrida trazable devuelve `results` —el mismo objeto que alimentó
+    // el árbol— y además escribe la fila legada en su propia transacción, así
+    // que el Historial, la Comparación y el portal de empresa siguen leyendo lo
+    // de siempre sin enterarse del cambio.
     try {
       const traced = await calculateTraced.mutateAsync();
+      setResult({ result: traced.results, calculationId: traced.calculationId });
       setTracedRunId(traced.runId);
       setIncompletitud(traced.incompleto ?? null);
+      setActiveTab('result');
     } catch (e) {
-      setTracedError(apiErrorMessage(e));
+      setError(apiErrorMessage(e));
+      return;
     }
   };
 
@@ -357,7 +378,7 @@ export function CostStructurePage() {
 
   return (
     <AppShell wide>
-      <FullScreenCalculatorLoader active={calculate.isPending} />
+      <FullScreenCalculatorLoader active={calculateTraced.isPending || processCalculate.isPending} />
       {/* Header */}
       <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:justify-between">
         <div>
@@ -429,7 +450,7 @@ export function CostStructurePage() {
           )}
           <Button
             onClick={runCalculate}
-            loading={calculate.isPending}
+            loading={calculateTraced.isPending}
             disabled={!allReady || readOnly}
             title={readOnly ? 'El período está cerrado: sus números están congelados.' : undefined}
           >
@@ -647,7 +668,7 @@ export function CostStructurePage() {
             saving={updateSales.isPending}
             allReady={allReady}
             onCalculate={runCalculate}
-            calculating={calculate.isPending || processCalculate.isPending}
+            calculating={calculateTraced.isPending || processCalculate.isPending}
           />
         </Frozen>
       </div>
@@ -678,22 +699,21 @@ export function CostStructurePage() {
               scrolleara. El caso en que el árbol falla es exactamente el caso en
               que los números no son confiables: el peor momento posible para
               poner el aviso abajo de todo. */}
-          {tracedError && (
-            <div role="alert" className="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3">
-              <p className="text-[13px] font-semibold text-danger">
-                Los números de abajo no se pudieron verificar
+          {resultadoSinCorrida && (
+            <div role="alert" className="rounded-lg border border-warn/40 bg-warn/10 px-4 py-3">
+              <p className="text-[13px] font-semibold text-warn">
+                Estos números no tienen árbol de derivación
               </p>
               <p className="mt-1 text-[12.5px] leading-relaxed text-ink">
-                El cálculo se hizo, pero la corrida que arma el árbol de derivación no terminó, así
-                que no se pudo comprobar si hay datos sin imputar a un período. Tomá el costo
-                unitario y el margen con reserva hasta volver a calcular.
+                Vienen de un cálculo anterior a la trazabilidad, así que no se puede abrir de dónde
+                salió cada uno ni comprobar si hay datos sin imputar a un período. Volvé a calcular
+                para generarlo.
               </p>
-              <p className="mt-1.5 text-[12px] text-ink-soft">{tracedError}</p>
               <button
                 type="button"
                 onClick={() => void runCalculate()}
-                disabled={calculate.isPending || calculateTraced.isPending}
-                className="mt-2 rounded-md bg-danger px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                disabled={calculateTraced.isPending}
+                className="mt-2 rounded-md bg-warn px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 Volver a calcular
               </button>
@@ -708,18 +728,18 @@ export function CostStructurePage() {
               doneTitle="Volvé a calcular para ver el resultado limpio."
               doneLabel="Volver a calcular"
               onDone={() => void runCalculate()}
-              busy={calculate.isPending || calculateTraced.isPending || processCalculate.isPending}
+              busy={calculateTraced.isPending || processCalculate.isPending}
             />
           )}
           <DerivationTree
             runId={effectiveRunId}
-            isMissingRun={!!tracedError}
-            missingRunMessage={tracedError}
+            isMissingRun={resultadoSinCorrida}
+            missingRunMessage={null}
             structureId={id}
             period={structure?.period}
           />
           {shown
-            ? <ResultTab result={shown.result} companyId={structure?.companyId} period={structure?.period} incompleto={incompletitud?.incompleto} runId={effectiveRunId} structureId={id} corridaTrazableFallo={!!tracedError} />
+            ? <ResultTab result={shown.result} companyId={structure?.companyId} period={structure?.period} incompleto={incompletitud?.incompleto} runId={effectiveRunId} structureId={id} corridaTrazableFallo={resultadoSinCorrida} />
             : <EmptyResult />}
         </div>
       )}
