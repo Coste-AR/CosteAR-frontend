@@ -34,7 +34,17 @@ export function EmptyResult() {
  * Explicación breve (ES) de por qué el margen no es confiable. Regla #6/#7: sin
  * identificadores internos ni endpoints — solo términos de cátedra.
  */
-function untrustworthyReason(result: CalculationResult, incompleto?: boolean): string {
+function untrustworthyReason(
+  result: CalculationResult,
+  incompleto?: boolean,
+  corridaTrazableFallo?: boolean,
+): string {
+  // T-08 — va PRIMERO: si la corrida trazable no terminó, no sabemos siquiera si
+  // hay datos sin imputar. Es un estado peor que el de incompletitud conocida y
+  // merece su propio texto, no el de "faltan imputaciones".
+  if (corridaTrazableFallo) {
+    return 'Estos números se calcularon, pero la corrida que arma el árbol de derivación no terminó. No se pudo verificar si hay datos sin imputar, así que el margen no es confiable. Volvé a calcular.';
+  }
   if (incompleto) {
     return 'Resultado incompleto: se calculó con datos sin imputar a un período. El margen no es confiable hasta resolver la imputación.';
   }
@@ -49,16 +59,20 @@ function untrustworthyReason(result: CalculationResult, incompleto?: boolean): s
   return 'El cálculo no incluye CIP aplicados: el margen no refleja el costo real del producto.';
 }
 
-export function ResultTab({ result, companyId, period, incompleto, runId, structureId }: { result: CalculationResult; companyId?: string; period?: string; incompleto?: boolean; runId?: string | null; structureId?: string }) {
+export function ResultTab({ result, companyId, period, incompleto, runId, structureId, corridaTrazableFallo }: { result: CalculationResult; companyId?: string; period?: string; incompleto?: boolean; runId?: string | null; structureId?: string; corridaTrazableFallo?: boolean }) {
   // ¿Lo que se está mirando ya lo validó alguien? El backend responde con la
   // última validada o, si no hay ninguna, con la última automática marcada.
   const { data: vigente } = useResultadoVigente(structureId ?? '');
   // F08 — un margen sobre un resultado sin MP, sin CIP o marcado incompleto no
   // es confiable: el badge nunca debe decir "sano" sobre un número así.
+  // T-08 — si la corrida trazable falló, el resultado se marca no confiable por
+  // el MISMO mecanismo de F08, no por uno nuevo. Se reusa el parámetro
+  // `incompleto` porque significa exactamente lo mismo para esta decisión: no
+  // hay garantía de que el número esté completo.
   const trustworthy = isResultTrustworthy({
     rawMaterialConsumed: result.rawMaterialConsumed,
     indirectCostsApplied: result.indirectCostsApplied,
-    incompleto,
+    incompleto: incompleto || corridaTrazableFallo,
   });
   /**
    * TRAZABILIDAD DEL RESULTADO (U10).
@@ -351,7 +365,7 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
               </StatusBadge>
               {!trustworthy && (
                 <p className="mx-auto mt-2 max-w-[16rem] text-[11px] leading-snug text-ink-soft">
-                  {untrustworthyReason(result, incompleto)}
+                  {untrustworthyReason(result, incompleto, corridaTrazableFallo)}
                 </p>
               )}
             </div>

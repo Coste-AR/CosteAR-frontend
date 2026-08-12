@@ -670,6 +670,35 @@ export function CostStructurePage() {
 
       {shownTab === 'result' && !isProcesses && (
         <div className="space-y-4">
+          {/* T-08 — El aviso va ARRIBA, pegado a los números.
+              Antes, si la corrida trazable fallaba, el error quedaba solo dentro
+              de la caja del árbol y el costista se quedaba mirando el costo
+              unitario, el margen y su badge —calculados por el camino legado, que
+              NO aplica la regla de imputación— sin enterarse de nada hasta que
+              scrolleara. El caso en que el árbol falla es exactamente el caso en
+              que los números no son confiables: el peor momento posible para
+              poner el aviso abajo de todo. */}
+          {tracedError && (
+            <div role="alert" className="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3">
+              <p className="text-[13px] font-semibold text-danger">
+                Los números de abajo no se pudieron verificar
+              </p>
+              <p className="mt-1 text-[12.5px] leading-relaxed text-ink">
+                El cálculo se hizo, pero la corrida que arma el árbol de derivación no terminó, así
+                que no se pudo comprobar si hay datos sin imputar a un período. Tomá el costo
+                unitario y el margen con reserva hasta volver a calcular.
+              </p>
+              <p className="mt-1.5 text-[12px] text-ink-soft">{tracedError}</p>
+              <button
+                type="button"
+                onClick={() => void runCalculate()}
+                disabled={calculate.isPending || calculateTraced.isPending}
+                className="mt-2 rounded-md bg-danger px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                Volver a calcular
+              </button>
+            </div>
+          )}
           {incompletitud?.incompleto && (
             <IncompleteNotice
               datos={incompletitud.datosPendientes}
@@ -690,7 +719,7 @@ export function CostStructurePage() {
             period={structure?.period}
           />
           {shown
-            ? <ResultTab result={shown.result} companyId={structure?.companyId} period={structure?.period} incompleto={incompletitud?.incompleto} runId={effectiveRunId} structureId={id} />
+            ? <ResultTab result={shown.result} companyId={structure?.companyId} period={structure?.period} incompleto={incompletitud?.incompleto} runId={effectiveRunId} structureId={id} corridaTrazableFallo={!!tracedError} />
             : <EmptyResult />}
         </div>
       )}
