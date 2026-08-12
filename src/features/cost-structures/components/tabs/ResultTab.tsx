@@ -87,6 +87,23 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
     ? buildIdleCapacity(laborConfig, result.detail.directLabor)
     : null;
 
+  /**
+   * T-09 — el nombre del centro, no su id interno.
+   *
+   * `perDepartment` viene indexado por el id del centro (`prod1`, `mecanizado`),
+   * y la tabla de variaciones lo imprimía crudo: el costista leía «mecanizado»
+   * en minúscula y sin acento donde el resto de la pantalla dice «Mecanizado».
+   * El árbol ya se corrigió en el backend; esto es la otra mitad.
+   *
+   * Cae al id sólo si el centro no está en `centers[]` — config vieja, o un
+   * centro borrado de la lista sin borrar su configuración productiva. Un id
+   * feo es mejor que una fila sin nombre.
+   */
+  const cipConfig = estructura?.indirectCostConfig as { centers?: { id?: string; name?: string }[] } | null | undefined;
+  const centros = cipConfig?.centers ?? [];
+  const nombreDeCentro = (id: string) =>
+    centros.find((c) => c.id === id)?.name?.trim() || id;
+
   const raiz = (nombre: string) => {
     const nodo = arbol?.tree.find((n) => n.label.toLowerCase() === nombre.toLowerCase());
     return nodo ? toDerivation(nodo) : null;
@@ -293,7 +310,7 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
                     const budgetedCip = normalCapacity * quota;
                     return (
                       <tr key={dept} className="hover:bg-surface-alt/45">
-                        <td className="px-4 py-3 font-semibold text-ink">{dept}</td>
+                        <td className="px-4 py-3 font-semibold text-ink">{nombreDeCentro(dept)}</td>
                         <td className="px-4 py-3 text-right"><Money value={budgetedCip} /></td>
                         <td className="px-4 py-3 text-right font-mono">{normalCapacity} hs</td>
                         <td className="px-4 py-3 text-right"><Money value={quota} /></td>
