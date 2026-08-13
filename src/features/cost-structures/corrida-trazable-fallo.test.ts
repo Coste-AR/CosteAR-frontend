@@ -27,8 +27,10 @@ describe('T-08 — confiabilidad cuando la corrida trazable falla', () => {
 
   it('si la corrida trazable falló, el resultado deja de ser confiable', () => {
     // Es como se conecta en ResultTab: `incompleto || corridaTrazableFallo`.
+    // Lo que se fija acá es que la falla sola alcanza, SIN incompletitud.
+    const incompleto = false;
     const corridaTrazableFallo = true;
-    expect(isResultTrustworthy({ ...RESULTADO_SANO, incompleto: false || corridaTrazableFallo }))
+    expect(isResultTrustworthy({ ...RESULTADO_SANO, incompleto: incompleto || corridaTrazableFallo }))
       .toBe(false);
   });
 
