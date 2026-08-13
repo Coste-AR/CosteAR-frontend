@@ -100,10 +100,13 @@ describe('capacidad ociosa — con horas netas productivas cargadas', () => {
     expect(idle.applicableMod! + idle.idleCost!).toBeCloseTo(idle.fullMod!, 6);
   });
 
-  it('informa que el destino contable vigente absorbe el costo en el producto', () => {
-    // Espeja `DESTINO_COSTO_CAPACIDAD_OCIOSA` del motor. La cátedra lo trata como
-    // pérdida del período; la decisión está abierta y la UI lo dice así.
-    expect(idle.destination).toBe('absorbido-en-el-producto');
+  it('el costo ocioso sale del costo del producto y va al resultado del período', () => {
+    // Espeja `DESTINO_COSTO_CAPACIDAD_OCIOSA` del motor. Fue
+    // 'absorbido-en-el-producto' mientras la decisión estaba abierta — un
+    // placeholder elegido sólo para no mover resultados. Ya se decidió: la
+    // cátedra (Clase 10) lo trata como "una pérdida de la empresa, no un costo
+    // del producto", y así quedó cableado.
+    expect(idle.destination).toBe('perdida-del-periodo');
   });
 });
 

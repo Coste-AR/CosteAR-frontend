@@ -95,6 +95,52 @@ export interface TraceVersion {
   at: string;
 }
 
+/**
+ * Los seis tipos de comprobante del manual (espejo de `evidenceKindSchema` del
+ * backend). Cerrado a propósito: el tipo es lo primero que mira quien audita.
+ */
+export type EvidenceKind = 'factura' | 'contrato' | 'remito' | 'acta' | 'lista_precios' | 'asiento';
+
+/** Cómo se le nombra cada tipo al costista. Nunca se muestra la clave cruda. */
+export const EVIDENCE_KIND_LABEL: Record<EvidenceKind, string> = {
+  factura: 'Factura',
+  contrato: 'Contrato',
+  remito: 'Remito',
+  acta: 'Acta',
+  lista_precios: 'Lista de precios',
+  asiento: 'Asiento contable',
+};
+
+/**
+ * Qué pasó con el archivo del comprobante.
+ *
+ * `sin-archivo` NO es un error: el manual admite el comprobante por referencia
+ * ("NULL si es referencia sin archivo"). `no-se-pudo-guardar` sí es algo que
+ * hay que contarle al costista — el comprobante quedó registrado, pero el
+ * archivo no, y "Ver comprobante" no va a estar.
+ */
+export type EstadoArchivoComprobante = 'guardado' | 'sin-archivo' | 'no-se-pudo-guardar';
+
+/** El comprobante tal como lo devuelve el alta (POST /evidence). */
+export interface EvidenceCreated {
+  id: string;
+  kind: EvidenceKind;
+  reference: string;
+  counterparty: string | null;
+  fileUrl: string | null;
+  uploadedAt: string;
+  archivo: EstadoArchivoComprobante;
+  aviso: string | null;
+}
+
+/** El comprobante tal como lo muestra la ficha del dato. */
+export interface TraceEvidence {
+  kind: string;
+  reference: string;
+  counterparty: string | null;
+  fileUrl: string | null;
+}
+
 export interface DataPointTrace {
   id: string;
   label: string;
@@ -103,7 +149,7 @@ export interface DataPointTrace {
   signedBy: { name: string; role: string; at: string } | null;
   fields: TraceField[];
   periods: { hecho: string | null; captacion: string; imputado: string | null };
-  evidence: { kind: string; reference: string; fileUrl: string | null } | null;
+  evidence: TraceEvidence | null;
   versions: TraceVersion[];
   impacts: string[];
 }

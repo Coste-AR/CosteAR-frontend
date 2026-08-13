@@ -3,7 +3,7 @@ import { Money, Percent } from '@/components/ui/Money';
 import { TraceableValue, toDerivation } from '@/components/ui/TraceableValue';
 import { useCalculationTree, useResultadoVigente } from '@/features/cost-structures/trazabilidad-hooks';
 import { useCostStructure } from '@/features/cost-structures/cost-structure-hooks';
-import { buildIdleCapacity } from '../labor/idle-capacity';
+import { buildIdleCapacity, DESTINO_COSTO_OCIOSO_VIGENTE } from '../labor/idle-capacity';
 import { IdleCapacityResultLine } from '../labor/IdleCapacityPanel';
 import type { DirectLaborConfig } from '@/features/cost-structures/cost-structure-types';
 import { ProvisionalBanner } from '../RunHistoryPanel';
@@ -100,6 +100,18 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
   const idleCapacity = laborConfig
     ? buildIdleCapacity(laborConfig, result.detail.directLabor)
     : null;
+
+  /**
+   * La pérdida por capacidad ociosa que sale del estado de costos.
+   *
+   * Solo tiene sentido mostrarla cuando el destino vigente la saca del costo del
+   * producto: con `'absorbido-en-el-producto'` el importe sigue adentro de las
+   * filas de arriba y ponerlo también abajo lo contaría dos veces a la vista.
+   */
+  const perdidaOciosa =
+    DESTINO_COSTO_OCIOSO_VIGENTE === 'perdida-del-periodo'
+      ? idleCapacity?.idleCost
+      : undefined;
 
   /**
    * T-09 — el nombre del centro, no su id interno.
@@ -294,6 +306,23 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
                   <td className="px-6 py-3.5 text-right"><Money value={result.costOfGoodsSold} className="text-granate" /></td>
                   <td className="px-6 py-3.5" />
                 </tr>
+                {/* La pérdida por capacidad ociosa NO está en las filas de
+                    arriba: salió del costo del producto y se fue al estado de
+                    resultados. Se muestra igual, acá abajo y separada por una
+                    línea, para que el costista sepa que el costo de producción
+                    ya no la contiene y no la busque adentro. */}
+                {perdidaOciosa != null && perdidaOciosa > 0 && (
+                  <tr className="border-t-4 border-line">
+                    <td className="px-6 py-3.5 text-ink">
+                      Pérdida por capacidad ociosa
+                      <span className="ml-2 text-[11px] font-normal text-ink-soft">
+                        fuera del costo de producción — otro egreso del estado de resultados
+                      </span>
+                    </td>
+                    <td className="px-6 py-3.5 text-right text-warn"><Money value={perdidaOciosa} /></td>
+                    <td className="px-6 py-3.5" />
+                  </tr>
+                )}
               </tbody>
             </table>
           </CardBody>

@@ -78,12 +78,15 @@ describe('hoja de MOD — la capacidad ociosa tiene su propia línea', () => {
     expect(screen.getAllByText((t) => t.includes('848.250')).length).toBeGreaterThan(0);
   });
 
-  it('dice qué pasa hoy con ese costo y que el tratamiento está en definición', () => {
+  it('dice que ese costo NO es del producto: va al resultado del período', () => {
+    // El tratamiento ya no está "en definición". Se decidió lo que manda la
+    // cátedra (Clase 10): es una pérdida de la empresa, no un costo del
+    // producto. La pantalla tiene que decirlo sin ambigüedad, porque el costo
+    // de producción baja respecto de lo que el costista veía antes.
     montar(configConOciosidad);
 
-    expect(screen.getAllByText(/destino contable: en definición/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/absorbido en el costo del producto/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/una pérdida de la empresa, no un costo del producto/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/estado de resultados/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/cátedra, Clase 10/i).length).toBeGreaterThan(0);
   });
 
   it('no la confunde con el ausentismo pago: aclara que son cosas distintas', () => {
@@ -143,15 +146,21 @@ describe('formulario de MOD — dónde se cargan las horas', () => {
   it('explica que dejarlas vacías significa que no hay capacidad ociosa', () => {
     render(<DirectLaborForm defaultValues={configLegado} onSave={async () => {}} saving={false} />);
 
-    expect(screen.getByText(/horas netas productivas vacías/i)).toBeTruthy();
-    expect(screen.getAllByText(/no\s*hay capacidad ociosa/i).length).toBeGreaterThan(0);
+    // El texto va partido en varios <strong>, así que se busca por nodo entero.
+    expect(screen.getAllByText(/no hay capacidad\s*ociosa/i).length).toBeGreaterThan(0);
+    // Y avisa la consecuencia de SÍ cargarlas, que es lo que más sorprende:
+    // el costo de producción baja y aparece una pérdida donde antes no había.
+    expect(screen.getAllByText(/pérdida del\s*período/i).length).toBeGreaterThan(0);
   });
 
   it('con las horas cargadas, avisa al toque cuántas quedan ociosas', () => {
     render(<DirectLaborForm defaultValues={configConOciosidad} onSave={async () => {}} saving={false} />);
 
     expect(screen.getAllByText((t) => t.includes('100 hs')).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/de capacidad ociosa/i).length).toBeGreaterThan(0);
+    // El aviso nombra el tipo de improductividad (tiempos perdidos informados),
+    // no un genérico "capacidad ociosa": el desglose por tipo es justamente lo
+    // que pedía la decisión.
+    expect(screen.getAllByText(/tiempos perdidos informados/i).length).toBeGreaterThan(0);
   });
 
   it('sin horas netas productivas no dice nada de ociosidad en la fila', () => {

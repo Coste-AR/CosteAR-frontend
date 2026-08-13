@@ -10,6 +10,7 @@ import {
   buildIdleCapacity,
   formatHours,
   DESTINO_COSTO_OCIOSO_VIGENTE,
+  type IdleCapacityBucket,
   type IdleCapacityDepartmentLine,
 } from './components/labor/idle-capacity';
 import type { DirectLaborConfig } from './cost-structure-types';
@@ -29,6 +30,32 @@ const fmt = (n: number | undefined) =>
 // Mismo formato de porcentaje que el desglose: en la misma pantalla no pueden
 // convivir "8.33%" y "8,3333 %" para el mismo índice.
 const pct = formatItcsPercent;
+
+/**
+ * Los DOS TIPOS DE IMPRODUCTIVIDAD de la cátedra (Clase 10) para un solo
+ * departamento: tiempos perdidos informados e improductividad oculta. Los pesos
+ * se reparten en proporción a las horas, igual que en el motor.
+ */
+function breakdownDelDepartamento(d: IdleCapacityDepartmentLine): IdleCapacityBucket[] {
+  const costoDe = (horas: number) =>
+    d.totalMod != null && d.paidHours > 0 ? (d.totalMod * horas) / d.paidHours : 0;
+  return [
+    {
+      tipo: 'tiempos-perdidos-informados' as const,
+      label: 'Tiempos perdidos informados',
+      hours: d.informedLostHours,
+      cost: costoDe(d.informedLostHours),
+      reasons: [],
+    },
+    {
+      tipo: 'improductividad-oculta' as const,
+      label: 'Improductividad oculta',
+      hours: d.hiddenIdleHours,
+      cost: costoDe(d.hiddenIdleHours),
+      reasons: [],
+    },
+  ].filter((b) => b.hours > 0);
+}
 
 /**
  * Mano de Obra — LISTA de departamentos → FICHA por departamento (Parte 3.2).
@@ -254,11 +281,16 @@ function DepartmentCard({
               departments: [idle!],
               paidHours: idle!.paidHours,
               productiveHours: idle!.productiveHours,
+              chargeableHours: idle!.chargeableHours,
               idleHours: idle!.idleHours,
               idleSharePercent: idle!.paidHours > 0 ? (idle!.idleHours / idle!.paidHours) * 100 : 0,
               fullMod: idle!.totalMod,
               idleCost: idle!.idleCost,
               applicableMod: idle!.applicableMod,
+              // El desglose por tipo del departamento se arma con SUS horas; el
+              // cartel se muestra una sola vez, arriba, para toda la hoja.
+              breakdown: breakdownDelDepartamento(idle!),
+              alert: null,
               anyDeclared: idle!.declared,
               hasIdleCapacity: idle!.hasIdleCapacity,
               hasExceeded: idle!.exceedsPaidHours,

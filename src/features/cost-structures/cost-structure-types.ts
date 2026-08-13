@@ -81,6 +81,12 @@ export interface DirectLaborConfig {
     basicRemuneration: number;
     hoursWorked: number; // HORAS PAGADAS — presencia en fábrica (cátedra, Clase 10)
     productiveHours?: number; // HORAS NETAS PRODUCTIVAS = presencia − tiempos perdidos informados
+    // TIEMPO ESTÁNDAR DE PRODUCCIÓN (cátedra, Clase 10): las horas que debería
+    // haber llevado producir lo que se produjo, según la oficina técnica.
+    // Habilita el segundo tipo: netas productivas − estándar = improductividad oculta.
+    standardHours?: number;
+    // Detalle por motivo de los tiempos perdidos informados (descriptivo).
+    informedLostTime?: Array<{ reason: string; hours: number }>;
     realHours?: number; // dato real de fin de mes (no afecta el cálculo)
     operators?: Array<{ name: string; category?: string; bankedHours?: number; individualAbsenceDays?: number }>;
   }>;

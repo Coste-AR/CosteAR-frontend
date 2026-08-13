@@ -14,6 +14,8 @@ import type {
   ResultadoVigente,
   LateDataDecision,
   LateDataChoice,
+  EvidenceKind,
+  EvidenceCreated,
 } from './trazabilidad-types';
 
 /** Corre el motor con árbol persistido (Trazabilidad Total v1, D.1). Endpoint
@@ -231,6 +233,87 @@ export function usePedirRevision() {
         comment: input.comment,
       });
       return res.data;
+    },
+  });
+}
+
+// ── Comprobantes (T-04) ──────────────────────────────────────────────────────
+
+/** Tope del archivo: el backend corta en 700.000 caracteres de base64. */
+export const MAX_ARCHIVO_BYTES = 500 * 1024;
+export const MSG_ARCHIVO_GRANDE =
+  'El archivo es muy grande (máximo 500 KB). Subí una versión más liviana.';
+
+export interface AdjuntarComprobanteInput {
+  dataPointId: string;
+  kind: EvidenceKind;
+  reference: string;
+  counterparty?: string;
+  /** Opcional de verdad: un comprobante por referencia ya es auditable. */
+  file?: File | null;
+  /** Por qué se adjunta. Queda en la versión nueva del dato. */
+  reason?: string;
+}
+
+/** Lee un archivo como base64 pelado (sin el prefijo `data:...;base64,`). */
+async function leerBase64(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  let binario = '';
+  const bytes = new Uint8Array(buffer);
+  const CHUNK = 0x8000; // de a pedazos: String.fromCharCode(...) revienta con arrays grandes
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binario);
+}
+
+/**
+ * Adjunta un comprobante a un dato ya cargado.
+ *
+ * Son DOS llamadas al backend —dar de alta el comprobante y vincularlo— porque
+ * son dos hechos distintos: un comprobante existe por sí mismo (y mañana la
+ * ingesta de documentos va a crearlo sin que nadie apriete nada) y recién
+ * después se ata a un dato. Para el costista es UNA acción, así que la costura
+ * queda acá adentro y no en la pantalla.
+ *
+ * El vínculo NO pisa el dato: el backend crea una VERSIÓN NUEVA que lleva el
+ * comprobante, y la anterior queda intacta en el historial.
+ */
+export function useAdjuntarComprobante() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: AdjuntarComprobanteInput) => {
+      // Red de seguridad; la pantalla ya lo chequea antes de llegar acá para
+      // poder mostrar el motivo (apiErrorMessage sólo entiende errores del
+      // backend, un Error de acá se leería como "error inesperado").
+      if (input.file && input.file.size > MAX_ARCHIVO_BYTES) throw new Error(MSG_ARCHIVO_GRANDE);
+
+      const evidencia = await api.post<{ data: EvidenceCreated }>('/evidence', {
+        kind: input.kind,
+        reference: input.reference,
+        counterparty: input.counterparty || undefined,
+        file: input.file
+          ? {
+              data: await leerBase64(input.file),
+              mimeType: input.file.type || 'application/octet-stream',
+              fileName: input.file.name,
+            }
+          : undefined,
+      });
+      const comprobante = evidencia.data.data;
+
+      await api.post(`/data-points/${input.dataPointId}/evidence`, {
+        evidenceId: comprobante.id,
+        reason: input.reason?.trim() || 'Se adjuntó el comprobante que respalda este dato.',
+        sourceArea: 'costista',
+      });
+
+      return comprobante;
+    },
+    onSuccess: (_d, vars) => {
+      // La ficha se rehace sola: pasa a mostrar el comprobante y el historial
+      // con la versión nueva.
+      void qc.invalidateQueries({ queryKey: ['data-points', vars.dataPointId, 'trace'] });
     },
   });
 }

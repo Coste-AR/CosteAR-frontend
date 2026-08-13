@@ -111,6 +111,39 @@ export interface CalculationResult {
         budgetedHours: number;
         realHours?: number;
       }>;
+      /**
+       * CAPACIDAD OCIOSA (cátedra, Clase 10) — la pérdida por horas pagadas que
+       * no se le pueden cobrar al producto, abierta POR TIPO DE
+       * IMPRODUCTIVIDAD, con el cartel ya redactado por el motor.
+       *
+       * OPCIONAL: los cálculos guardados antes de que esto existiera no lo
+       * traen. Ausente ≠ "no hay ociosidad".
+       */
+      idleCapacity?: {
+        paidHours: number;
+        productiveHours: number;
+        chargeableHours: number;
+        idleHours: number;
+        fullMod: number;
+        idleCost: number;
+        applicableMod: number;
+        hasIdleCapacity: boolean;
+        destination: 'absorbido-en-el-producto' | 'perdida-del-periodo';
+        breakdown: Array<{
+          tipo: 'tiempos-perdidos-informados' | 'improductividad-oculta';
+          label: string;
+          hours: number;
+          cost: number;
+          reasons: Array<{ reason: string; hours: number; cost: number }>;
+        }>;
+        alert: {
+          level: 'advertencia' | 'critico';
+          title: string;
+          message: string;
+          cost: number;
+          sharePercent: number;
+        } | null;
+      };
     };
     indirectCosts: {
       perDepartment: Record<
