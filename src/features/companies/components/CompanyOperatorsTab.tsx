@@ -35,11 +35,19 @@ export function CompanyOperatorsTab({ companyId }: { companyId: string }) {
   const handleGenerate = async () => {
     if (!operatorFullName.trim() || !emailValid) return;
     setGenerateError(null);
-    const displayName = operatorRole.trim()
-      ? `${operatorFullName.trim()} — ${operatorRole.trim()}`
-      : operatorFullName.trim();
+    // EL PUESTO ES UN DATO, NO PARTE DEL NOMBRE (I5b).
+    //
+    // Acá se venía pegando dentro del nombre — "María — Jefa de Depósito" — así
+    // que el sistema tenía la información y no podía usarla: quedaba adentro de
+    // un string, sin forma de consultarla ni de estamparla en un dato. Ahora va
+    // a su propio campo y viaja hasta la versión de cada dato que cargue esa
+    // persona, que es donde sirve.
     try {
-      const result = await generate.mutateAsync({ operatorName: displayName, operatorEmail: operatorEmail.trim() });
+      const result = await generate.mutateAsync({
+        operatorName: operatorFullName.trim(),
+        operatorEmail: operatorEmail.trim(),
+        jobTitle: operatorRole,
+      });
       setGeneratedAccess(result);
       setOperatorFullName('');
       setOperatorRole('');
@@ -92,8 +100,15 @@ export function CompanyOperatorsTab({ companyId }: { companyId: string }) {
                   onChange={(e) => setOperatorFullName(e.target.value)}
                 />
                 <Input
-                  label="Cargo / área (opcional)"
-                  placeholder="Ej: Compras, Administración…"
+                  // Ahora es un dato con consecuencia: se estampa en cada valor
+                  // que cargue esta persona y se lee después en la
+                  // trazabilidad. Por eso el ejemplo pasa a ser un PUESTO
+                  // ("Jefe de Depósito") y no un área ("Compras"): el área ya
+                  // viaja aparte, y pedir dos cosas distintas en el mismo campo
+                  // era lo que hacía que ninguna de las dos sirviera.
+                  label="Puesto (opcional)"
+                  placeholder="Ej: Jefe de Depósito, Contador…"
+                  hint="Queda registrado en cada dato que cargue esta persona."
                   value={operatorRole}
                   onChange={(e) => setOperatorRole(e.target.value)}
                 />

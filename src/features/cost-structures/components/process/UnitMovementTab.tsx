@@ -6,7 +6,7 @@ import { TraceableValue } from '@/components/ui/TraceableValue';
 import { apiErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useUnitMovement, useSaveUnitMovement } from '../../process-costing-hooks';
-import type { ProcessDepartment, UnitMovementInput } from '../../process-costing-types';
+import type { CountSource, ProcessDepartment, UnitMovementInput } from '../../process-costing-types';
 import { DepartmentSelector } from './DepartmentSelector';
 
 /**
@@ -32,6 +32,40 @@ import { DepartmentSelector } from './DepartmentSelector';
  */
 
 type Campo = keyof UnitMovementInput;
+
+/**
+ * PROCEDENCIA DEL RECUENTO (D7). El asistente de setup le promete al cliente que
+ * la diferencia entre "lo informó la planta" y "lo estimó el área de costos" se
+ * ve en la trazabilidad. El backend la venía guardando desde el principio; hasta
+ * ahora no la devolvía ningún endpoint y la promesa no se cumplía en ninguna
+ * pantalla.
+ *
+ * El grado de avance de la existencia final es el número que más mueve el costo
+ * unitario, así que las dos procedencias no valen lo mismo y el costista tiene
+ * que poder distinguirlas de un vistazo.
+ */
+const PROCEDENCIA: Record<CountSource, { label: string; detalle: string; tono: string }> = {
+  TECHNICAL_OFFICE: {
+    label: 'Informado por planta',
+    detalle: 'Lo cargó la oficina técnica, con el permiso de recuento habilitado.',
+    tono: 'bg-ok/10 text-ok',
+  },
+  COSTIST_ESTIMATE: {
+    label: 'Estimado por costos',
+    detalle: 'Lo cargó el área de costos, no la planta. Vale, pero no es un recuento.',
+    tono: 'bg-warn/10 text-warn',
+  },
+  CARRIED_OVER: {
+    label: 'Arrastrado del período anterior',
+    detalle: 'Viene del cierre del mes previo. Nadie volvió a contarlo en este período.',
+    tono: 'bg-warn/10 text-warn',
+  },
+  NOT_COUNTED: {
+    label: 'Sin recuento',
+    detalle: 'Todavía no informó nadie el grado de avance de la existencia final.',
+    tono: 'bg-ink-soft/10 text-ink-soft',
+  },
+};
 
 const n = (v: string): number | undefined => {
   if (v.trim() === '') return undefined;
@@ -504,6 +538,26 @@ export function UnitMovementTab({
             />
           </Fila>
         </div>
+        {data?.saved?.countSource && (
+          <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-line pt-3 text-[12px]">
+            <span className="text-ink-soft">Existencia final:</span>
+            <span
+              className={cn(
+                'rounded-full px-2 py-0.5 text-[11.5px] font-semibold',
+                PROCEDENCIA[data.saved.countSource].tono,
+              )}
+            >
+              {PROCEDENCIA[data.saved.countSource].label}
+            </span>
+            <span className="text-ink-soft">
+              {PROCEDENCIA[data.saved.countSource].detalle}
+              {data.saved.countedByName && ` Lo informó ${data.saved.countedByName}`}
+              {data.saved.countedAt &&
+                ` el ${new Date(data.saved.countedAt).toLocaleDateString('es-AR')}`}
+              {data.saved.countedByName && '.'}
+            </span>
+          </div>
+        )}
         {hayEF && !form.finalWipConvAvance && (
           <div className="mt-2 flex items-start gap-2 rounded-sm bg-warn/10 px-3 py-2 text-[12.5px] text-warn">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
