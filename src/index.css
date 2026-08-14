@@ -33,10 +33,22 @@
   --font-mono: 'JetBrains Mono', 'Courier New', monospace;
 
   /* Radios estilo Salesforce/Hubspot premium (8px inputs, 12px sub-tarjetas, 24px tarjetas) */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
+  /* ESCALA DE RADIOS.
+   *
+   * Estaba entre 2 y 4 veces por encima del default de Tailwind (sm 2, md 6,
+   * lg 8, xl 12). No era una elección de estilo con consecuencias menores: con
+   * `rounded-xl` a 32px —y se usa en 168 lugares— el arco se come el ancho útil
+   * de las esquinas, recorta texto y desarma los paddings. Se veía sobre todo
+   * en las tarjetas que envuelven tablas, con la primera y la última celda
+   * mordidas.
+   *
+   * Los valores nuevos siguen siendo más redondeados que el default de Tailwind
+   * —el lenguaje visual del producto es suave y eso se conserva— pero dejan de
+   * comerse el contenido. Si hay que ajustar, son estas cuatro líneas. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 }
 
 

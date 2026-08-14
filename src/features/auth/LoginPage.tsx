@@ -103,7 +103,7 @@ export function LoginPage() {
       />
 
       {/* Main glass card container with deep floating shadow */}
-      <div className="relative z-10 w-full max-w-md rounded-3xl border border-line/60 bg-surface/80 p-8 sm:p-10 shadow-[0_32px_80px_rgba(74,21,27,0.08),_0_8px_24px_rgba(179,25,41,0.04)] backdrop-blur-md animate-rise">
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-line/60 bg-surface/80 p-8 sm:p-10 shadow-[0_32px_80px_rgba(74,21,27,0.08),_0_8px_24px_rgba(179,25,41,0.04)] backdrop-blur-md animate-rise">
         
         {/* Logo and Brand */}
         <div className="mb-8 flex items-center justify-between border-b border-line/40 pb-5">

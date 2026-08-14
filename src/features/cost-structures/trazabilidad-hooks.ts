@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { usePeriods } from './period-hooks';
@@ -184,6 +185,65 @@ export function useMpMovements(structureId: string) {
     },
     enabled: !!structureId,
   });
+}
+
+/**
+ * Un insumo trazable de la estructura, visto desde la pantalla que lo cargó
+ * (T-05). No trae el valor: el número que se muestra sale siempre de la config
+ * guardada; acá viaja únicamente el vínculo entre un CAMPO y su ficha.
+ */
+export interface StructureDataPoint {
+  id: string;
+  element: CostElement;
+  /** Clave del campo, con la convención de `orders-input-points.ts`. */
+  fieldKey: string;
+  label: string;
+  unit: string | null;
+  periodoImputado: string | null;
+  pending: boolean;
+}
+
+/** Índice de insumos trazables de una estructura (T-05). */
+export function useStructureDataPoints(structureId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['structures', structureId, 'data-points'],
+    queryFn: async () => {
+      const res = await api.get<{ data: StructureDataPoint[] }>(
+        `/structures/${structureId}/data-points`,
+      );
+      return res.data.data;
+    },
+    enabled: !!structureId,
+  });
+}
+
+/**
+ * DE QUÉ CAMPO SALE CADA FICHA (T-05).
+ *
+ * Devuelve `fieldKey → dataPointId` para que una pantalla de carga marque el
+ * número que muestra con la ficha del dato que lo respalda. La clave la arma la
+ * pantalla con la MISMA convención que el lado de escritura
+ * (`orders-input-points.ts`), que es la única del sistema.
+ *
+ * Una clave REPETIDA no entra al índice. Las `fieldKey` de los movimientos de MP
+ * son legadas y compartidas por todos los movimientos de la estructura
+ * ('mp.compra.cantidad' y compañía): resolverlas por clave elegiría un dato al
+ * azar y abriría la ficha de otra compra. Esos valores se marcan por otro lado
+ * —`useMpMovements`, que sí los distingue— y acá quedan deliberadamente fuera:
+ * antes que marcar mal, no marcar.
+ */
+export function useDataPointIdByFieldKey(structureId: string | null | undefined) {
+  const { data } = useStructureDataPoints(structureId);
+  return useMemo(() => {
+    const unico = new Map<string, string>();
+    const repetida = new Set<string>();
+    for (const dp of data ?? []) {
+      if (unico.has(dp.fieldKey)) repetida.add(dp.fieldKey);
+      else unico.set(dp.fieldKey, dp.id);
+    }
+    for (const k of repetida) unico.delete(k);
+    return unico;
+  }, [data]);
 }
 
 export function useDataPointTrace(dataPointId: string | null | undefined) {

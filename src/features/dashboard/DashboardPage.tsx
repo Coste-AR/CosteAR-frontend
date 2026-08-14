@@ -86,7 +86,7 @@ export function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           
           {/* Bento 1: Welcome & Indicators (Col: 8) */}
-          <div className="lg:col-span-8 rounded-[28px] border border-line bg-white p-8 flex flex-col justify-between relative overflow-hidden shadow-[0_10px_30px_rgba(74,21,27,0.015)] hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300 group">
+          <div className="lg:col-span-8 rounded-2xl border border-line bg-white p-8 flex flex-col justify-between relative overflow-hidden shadow-[0_10px_30px_rgba(74,21,27,0.015)] hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300 group">
 
             {/* Decorative corner glow */}
             <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-action/10 blur-3xl" />
@@ -135,7 +135,7 @@ export function DashboardPage() {
           </div>
 
           {/* Bento 2: Quick Actions Grid (Col: 4) */}
-          <div className="lg:col-span-4 rounded-[28px] border border-line bg-white p-6 flex flex-col justify-between shadow-[0_10px_30px_rgba(74,21,27,0.015)] hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300">
+          <div className="lg:col-span-4 rounded-2xl border border-line bg-white p-6 flex flex-col justify-between shadow-[0_10px_30px_rgba(74,21,27,0.015)] hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300">
             <h2 className="text-[13px] font-extrabold text-granate-deep uppercase tracking-wider mb-4 px-1.5">
               Accesos Rápidos
             </h2>
@@ -220,7 +220,7 @@ export function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 
           {/* Bento 4: Prioritized Feed (Alerts & Warnings) (Col: 8) */}
-          <div className="lg:col-span-8 rounded-[28px] border border-line bg-white p-6 flex flex-col justify-between shadow-sm hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300">
+          <div className="lg:col-span-8 rounded-2xl border border-line bg-white p-6 flex flex-col justify-between shadow-sm hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300">
             <div>
               <div className="flex items-center justify-between mb-4.5 px-1">
                 <h2 className="text-[13px] font-extrabold text-granate-deep uppercase tracking-wider flex items-center gap-1.5">
@@ -270,7 +270,7 @@ export function DashboardPage() {
           </div>
 
           {/* Bento 4.5: Distribución de Cartera (Col: 4) */}
-          <div className="lg:col-span-4 rounded-[28px] border border-line bg-white p-6 flex flex-col justify-between shadow-sm hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300">
+          <div className="lg:col-span-4 rounded-2xl border border-line bg-white p-6 flex flex-col justify-between shadow-sm hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300">
             <h2 className="text-[13px] font-extrabold text-granate-deep uppercase tracking-wider mb-2 px-1.5 text-center">
               Composición de Cartera
             </h2>
@@ -289,7 +289,7 @@ export function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           
           {/* Bento 5: Cartera de Clientes (Col: 7) */}
-          <div className="lg:col-span-7 rounded-[28px] border border-line bg-white shadow-sm hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300 overflow-hidden">
+          <div className="lg:col-span-7 rounded-2xl border border-line bg-white shadow-sm hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300 overflow-hidden">
             
             {/* Header */}
             <div className="px-6 py-5 border-b border-line bg-zinc-50/15">
@@ -451,7 +451,7 @@ export function DashboardPage() {
           </div>
 
           {/* Bento 6: Tareas / Aprobaciones Pendientes (Col: 5) */}
-          <div className="lg:col-span-5 rounded-[28px] border border-line bg-white shadow-sm hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300 overflow-hidden flex flex-col justify-between">
+          <div className="lg:col-span-5 rounded-2xl border border-line bg-white shadow-sm hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300 overflow-hidden flex flex-col justify-between">
             <div>
               {/* Header */}
               <div className="px-6 py-5 border-b border-line flex items-center justify-between">

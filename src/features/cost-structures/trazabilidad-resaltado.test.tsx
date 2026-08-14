@@ -6,11 +6,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LaborDepartmentsView } from './LaborDepartmentsView';
 import { CostCentersView } from './CostCentersView';
 import { MaterialDetailForm } from './components/raw-materials/MaterialDetailForm';
+import { RawMaterialsList } from './components/raw-materials/RawMaterialsList';
+import { SalesTab } from './components/tabs/SalesTab';
 import { ResultTab } from './components/tabs/ResultTab';
 import { useTraceMode } from '@/stores/trace-mode-store';
 import type { AllocationBase, AllocationBaseValue } from './allocation-base-hooks';
 import type { DirectLaborConfig, IndirectCostConfig, RawMaterialConfig } from './cost-structure-types';
 import type { MpMovement } from './trazabilidad-types';
+import type { StructureDataPoint } from './trazabilidad-hooks';
 import type { CalculationResult } from '@/lib/types';
 
 /**
@@ -33,10 +36,12 @@ import type { CalculationResult } from '@/lib/types';
  * hay botón que buscar.
  */
 
-// Resultado enlaza a la vista de trazabilidad; acá no hay router montado.
+// Resultado enlaza a la vista de trazabilidad; acá no hay router montado. Venta
+// saca la estructura de la ruta (se monta siempre bajo /cost-structures/$id).
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children?: ReactNode }) => <>{children}</>,
   useNavigate: () => () => {},
+  useParams: () => ({ id: 'est-1' }),
 }));
 
 // Nada de red: lo que cada pantalla necesita se siembra en la cache de react-query.
@@ -253,9 +258,31 @@ const movimientoTrazable: MpMovement = {
   dataPointIds: ['dp-cantidad', 'dp-precio'],
 } as unknown as MpMovement;
 
-const montarMp = (movimientos: MpMovement[]) => {
+/**
+ * Los insumos de MP que NO son movimientos (Wilson, existencia inicial) y los de
+ * Venta se ubican por `fieldKey`, con la convención del lado de escritura. La
+ * materia prima de arriba tiene `id: 'mp-1'`, así que ése es su discriminante.
+ */
+const dp = (fieldKey: string, id: string): StructureDataPoint => ({
+  id,
+  element: 'MP',
+  fieldKey,
+  label: fieldKey,
+  unit: null,
+  periodoImputado: '2026-08',
+  pending: false,
+});
+
+const insumosMp: StructureDataPoint[] = [
+  dp('mp.mp-1.wilson.costo_unitario', 'dp-wilson-c'),
+  dp('mp.mp-1.wilson.demanda_anual', 'dp-wilson-r'),
+  dp('mp.mp-1.existencia_inicial.cantidad', 'dp-ex-inicial'),
+];
+
+const montarMp = (movimientos: MpMovement[], insumos: StructureDataPoint[] = []) => {
   const Wrapper = conCache((qc) => {
     qc.setQueryData(['structures', 'est-1', 'mp-movements'], movimientos);
+    qc.setQueryData(['structures', 'est-1', 'data-points'], insumos);
   });
   return render(
     <Wrapper>
@@ -272,7 +299,69 @@ const montarMp = (movimientos: MpMovement[]) => {
   );
 };
 
+const montarListaMp = (insumos: StructureDataPoint[], onSelect = () => {}) => {
+  const Wrapper = conCache((qc) => {
+    qc.setQueryData(['structures', 'est-1', 'data-points'], insumos);
+  });
+  return render(
+    <Wrapper>
+      <RawMaterialsList
+        structureId="est-1"
+        materials={[materia]}
+        saving={false}
+        toDelete={null}
+        setToDelete={() => {}}
+        setSelected={onSelect}
+        addMaterial={() => {}}
+        onConfirmDelete={async () => {}}
+      />
+    </Wrapper>,
+  );
+};
+
 describe('Materia Prima — el modo resalta lo que tiene origen', () => {
+  it('en la LISTA, el costo unitario y la existencia inicial abren su ficha', () => {
+    montarListaMp(insumosMp);
+
+    const costo = screen.getByTitle(/Costo unitario \(C\) · Chapa BWG 18 — ver de dónde sale/);
+    fireEvent.click(costo);
+    expect(useTraceMode.getState().openDataPointId).toBe('dp-wilson-c');
+
+    fireEvent.click(screen.getByTitle(/Existencia inicial · Chapa BWG 18 — ver de dónde sale/));
+    expect(useTraceMode.getState().openDataPointId).toBe('dp-ex-inicial');
+  });
+
+  it('tocar un valor de la lista abre la ficha y NO entra a la materia prima', () => {
+    const abierta = vi.fn();
+    montarListaMp(insumosMp, abierta);
+
+    fireEvent.click(screen.getByTitle(/Costo unitario \(C\) · Chapa BWG 18 — ver de dónde sale/));
+    expect(abierta).not.toHaveBeenCalled();
+  });
+
+  it('sin dato cargado, los mismos números de la lista quedan SIN marcar', () => {
+    montarListaMp([]);
+
+    // Los valores siguen a la vista; lo que no hay es promesa de ficha.
+    expect(screen.getByText('1.200')).toBeTruthy();
+    expect(screen.getByText('400')).toBeTruthy();
+    expect(marcados()).toHaveLength(0);
+  });
+
+  it('en la ficha, los insumos de Wilson y la existencia inicial abren su ficha', () => {
+    montarMp([], insumosMp);
+
+    fireEvent.click(screen.getByTitle(/Costo unitario \(C\) registrado — ver de dónde sale/));
+    expect(useTraceMode.getState().openDataPointId).toBe('dp-wilson-c');
+    fireEvent.click(screen.getByTitle(/Cantidad inicial registrada — ver de dónde sale/));
+    expect(useTraceMode.getState().openDataPointId).toBe('dp-ex-inicial');
+
+    // Los que no tienen dato guardado no se marcan, aunque el campo se vea:
+    // el costo de pedido y la tasa no están en el índice.
+    expect(screen.queryByTitle(/Costo de pedido \(S\) registrado —/)).toBeNull();
+    expect(screen.queryByTitle(/Tasa de mantenimiento \(K\) registrada —/)).toBeNull();
+  });
+
   it('un movimiento ya registrado marca su cantidad y su costo unitario', () => {
     montarMp([movimientoTrazable]);
 
@@ -290,6 +379,65 @@ describe('Materia Prima — el modo resalta lo que tiene origen', () => {
     expect(marcados()).toHaveLength(0);
     // Y el formulario sigue siendo un formulario: el campo se puede escribir.
     expect(screen.getAllByDisplayValue('100').length).toBeGreaterThan(0);
+  });
+});
+
+// ── Venta ────────────────────────────────────────────────────────────────────
+
+/**
+ * En Venta lo opcional es lo interesante: las unidades PRODUCIDAS solo generan
+ * dato si alguien las cargó, así que la pantalla tiene garantizado un valor con
+ * origen al lado de uno sin origen. Es el par exacto que prueba el guardia.
+ */
+const insumosVenta: StructureDataPoint[] = [
+  { ...dp('venta.precio_unitario', 'dp-precio'), element: 'VENTA' },
+  { ...dp('venta.cantidad_vendida', 'dp-vendidas'), element: 'VENTA' },
+];
+
+const montarVenta = (insumos: StructureDataPoint[], producidas?: number) => {
+  const Wrapper = conCache((qc) => {
+    qc.setQueryData(['structures', 'est-1', 'data-points'], insumos);
+  });
+  return render(
+    <Wrapper>
+      <SalesTab
+        defaultPrice={25_000}
+        defaultQty={800}
+        defaultProducedQty={producidas}
+        onSave={async () => {}}
+        saving={false}
+        allReady={false}
+        onCalculate={() => {}}
+        calculating={false}
+      />
+    </Wrapper>,
+  );
+};
+
+describe('Venta — el modo resalta lo que tiene origen', () => {
+  it('el precio y las unidades vendidas abren su ficha', () => {
+    montarVenta(insumosVenta);
+
+    fireEvent.click(screen.getByTitle(/Precio unitario registrado — ver de dónde sale/));
+    expect(useTraceMode.getState().openDataPointId).toBe('dp-precio');
+    fireEvent.click(screen.getByTitle(/Unidades vendidas registradas — ver de dónde sale/));
+    expect(useTraceMode.getState().openDataPointId).toBe('dp-vendidas');
+
+    // Y los campos siguen siendo campos: el formulario no se convirtió en botones.
+    expect(screen.getByDisplayValue('25000')).toBeTruthy();
+  });
+
+  it('las unidades producidas sin cargar quedan SIN marcar', () => {
+    montarVenta(insumosVenta);
+
+    expect(screen.getByText('Unidades producidas (opcional)')).toBeTruthy();
+    expect(screen.queryByTitle(/Unidades producidas registradas —/)).toBeNull();
+    expect(conFicha()).toHaveLength(2);
+  });
+
+  it('sin datos cargados la pantalla no promete ninguna ficha', () => {
+    montarVenta([], 1_000);
+    expect(marcados()).toHaveLength(0);
   });
 });
 

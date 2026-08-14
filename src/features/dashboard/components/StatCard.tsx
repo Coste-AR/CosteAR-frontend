@@ -22,7 +22,7 @@ export function StatCard({
   return (
     <Link to={to} className="group">
       <div className={cn(
-        'relative rounded-[28px] border p-5 transition-all duration-300 hover:shadow-md hover:-translate-y-1 shadow-[0_8px_24px_rgba(74,21,27,0.01)]',
+        'relative rounded-2xl border p-5 transition-all duration-300 hover:shadow-md hover:-translate-y-1 shadow-[0_8px_24px_rgba(74,21,27,0.01)]',
         styles.card,
       )}>
         {styles.dot && (

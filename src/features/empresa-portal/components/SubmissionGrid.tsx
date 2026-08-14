@@ -130,7 +130,7 @@ export function SubmissionGrid({
           { label: 'Pendientes', val: pendingCount, color: 'text-warn bg-warn/5' },
           { label: 'Corregidos', val: correctedCount, color: 'text-granate bg-granate-tenue' },
         ].map(({ label, val, color }) => (
-          <Card key={label} className={cn('text-center py-4 rounded-[20px]', color)}>
+          <Card key={label} className={cn('text-center py-4 rounded-2xl', color)}>
             <p className="text-[10px] font-bold uppercase tracking-wider opacity-75">{label}</p>
             <p className="text-2xl font-black mt-1 font-mono-jb">{val}</p>
           </Card>

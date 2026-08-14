@@ -88,7 +88,7 @@ export function ReviewValidationModal({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-2xl rounded-[28px] border border-line bg-surface p-5 shadow-[0_25px_60px_rgba(74,21,27,0.15)] animate-rise max-h-[92vh] overflow-y-auto sm:p-7"
+        className="w-full max-w-2xl rounded-2xl border border-line bg-surface p-5 shadow-[0_25px_60px_rgba(74,21,27,0.15)] animate-rise max-h-[92vh] overflow-y-auto sm:p-7"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">

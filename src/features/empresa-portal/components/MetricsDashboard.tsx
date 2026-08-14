@@ -73,7 +73,7 @@ export function MetricsDashboard({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-[24px] bg-white border border-line/60 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+        <div className="rounded-2xl bg-white border border-line/60 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
             <Layers className="size-20 text-granate" />
           </div>
@@ -81,7 +81,7 @@ export function MetricsDashboard({
           <Money value={metrics!.productionCost} className="text-3xl font-black text-ink block" />
         </div>
 
-        <div className="rounded-[24px] bg-white border border-line/60 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+        <div className="rounded-2xl bg-white border border-line/60 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
             <BarChart3 className="size-20 text-emerald-600" />
           </div>
@@ -89,7 +89,7 @@ export function MetricsDashboard({
           <Money value={metrics!.grossMargin} className="text-3xl font-black text-emerald-700 block" />
         </div>
 
-        <div className="rounded-[24px] bg-white border border-line/60 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+        <div className="rounded-2xl bg-white border border-line/60 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
             {metrics!.grossMarginPct >= 0 ? <TrendingUp className="size-20 text-emerald-600" /> : <TrendingDown className="size-20 text-red-600" />}
           </div>
@@ -98,7 +98,7 @@ export function MetricsDashboard({
         </div>
       </div>
 
-      <div className="rounded-[24px] bg-white border border-line/60 p-6 shadow-sm">
+      <div className="rounded-2xl bg-white border border-line/60 p-6 shadow-sm">
         <h3 className="text-[14px] font-bold text-ink mb-6">Composición del Costo</h3>
         <div className="h-[280px] w-full">
           <ResponsiveContainer width="100%" height="100%">
