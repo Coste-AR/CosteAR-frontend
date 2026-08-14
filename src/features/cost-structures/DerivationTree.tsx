@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ChevronRight, ChevronDown, Calculator, FileText, ExternalLink, ShieldAlert, Paperclip } from 'lucide-react';
+import { ChevronRight, ChevronDown, Calculator, FileText, ExternalLink, ShieldAlert, Paperclip, Sparkles } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -18,7 +18,7 @@ import {
   MSG_ARCHIVO_GRANDE,
 } from './trazabilidad-hooks';
 import { EVIDENCE_KIND_LABEL } from './trazabilidad-types';
-import type { TreeNode, DataStatus, EvidenceKind, TraceEvidence } from './trazabilidad-types';
+import type { TreeNode, DataStatus, EvidenceKind, TraceEvidence, AiProvenance, ConfianzaIA } from './trazabilidad-types';
 
 const traceDateFormatter = new Intl.DateTimeFormat('es-AR', {
   timeZone: 'America/Argentina/Tucuman',
@@ -270,6 +270,12 @@ export function TraceCard({ dataPointId, period, onClose }: { dataPointId: strin
             </div>
           </div>
 
+          {/* Procedencia IA (T-06). Va pegado al header porque contesta la misma
+              pregunta que el estado y la firma: quién responde por este número.
+              Si el dato lo cargó una persona, el backend no manda `aiProvenance`
+              y acá no se dibuja nada — no existe el sello en negativo. */}
+          {trace.aiProvenance && <SelloIA prov={trace.aiProvenance} />}
+
           <p className="font-mono text-[13px] text-ink">{trace.display}</p>
 
           {/* Autores por campo */}
@@ -402,6 +408,109 @@ export function TraceCard({ dataPointId, period, onClose }: { dataPointId: strin
           <p className="font-mono text-[10px] text-ink-soft/60">id: {trace.id}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Procedencia IA (T-06) ────────────────────────────────────────────────────
+
+/**
+ * Cómo se pinta cada nivel de confianza. Nunca hay un número: "78%" se lee como
+ * una probabilidad de acierto y no lo es. Tres palabras, tres colores.
+ */
+const CONFIANZA_ESTILO: Record<ConfianzaIA, string> = {
+  alta: 'text-ok',
+  media: 'text-ink-soft',
+  baja: 'text-warn',
+};
+
+/**
+ * EL SELLO: "este número lo sugirió la IA, y esta persona se hizo cargo".
+ *
+ * Los dos estados que importan están en la primera línea, sin abrir nada:
+ * si alguien lo confirmó (y quién), y cuánta confianza tenía el sistema. El
+ * resto —qué capa decidió, con qué señal, qué tan legible era el papel— vive
+ * detrás de "ver detalle técnico", plegado: es material de auditoría del
+ * clasificador, y arriba solo convertiría la ficha en un log.
+ */
+function SelloIA({ prov }: { prov: AiProvenance }) {
+  const [detalleOpen, setDetalleOpen] = useState(false);
+  const doc = [prov.documento.tipo, prov.documento.seccion, prov.documento.archivo]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <div className="rounded-lg border border-line bg-surface px-2.5 py-2 text-[11.5px]">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+        <span className="inline-flex items-center gap-1 font-semibold text-ink">
+          <Sparkles className="size-3.5 shrink-0" /> Sugerido por IA
+        </span>
+
+        <span className="text-ink-soft">·</span>
+
+        {prov.confirmado ? (
+          <span className="text-ok">
+            {prov.corregidoPorPersona ? 'corregido y confirmado' : 'confirmado'} por{' '}
+            <strong>{prov.confirmadoPor ?? 'el costista'}</strong>
+            {prov.confirmadoEl && <span className="text-ink-soft"> · {fmtExactAt(prov.confirmadoEl)}</span>}
+          </span>
+        ) : (
+          // "Sin confirmar" no es un error: es un dato que todavía no miró
+          // nadie, y esa es exactamente la información que hace falta.
+          <span className="text-warn">sin confirmar</span>
+        )}
+
+        <span className="text-ink-soft">·</span>
+        <span className={CONFIANZA_ESTILO[prov.confianza]}>confianza {prov.confianza}</span>
+
+        {prov.requiereRevision && (
+          <span className="inline-flex items-center gap-1 text-warn">
+            <ShieldAlert className="size-3.5 shrink-0" /> el sistema pidió que alguien lo revise
+          </span>
+        )}
+      </div>
+
+      {doc && <p className="mt-1 text-ink-soft">Salió de: {doc}</p>}
+
+      <button
+        type="button"
+        onClick={() => setDetalleOpen((v) => !v)}
+        className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-granate hover:text-action"
+      >
+        {detalleOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+        Ver detalle técnico
+      </button>
+
+      {detalleOpen && (
+        <dl className="mt-1.5 space-y-1 border-t border-line pt-1.5 text-ink-soft">
+          <DetalleFila termino="Decidió" valor={prov.detalleTecnico.capa} />
+          <DetalleFila termino="Señal determinante" valor={prov.detalleTecnico.senalDeterminante} />
+          <DetalleFila
+            termino="Señales corroborantes"
+            valor={
+              prov.detalleTecnico.senalesCorroborantes.length > 0
+                ? prov.detalleTecnico.senalesCorroborantes.join(', ')
+                : null
+            }
+          />
+          <DetalleFila termino="Lectura del documento" valor={prov.detalleTecnico.calidadDeLectura} />
+          <DetalleFila
+            termino="Modelo de lenguaje"
+            valor={prov.detalleTecnico.usoModeloDeLenguaje ? 'sí, se usó' : 'no hizo falta: alcanzó con las reglas'}
+          />
+          <DetalleFila termino="Explicación" valor={prov.detalleTecnico.explicacion} />
+        </dl>
+      )}
+    </div>
+  );
+}
+
+/** Fila del detalle técnico. Lo que no está registrado se dice, no se omite. */
+function DetalleFila({ termino, valor }: { termino: string; valor: string | null }) {
+  return (
+    <div className="flex flex-wrap gap-x-1.5">
+      <dt className="font-medium">{termino}:</dt>
+      <dd className={valor ? 'text-ink' : 'text-ink-soft/70'}>{valor ?? 'no quedó registrada'}</dd>
     </div>
   );
 }

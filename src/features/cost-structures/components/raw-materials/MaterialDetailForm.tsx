@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { TraceableValue } from '@/components/ui/TraceableValue';
 import { formatDate, formatDateOnly } from '@/lib/utils';
 import { useCreateDataPoint, useImputar, useMpMovements } from '../../trazabilidad-hooks';
 import { proposeImputation, newTrazableMovements } from '../../imputacion';
@@ -35,6 +36,39 @@ function buildImputacionOptions(fechaHecho: string | null, periodo?: string): Im
   const proposal = proposeImputation(fechaHecho, periodo);
   if ('options' in proposal) return proposal.options;
   return [{ periodo: proposal.auto, label: `Imputar a ${proposal.auto} (devengado)`, recommended: true }];
+}
+
+/**
+ * EL VALOR REGISTRADO DE UN MOVIMIENTO (T-05).
+ *
+ * En una pantalla de carga el número vive dentro de un `<input>`, y un input no
+ * puede ir adentro de un botón: el click se lo comería el botón y el campo
+ * dejaría de escribirse. Así que lo que se marca no es el campo editable sino el
+ * valor tal como QUEDÓ REGISTRADO en el servidor, debajo de él — el mismo
+ * criterio que ya usaba la columna "Fecha de captación", que muestra el dato del
+ * server al lado del campo del formulario.
+ *
+ * Es el único lugar de Materia Prima con ficha alcanzable: los movimientos
+ * guardados traen su `dataPointId` en `mp-movements`. Sin dato guardado no se
+ * dibuja nada — el guardia de `TraceableValue` no llega ni a evaluarse.
+ */
+function ValorRegistrado({
+  dataPointId,
+  title,
+  children,
+}: {
+  dataPointId?: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  if (!dataPointId) return null;
+  return (
+    <div className="mt-0.5">
+      <TraceableValue dataPointId={dataPointId} title={title} className="!px-1.5 !py-0.5 text-[10.5px] text-ink-soft">
+        {children}
+      </TraceableValue>
+    </div>
+  );
 }
 
 /** Pill "Pendiente de imputar": es también el botón que abre el modal (F06). */
@@ -407,6 +441,15 @@ export function MaterialDetailForm({ structureId, period, material, onBack, onSa
                     </td>
                     <td data-label="Cantidad" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
                       <input type="number" step="1" className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none sm:w-24" {...register(`movements.${i}.quantity`, { valueAsNumber: true })} />
+                      {/* `dataPointIds` llega en orden de creación y la cantidad
+                          se crea siempre primero (tanto acá como en la
+                          reconciliación del guardado). */}
+                      <ValorRegistrado
+                        dataPointId={mv?.dataPointIds[0]}
+                        title={`Cantidad registrada — ${saved?.detail || 'movimiento'}`}
+                      >
+                        {saved?.quantity?.toLocaleString('es-AR')} registradas
+                      </ValorRegistrado>
                     </td>
                     <td data-label="Costo unit. $" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
                       <input
@@ -417,6 +460,15 @@ export function MaterialDetailForm({ structureId, period, material, onBack, onSa
                         placeholder={isConsumption ? 'PPP' : 'Monto...'}
                         {...register(`movements.${i}.unitCost`, { valueAsNumber: true })}
                       />
+                      {/* El precio es el hermano del movimiento y solo existe en
+                          las compras: en un consumo el costo sale del PPP, que
+                          es una cuenta y no un dato cargado. */}
+                      <ValorRegistrado
+                        dataPointId={isConsumption ? undefined : mv?.dataPointIds[1]}
+                        title={`Costo unitario registrado — ${saved?.detail || 'movimiento'}`}
+                      >
+                        $ {saved?.unitCost?.toLocaleString('es-AR')} registrado
+                      </ValorRegistrado>
                     </td>
                     <td className="flex justify-end sm:table-cell sm:px-2 sm:py-1.5 sm:text-center">
                       <button type="button" onClick={() => remove(i)} className="text-ink-soft hover:text-danger">

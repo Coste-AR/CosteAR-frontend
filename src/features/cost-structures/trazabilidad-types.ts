@@ -141,12 +141,57 @@ export interface TraceEvidence {
   fileUrl: string | null;
 }
 
+/**
+ * Confianza de la clasificación EN PALABRAS (T-06). El backend nunca manda el
+ * porcentaje crudo: un "87%" se lee como "87% de probabilidad de estar bien", y
+ * no es eso — es un puntaje interno sin calibrar contra aciertos reales.
+ */
+export type ConfianzaIA = 'alta' | 'media' | 'baja';
+
+/**
+ * Por qué el sistema decidió lo que decidió. Va detrás de "ver detalle técnico",
+ * plegado: le sirve a quien audita el clasificador, no a quien está costeando.
+ */
+export interface DetalleTecnicoIA {
+  /** Ya viene con nombre humano: el backend nunca manda "Layer 4". */
+  capa: string;
+  senalDeterminante: string | null;
+  senalesCorroborantes: string[];
+  calidadDeLectura: string | null;
+  usoModeloDeLenguaje: boolean;
+  explicacion: string | null;
+}
+
+/**
+ * PROCEDENCIA IA DE UN DATO (T-06). Presente SOLO cuando la versión vigente del
+ * dato entró por la ingesta de comprobantes.
+ *
+ * La ausencia de esta clave es la señal de que no intervino ninguna IA: un dato
+ * cargado a mano no la trae y la ficha no dibuja ningún sello. No hay que
+ * leerla como "todavía no cargó" ni pintar un badge en negativo.
+ *
+ * `confirmado` viene del rastro de validación del documento, nunca inferido de
+ * que el dato esté aplicado o firmado.
+ */
+export interface AiProvenance {
+  confirmado: boolean;
+  confirmadoPor: string | null;
+  confirmadoEl: string | null;
+  corregidoPorPersona: boolean;
+  confianza: ConfianzaIA;
+  requiereRevision: boolean;
+  documento: { tipo: string | null; seccion: string | null; archivo: string | null };
+  detalleTecnico: DetalleTecnicoIA;
+}
+
 export interface DataPointTrace {
   id: string;
   label: string;
   display: string;
   status: DataStatus;
   signedBy: { name: string; role: string; at: string } | null;
+  /** Opcional: solo los datos que salieron de un documento clasificado. */
+  aiProvenance?: AiProvenance;
   fields: TraceField[];
   periods: { hecho: string | null; captacion: string; imputado: string | null };
   evidence: TraceEvidence | null;

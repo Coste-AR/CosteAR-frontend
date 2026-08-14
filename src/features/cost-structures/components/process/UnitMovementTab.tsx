@@ -82,7 +82,15 @@ const fmt = (v: number | null | undefined, dec = 0): string =>
  * `traceId` es el DataPoint del valor YA GUARDADO. Cuando existe, la etiqueta se
  * vuelve trazable: se puede abrir la ficha de ese dato sin salir del formulario.
  * Los campos que se derivan por diferencia no tienen ficha, porque no son un
- * dato cargado sino un cálculo.
+ * dato cargado sino un cálculo — esos marcan el NÚMERO (ver `Derivado`).
+ *
+ * T-05 — la convención de la app es marcar el NÚMERO. Acá la marca se queda
+ * sobre la ETIQUETA por una razón concreta y no por gusto: el número de esta
+ * fila vive dentro de un `<input>`, y un control de formulario no puede ir
+ * adentro de un `<button>` — el click se lo comería la ficha y el campo dejaría
+ * de poder escribirse. La regla completa, entonces, es: se marca el número
+ * cuando el número es texto; cuando vive en un campo editable, se marca su
+ * etiqueta, que es lo único no editable de la fila.
  */
 function Fila({
   label,
@@ -133,12 +141,24 @@ function NumInput({
   );
 }
 
-/** Campo derivado por diferencia: no se edita y muestra de dónde sale. */
-function Derivado({ value, formula }: { value: number | null; formula: string }) {
+/**
+ * Campo derivado por diferencia: no se edita y muestra de dónde sale.
+ *
+ * T-05 — acá el número SÍ es texto, así que se marca el NÚMERO, igual que en
+ * Órdenes. En las filas de arriba el número vive dentro de un `<input>` y un
+ * campo editable no puede ir adentro de un botón: en esas la marca se queda
+ * sobre la etiqueta, que es lo único no editable de la fila.
+ */
+function Derivado({ value, formula, label }: { value: number | null; formula: string; label: string }) {
   return (
     <div className="text-right">
       <div className="rounded-sm border border-dashed border-line-strong bg-surface-alt px-2.5 py-1.5 font-mono-jb text-[13px] italic text-ink-soft">
-        {fmt(value)}
+        <TraceableValue
+          title={label}
+          derivation={{ label, formula: formula.replace(/^=\s*/, ''), value, unit: 'u', children: [] }}
+        >
+          {fmt(value)}
+        </TraceableValue>
       </div>
       <div className="mt-1 text-[10.5px] leading-tight text-ink-soft">{formula}</div>
     </div>
@@ -421,6 +441,7 @@ export function UnitMovementTab({
           <Fila label="Terminadas y transferidas" traceId={traces.transferredOut}>
             {derivada?.campo === 'transferredOut' ? (
               <Derivado
+                label="Terminadas y transferidas"
                 value={derivada.valor}
                 formula="= entran − stock − pérdidas − existencia final"
               />
@@ -473,6 +494,7 @@ export function UnitMovementTab({
           <Fila label="Existencia final en proceso" traceId={traces.finalWip}>
             {derivada?.campo === 'finalWip' ? (
               <Derivado
+                label="Existencia final en proceso"
                 value={derivada.valor}
                 formula="= entran − transferidas − stock − pérdidas"
               />

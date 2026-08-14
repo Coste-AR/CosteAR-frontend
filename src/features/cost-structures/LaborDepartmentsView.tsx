@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { ArrowLeft, ChevronRight, ChevronDown, Users, Pencil, Info, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Money } from '@/components/ui/Money';
+import { TraceableValue } from '@/components/ui/TraceableValue';
+import type { DerivationDetail } from '@/stores/trace-mode-store';
 import { cn } from '@/lib/utils';
 import { buildItcsBreakdown } from './social-charges-catalog';
 import { ItcsBreakdownPanel, formatItcsPercent } from './components/labor/ItcsBreakdownPanel';
@@ -30,6 +32,123 @@ const fmt = (n: number | undefined) =>
 // Mismo formato de porcentaje que el desglose: en la misma pantalla no pueden
 // convivir "8.33%" y "8,3333 %" para el mismo índice.
 const pct = formatItcsPercent;
+
+/**
+ * DE DÓNDE SALE CADA NÚMERO DE ESTA HOJA (T-05).
+ *
+ * Ninguno de los números que se muestran acá es un dato cargado: son todos
+ * CUENTAS que ya hizo el motor y que la pantalla solo imprime. Por eso se marcan
+ * con `derivation` y no con `dataPointId` — un derivado no tiene ficha porque no
+ * lo cargó nadie; lo que hay para mostrar es la fórmula y los números que
+ * entraron, que es exactamente lo que arma `nodo()`.
+ *
+ * Los insumos que SÍ se cargan a mano (remuneración básica, horas pagadas, los
+ * días del año) viajan dentro de la FÓRMULA, no como hijos sueltos: un hijo sin
+ * `dataPointId` y sin fórmula se declara «sin origen registrado», que sería
+ * mentir sobre un dato que la persona cargó y que el sistema sí registró — solo
+ * que su ficha no es alcanzable desde esta pantalla (ver el informe de T-05).
+ */
+const nodo = (
+  label: string,
+  formula: string | null,
+  value: number | null,
+  unit: string | null,
+  children: DerivationDetail[] = [],
+): DerivationDetail => ({ label, formula, value, unit, children });
+
+const $ = (n: number | undefined) => `$ ${fmt(n)}`;
+
+/** Suma del ausentismo NO pago declarado en la configuración. */
+function ausentismoNoPago(config: DirectLaborConfig): number {
+  const a = config.workingDays?.unpaidAbsence;
+  return (a?.sundays ?? 0) + (a?.saturdays ?? 0) + (a?.unjustifiedAbsences ?? 0) + (a?.holidaysOnWeekend ?? 0);
+}
+
+/** Suma del ausentismo PAGO declarado en la configuración. */
+function ausentismoPago(config: DirectLaborConfig): number {
+  const a = config.workingDays?.paidAbsence;
+  return (a?.holidays ?? 0) + (a?.vacations ?? 0) + (a?.sickness ?? 0) + (a?.specialLeaves ?? 0) + (a?.workAccidents ?? 0);
+}
+
+function derivacionDiasEfectivos(config: DirectLaborConfig, directLabor: DetailMOD): DerivationDetail {
+  const noPago = ausentismoNoPago(config);
+  const pago = ausentismoPago(config);
+  return nodo(
+    'Días hábiles efectivos',
+    `${fmt(config.workingDays?.totalDaysPerYear)} días del año − ${fmt(noPago)} de ausentismo no pago − ${fmt(pago)} de ausentismo pago`,
+    directLabor.workingDays,
+    'días',
+    [
+      nodo('Ausentismo no pago', 'domingos + sábados + inasistencias injustificadas + feriados en fin de semana', noPago, 'días'),
+      nodo('Ausentismo pago', 'feriados + vacaciones + enfermedad + licencias especiales + accidentes de trabajo', pago, 'días'),
+    ],
+  );
+}
+
+function derivacionIap(config: DirectLaborConfig, directLabor: DetailMOD): DerivationDetail {
+  const pago = directLabor.paidDays ?? ausentismoPago(config);
+  return nodo(
+    'IAP — Inasistencias pagas',
+    `${fmt(pago)} días pagos ÷ ${fmt(directLabor.workingDays)} días efectivos`,
+    directLabor.iapPercent,
+    '%',
+    [derivacionDiasEfectivos(config, directLabor)],
+  );
+}
+
+function derivacionItcs(directLabor: DetailMOD): DerivationDetail {
+  const b = directLabor.itcsBreakdown;
+  return nodo(
+    'Índice total de cargas sociales',
+    'cargas ciertas + inciertas remunerativas + derivadas + inciertas no remunerativas',
+    directLabor.itcsPercent,
+    '%',
+    b
+      ? [
+          nodo('Cargas sociales ciertas', 'las que fija la ley y se devengan siempre (incluye el SAC)', b.certain, '%'),
+          nodo('Inciertas remunerativas', 'suma de los coeficientes remunerativos estimados', b.uncertainRemunerative, '%'),
+          nodo('Cargas derivadas', 'las que se calculan sobre el ausentismo pago', b.derived, '%'),
+          nodo('Inciertas no remunerativas', 'suma de los coeficientes no remunerativos estimados', b.uncertainNonRemunerative, '%'),
+        ]
+      : [],
+  );
+}
+
+type DeptData = NonNullable<DetailMOD['departments']>[number];
+
+function derivacionCargasSociales(d: DeptData, itcsPercent: number): DerivationDetail {
+  return nodo(
+    `Costo de cargas sociales · ${d.name}`,
+    `${$(d.basicRemuneration)} de remuneración básica × ${pct(itcsPercent)}`,
+    d.socialChargesCost,
+    '$',
+  );
+}
+
+function derivacionTotalMod(d: DeptData, itcsPercent: number): DerivationDetail {
+  return nodo(
+    `Costo total de mano de obra · ${d.name}`,
+    `${$(d.basicRemuneration)} de remuneración básica + ${$(d.socialChargesCost)} de cargas sociales`,
+    d.totalMod,
+    '$',
+    [derivacionCargasSociales(d, itcsPercent)],
+  );
+}
+
+function derivacionTarifaHoraria(
+  d: DeptData,
+  itcsPercent: number,
+  horasDivisor: number | undefined,
+  leyendaDivisor: string,
+): DerivationDetail {
+  return nodo(
+    `Tarifa horaria integral · ${d.name}`,
+    `${$(d.totalMod)} ÷ ${fmt(horasDivisor)} ${leyendaDivisor}`,
+    d.hourlyRate,
+    '$/hs',
+    [derivacionTotalMod(d, itcsPercent)],
+  );
+}
 
 /**
  * Los DOS TIPOS DE IMPRODUCTIVIDAD de la cátedra (Clase 10) para un solo
@@ -107,11 +226,30 @@ export function LaborDepartmentsView({ config, directLabor, onEdit, onLoadExampl
       {hasResult && (
         <>
           <div className="grid gap-2 sm:grid-cols-3">
-            <MiniStat label="Días hábiles efectivos" value={`${fmt(directLabor!.workingDays)} días`} />
-            <MiniStat label="IAP — Inasistencias pagas" value={pct(directLabor!.iapPercent)} hint={directLabor!.paidDays != null ? `${directLabor!.paidDays} pagos / ${fmt(directLabor!.workingDays)} efectivos` : undefined} />
+            <MiniStat
+              label="Días hábiles efectivos"
+              value={
+                <TraceableValue title="Días hábiles efectivos" derivation={derivacionDiasEfectivos(config, directLabor!)}>
+                  {fmt(directLabor!.workingDays)} días
+                </TraceableValue>
+              }
+            />
+            <MiniStat
+              label="IAP — Inasistencias pagas"
+              value={
+                <TraceableValue title="IAP — Inasistencias pagas" derivation={derivacionIap(config, directLabor!)}>
+                  {pct(directLabor!.iapPercent)}
+                </TraceableValue>
+              }
+              hint={directLabor!.paidDays != null ? `${directLabor!.paidDays} pagos / ${fmt(directLabor!.workingDays)} efectivos` : undefined}
+            />
             <MiniStat
               label="Índice total de cargas sociales aplicado"
-              value={pct(directLabor!.itcsPercent)}
+              value={
+                <TraceableValue title="Índice total de cargas sociales" derivation={derivacionItcs(directLabor!)}>
+                  {pct(directLabor!.itcsPercent)}
+                </TraceableValue>
+              }
               hint="cargas ciertas + inciertas + derivadas"
             />
           </div>
@@ -157,7 +295,25 @@ export function LaborDepartmentsView({ config, directLabor, onEdit, onLoadExampl
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ink">{data ? <Money value={data.hourlyRate} /> : '—'}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ink">
+                    {data ? (
+                      // La fila entera navega a la ficha del departamento: el click
+                      // sobre el valor abre SU cuenta y no arrastra la navegación.
+                      <span onClick={(e) => e.stopPropagation()}>
+                        <TraceableValue
+                          title={`Tarifa horaria integral · ${data.name}`}
+                          derivation={derivacionTarifaHoraria(
+                            data,
+                            directLabor!.itcsPercent,
+                            idleLine?.hasIdleCapacity ? idleLine.productiveHours : data.budgetedHours,
+                            idleLine?.hasIdleCapacity ? 'hs netas productivas' : 'hs pagadas',
+                          )}
+                        >
+                          <Money value={data.hourlyRate} />
+                        </TraceableValue>
+                      </span>
+                    ) : '—'}
+                  </td>
                   <td className="px-3 py-2 text-center">
                     <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase',
                       data ? 'border-ok/20 bg-ok/10 text-ok' : 'border-idle/20 bg-idle/10 text-idle')}>
@@ -208,11 +364,30 @@ function DepartmentCard({
       {directLabor && (
         <Section title="Días hábiles efectivos (estructura)">
           <div className="grid gap-2 sm:grid-cols-3">
-            <Stat label="Días efectivos" value={`${fmt(directLabor.workingDays)} días`} />
-            <Stat label="IAP — Inasistencias pagas" value={pct(directLabor.iapPercent)} hint={directLabor.paidDays != null ? `${directLabor.paidDays} días pagos / ${fmt(directLabor.workingDays)} efectivos · derivado` : undefined} />
+            <Stat
+              label="Días efectivos"
+              value={
+                <TraceableValue title="Días hábiles efectivos" derivation={derivacionDiasEfectivos(config, directLabor)}>
+                  {fmt(directLabor.workingDays)} días
+                </TraceableValue>
+              }
+            />
+            <Stat
+              label="IAP — Inasistencias pagas"
+              value={
+                <TraceableValue title="IAP — Inasistencias pagas" derivation={derivacionIap(config, directLabor)}>
+                  {pct(directLabor.iapPercent)}
+                </TraceableValue>
+              }
+              hint={directLabor.paidDays != null ? `${directLabor.paidDays} días pagos / ${fmt(directLabor.workingDays)} efectivos · derivado` : undefined}
+            />
             <Stat
               label="Índice total de cargas sociales"
-              value={pct(directLabor.itcsPercent)}
+              value={
+                <TraceableValue title="Índice total de cargas sociales" derivation={derivacionItcs(directLabor)}>
+                  {pct(directLabor.itcsPercent)}
+                </TraceableValue>
+              }
               hint="cargas ciertas + inciertas + derivadas"
             />
           </div>
@@ -243,16 +418,44 @@ function DepartmentCard({
           }
         >
           <div className="grid gap-2 sm:grid-cols-4">
+            {/* La remuneración básica es un DATO CARGADO, no una cuenta: no se
+                marca porque desde esta pantalla no hay forma de llegar a su
+                ficha (ver el informe de T-05). El resto de la fila sí es
+                derivado y se abre con su fórmula. */}
             <Stat label="Remuneración básica" value={<Money value={data.basicRemuneration} />} />
-            <Stat label="Costo cargas sociales" value={<Money value={data.socialChargesCost} />} hint="básica × ITCS" />
+            <Stat
+              label="Costo cargas sociales"
+              value={
+                <TraceableValue title="Costo de cargas sociales" derivation={derivacionCargasSociales(data, directLabor!.itcsPercent)}>
+                  <Money value={data.socialChargesCost} />
+                </TraceableValue>
+              }
+              hint="básica × ITCS"
+            />
             <Stat
               label="Costo total MOD"
-              value={<Money value={data.totalMod} />}
+              value={
+                <TraceableValue title="Costo total de mano de obra" derivation={derivacionTotalMod(data, directLabor!.itcsPercent)}>
+                  <Money value={data.totalMod} />
+                </TraceableValue>
+              }
               hint={conOciosidad ? 'básica + cargas · incluye la capacidad ociosa' : 'básica + cargas'}
             />
             <Stat
               label="Tarifa horaria"
-              value={<Money value={data.hourlyRate} />}
+              value={
+                <TraceableValue
+                  title="Tarifa horaria integral"
+                  derivation={derivacionTarifaHoraria(
+                    data,
+                    directLabor!.itcsPercent,
+                    conOciosidad ? idle!.productiveHours : data.budgetedHours,
+                    conOciosidad ? 'hs netas productivas' : 'hs pagadas',
+                  )}
+                >
+                  <Money value={data.hourlyRate} />
+                </TraceableValue>
+              }
               hint={
                 conOciosidad
                   ? `imputable ÷ ${formatHours(idle!.productiveHours)} productivas`
@@ -411,7 +614,7 @@ function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: 
     </div>
   );
 }
-function MiniStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function MiniStat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
     <div className="rounded-lg border border-line bg-surface-alt/40 px-3 py-1.5">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-soft">{label}</p>
