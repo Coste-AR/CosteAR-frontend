@@ -95,15 +95,106 @@ export interface TraceVersion {
   at: string;
 }
 
+/**
+ * Los seis tipos de comprobante del manual (espejo de `evidenceKindSchema` del
+ * backend). Cerrado a propósito: el tipo es lo primero que mira quien audita.
+ */
+export type EvidenceKind = 'factura' | 'contrato' | 'remito' | 'acta' | 'lista_precios' | 'asiento';
+
+/** Cómo se le nombra cada tipo al costista. Nunca se muestra la clave cruda. */
+export const EVIDENCE_KIND_LABEL: Record<EvidenceKind, string> = {
+  factura: 'Factura',
+  contrato: 'Contrato',
+  remito: 'Remito',
+  acta: 'Acta',
+  lista_precios: 'Lista de precios',
+  asiento: 'Asiento contable',
+};
+
+/**
+ * Qué pasó con el archivo del comprobante.
+ *
+ * `sin-archivo` NO es un error: el manual admite el comprobante por referencia
+ * ("NULL si es referencia sin archivo"). `no-se-pudo-guardar` sí es algo que
+ * hay que contarle al costista — el comprobante quedó registrado, pero el
+ * archivo no, y "Ver comprobante" no va a estar.
+ */
+export type EstadoArchivoComprobante = 'guardado' | 'sin-archivo' | 'no-se-pudo-guardar';
+
+/** El comprobante tal como lo devuelve el alta (POST /evidence). */
+export interface EvidenceCreated {
+  id: string;
+  kind: EvidenceKind;
+  reference: string;
+  counterparty: string | null;
+  fileUrl: string | null;
+  uploadedAt: string;
+  archivo: EstadoArchivoComprobante;
+  aviso: string | null;
+}
+
+/** El comprobante tal como lo muestra la ficha del dato. */
+export interface TraceEvidence {
+  kind: string;
+  reference: string;
+  counterparty: string | null;
+  fileUrl: string | null;
+}
+
+/**
+ * Confianza de la clasificación EN PALABRAS (T-06). El backend nunca manda el
+ * porcentaje crudo: un "87%" se lee como "87% de probabilidad de estar bien", y
+ * no es eso — es un puntaje interno sin calibrar contra aciertos reales.
+ */
+export type ConfianzaIA = 'alta' | 'media' | 'baja';
+
+/**
+ * Por qué el sistema decidió lo que decidió. Va detrás de "ver detalle técnico",
+ * plegado: le sirve a quien audita el clasificador, no a quien está costeando.
+ */
+export interface DetalleTecnicoIA {
+  /** Ya viene con nombre humano: el backend nunca manda "Layer 4". */
+  capa: string;
+  senalDeterminante: string | null;
+  senalesCorroborantes: string[];
+  calidadDeLectura: string | null;
+  usoModeloDeLenguaje: boolean;
+  explicacion: string | null;
+}
+
+/**
+ * PROCEDENCIA IA DE UN DATO (T-06). Presente SOLO cuando la versión vigente del
+ * dato entró por la ingesta de comprobantes.
+ *
+ * La ausencia de esta clave es la señal de que no intervino ninguna IA: un dato
+ * cargado a mano no la trae y la ficha no dibuja ningún sello. No hay que
+ * leerla como "todavía no cargó" ni pintar un badge en negativo.
+ *
+ * `confirmado` viene del rastro de validación del documento, nunca inferido de
+ * que el dato esté aplicado o firmado.
+ */
+export interface AiProvenance {
+  confirmado: boolean;
+  confirmadoPor: string | null;
+  confirmadoEl: string | null;
+  corregidoPorPersona: boolean;
+  confianza: ConfianzaIA;
+  requiereRevision: boolean;
+  documento: { tipo: string | null; seccion: string | null; archivo: string | null };
+  detalleTecnico: DetalleTecnicoIA;
+}
+
 export interface DataPointTrace {
   id: string;
   label: string;
   display: string;
   status: DataStatus;
   signedBy: { name: string; role: string; at: string } | null;
+  /** Opcional: solo los datos que salieron de un documento clasificado. */
+  aiProvenance?: AiProvenance;
   fields: TraceField[];
   periods: { hecho: string | null; captacion: string; imputado: string | null };
-  evidence: { kind: string; reference: string; fileUrl: string | null } | null;
+  evidence: TraceEvidence | null;
   versions: TraceVersion[];
   impacts: string[];
 }

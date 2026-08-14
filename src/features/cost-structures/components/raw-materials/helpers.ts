@@ -1,6 +1,31 @@
 import { fractionToPercentInput, percentInputToFraction } from '@/lib/utils';
 import { type RawMaterialConfig } from '../../cost-structure-types';
 
+/**
+ * LA CLAVE DE UN PARÁMETRO DE MATERIA PRIMA (T-05).
+ *
+ * Los insumos de una MP que NO son movimientos —los cuatro de Wilson y la
+ * existencia inicial— se guardan como `mp.<discriminante>.<sufijo>`. El
+ * discriminante es lo primero que identifica a la materia prima dentro de la
+ * sección: su id, si no su código, si no su nombre, y si no la posición.
+ *
+ * Es la MISMA regla que aplica el lado de escritura (`materialKey()` en
+ * `orders-input-points.ts` del backend), replicada acá porque es la única forma
+ * de que la pantalla nombre el dato que ella misma cargó. Si divergiera, la
+ * clave no resolvería y el valor quedaría sin marcar — nunca marcado de más:
+ * el índice solo devuelve fichas que existen.
+ */
+export function mpMaterialKey(m: RawMaterialConfig, index: number): string {
+  const fallback = `mp${index + 1}`;
+  const raw = m.id ?? m.code ?? m.name ?? fallback;
+  return raw.trim().slice(0, 60) || fallback;
+}
+
+/** `fieldKey` de un parámetro de MP, con la convención del lado de escritura. */
+export function mpFieldKey(m: RawMaterialConfig, index: number, suffix: string): string {
+  return `mp.${mpMaterialKey(m, index)}.${suffix}`;
+}
+
 export function emptyRawMaterial(): RawMaterialConfig {
   return {
     wilson: { annualDemand: 0, orderCost: 0, holdingRate: 0, unitCost: 0 },

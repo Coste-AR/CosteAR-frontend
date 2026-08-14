@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { ArrowLeft, ChevronRight, Factory, Wrench, Pencil, Info, FileText, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Money } from '@/components/ui/Money';
+import { TraceableValue } from '@/components/ui/TraceableValue';
+import type { DerivationDetail } from '@/stores/trace-mode-store';
 import { cn, centerLabel, formatDate } from '@/lib/utils';
 import type { IndirectCostConfig } from './cost-structure-types';
 import type { CalculationResult } from '@/lib/types';
@@ -29,6 +31,118 @@ interface Props {
 
 const fmt = (n: number | undefined) =>
   n == null ? '—' : n.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+/**
+ * DE DÓNDE SALE CADA NÚMERO DE ESTA HOJA (T-05).
+ *
+ * Dos orígenes distintos y se marcan distinto, que es todo el punto del modo:
+ *
+ *   · los valores del REGISTRO AUDITABLE de bases traen su `dataPointId` del
+ *     server → se marcan con la ficha del dato (quién lo cargó y cuándo);
+ *   · el presupuesto, la cuota, el CIP aplicado y las variaciones son CUENTAS
+ *     del motor → se marcan con su `derivation` (fórmula + números que
+ *     entraron), porque no los cargó nadie y no tienen ficha propia.
+ *
+ * La capacidad normal, la actividad real y el CIP real SÍ son datos cargados,
+ * pero desde esta pantalla no hay forma de alcanzar su ficha: quedan sin marcar
+ * a propósito (ver el informe de T-05). El guardia de `TraceableValue` es el que
+ * garantiza que nada prometa una ficha que después no abre.
+ */
+const nodo = (
+  label: string,
+  formula: string | null,
+  value: number | null,
+  unit: string | null,
+  children: DerivationDetail[] = [],
+): DerivationDetail => ({ label, formula, value, unit, children });
+
+const $ = (n: number | undefined) => `$ ${fmt(n)}`;
+
+type CenterData = PerDept[string];
+
+function derivacionPresupuesto(centro: string, data: CenterData): DerivationDetail {
+  return nodo(
+    `Presupuesto total · ${centro}`,
+    `${$(data.budgetFixed)} de presupuesto fijo + ${$(data.budgetVariable)} de presupuesto variable`,
+    (data.budgetFixed ?? 0) + (data.budgetVariable ?? 0),
+    '$',
+    [
+      nodo('Presupuesto fijo', 'prorrateo primario + cierre del prorrateo secundario', data.budgetFixed ?? 0, '$'),
+      nodo('Presupuesto variable', 'prorrateo primario + cierre del prorrateo secundario', data.budgetVariable ?? 0, '$'),
+    ],
+  );
+}
+
+function derivacionCuota(
+  centro: string,
+  etiqueta: string,
+  presupuesto: number | undefined,
+  valor: number | undefined,
+  data: CenterData,
+): DerivationDetail {
+  return nodo(
+    `${etiqueta} · ${centro}`,
+    `${$(presupuesto)} de presupuesto ÷ ${fmt(data.normalCapacity)} hs de capacidad normal`,
+    valor ?? 0,
+    '$/hs',
+    [derivacionPresupuesto(centro, data)],
+  );
+}
+
+function derivacionCuotaTotal(centro: string, data: CenterData): DerivationDetail {
+  return nodo(
+    `Cuota total · ${centro}`,
+    `${fmt(data.quotaFixed)} de cuota fija + ${fmt(data.quotaVariable)} de cuota variable`,
+    data.quota ?? 0,
+    '$/hs',
+    [
+      derivacionCuota(centro, 'Cuota fija', data.budgetFixed, data.quotaFixed, data),
+      derivacionCuota(centro, 'Cuota variable', data.budgetVariable, data.quotaVariable, data),
+    ],
+  );
+}
+
+function derivacionCipAplicado(centro: string, data: CenterData): DerivationDetail {
+  const sobreCapacidad = data.appliedOn === 'normalCapacity';
+  const nivel = sobreCapacidad ? data.normalCapacity : data.actualActivity;
+  return nodo(
+    `CIP aplicado · ${centro}`,
+    `${fmt(data.quota)} de cuota total × ${fmt(nivel)} hs de ${sobreCapacidad ? 'capacidad normal' : 'actividad real'}`,
+    data.appliedCip,
+    '$',
+    [derivacionCuotaTotal(centro, data)],
+  );
+}
+
+function derivacionVariacionPresupuesto(centro: string, data: CenterData): DerivationDetail {
+  return nodo(
+    `Variación presupuesto · ${centro}`,
+    `${$(data.actualCip)} de CIP real − el presupuesto ajustado al nivel real de actividad`,
+    data.budgetVariance,
+    '$',
+    [derivacionPresupuesto(centro, data)],
+  );
+}
+
+function derivacionVariacionVolumen(centro: string, data: CenterData): DerivationDetail {
+  return nodo(
+    `Variación volumen · ${centro}`,
+    `${fmt(data.quotaFixed)} de cuota fija × (${fmt(data.normalCapacity)} hs de capacidad normal − ${fmt(data.actualActivity)} hs de actividad real)`,
+    data.volumeVariance,
+    '$',
+    [derivacionCuota(centro, 'Cuota fija', data.budgetFixed, data.quotaFixed, data)],
+  );
+}
+
+function derivacionSobreAplicacion(centro: string, data: CenterData): DerivationDetail {
+  return nodo(
+    `Sobre / sub-aplicación · ${centro}`,
+    `${$(data.appliedCip)} de CIP aplicado − ${$(data.actualCip)} de CIP real`,
+    data.overUnderApplied ?? data.appliedCip - (data.actualCip ?? 0),
+    '$',
+    [derivacionCipAplicado(centro, data)],
+  );
+}
 
 /**
  * F09-2 — ¿este centro de SERVICIO realmente repartió su costo?
@@ -135,7 +249,21 @@ export function CostCentersView({ config, perDepartment, onEdit, structureId, co
         <div className="rounded-xl border border-line bg-surface-alt/50 px-4 py-2.5 text-[13px]">
           <span className="text-ink-soft">Sobreaplicación neta global (Σ aplicado − real): </span>
           <strong className={cn(netOverApplied >= 0 ? 'text-ok' : 'text-danger')}>
-            {netOverApplied >= 0 ? 'sobreaplicado ' : 'subaplicado '}<Money value={Math.abs(netOverApplied)} />
+            {netOverApplied >= 0 ? 'sobreaplicado ' : 'subaplicado '}
+            <TraceableValue
+              title="Sobreaplicación neta global"
+              derivation={nodo(
+                'Sobreaplicación neta global',
+                'Σ (CIP aplicado − CIP real) de cada centro productivo',
+                netOverApplied,
+                '$',
+                Object.entries(perDepartment!).map(([centerId, d]) =>
+                  derivacionSobreAplicacion(centerLabel(centers.find((c) => c.id === centerId)) || centerId, d),
+                ),
+              )}
+            >
+              <Money value={Math.abs(netOverApplied)} />
+            </TraceableValue>
           </strong>
         </div>
       )}
@@ -171,13 +299,37 @@ export function CostCentersView({ config, perDepartment, onEdit, structureId, co
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-ink">
                     {isProd
-                      ? fmt(d?.budgetFixed)
+                      ? d
+                        // La fila navega a la ficha del centro: el click sobre el
+                        // valor abre SU cuenta y no arrastra la navegación.
+                        ? <span onClick={(e) => e.stopPropagation()}>
+                            <TraceableValue title={`Presupuesto fijo · ${centerLabel(c)}`} derivation={derivacionPresupuesto(centerLabel(c), d)}>
+                              {fmt(d.budgetFixed)}
+                            </TraceableValue>
+                          </span>
+                        : '—'
                       : svcClosed
                         ? <span className="text-ink-soft">cierra en 0</span>
                         : <span className="text-warn">sin reparto</span>}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ink">{isProd ? fmt(d?.budgetVariable) : '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ink">{isProd ? fmt(d?.quota) : '—'}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ink">
+                    {isProd && d
+                      ? <span onClick={(e) => e.stopPropagation()}>
+                          <TraceableValue title={`Presupuesto variable · ${centerLabel(c)}`} derivation={derivacionPresupuesto(centerLabel(c), d)}>
+                            {fmt(d.budgetVariable)}
+                          </TraceableValue>
+                        </span>
+                      : isProd ? fmt(d?.budgetVariable) : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ink">
+                    {isProd && d
+                      ? <span onClick={(e) => e.stopPropagation()}>
+                          <TraceableValue title={`Cuota total · ${centerLabel(c)}`} derivation={derivacionCuotaTotal(centerLabel(c), d)}>
+                            {fmt(d.quota)}
+                          </TraceableValue>
+                        </span>
+                      : isProd ? fmt(d?.quota) : '—'}
+                  </td>
                   <td className="px-3 py-2 text-center">
                     {isProd ? (
                       <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase',
@@ -218,6 +370,7 @@ function CenterCard({
   onBack: () => void;
 }) {
   const isProd = center.type === 'productive';
+  const nombre = centerLabel(center);
 
   // Conceptos del primario que tocan este centro (inputs de la config).
   const conceptsHere = (config.concepts ?? []).filter((c) => (c.distribution?.[center.id] ?? 0) > 0);
@@ -261,7 +414,15 @@ function CenterCard({
           <ul className="space-y-1 text-[12.5px]">
             {trace.map((t, i) => (
               <li key={i} className="flex flex-col gap-0.5 rounded border border-line bg-surface px-2.5 py-1.5 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-ink"><strong>{t.baseName}</strong>: {fmt(t.value)}{t.unit ? ` ${t.unit}` : ''}</span>
+                {/* El ÚNICO valor de esta pantalla con ficha alcanzable: el
+                    registro auditable de bases trae su `dataPointId`. Se marca
+                    el NÚMERO —no la etiqueta— como en el resto de la app. */}
+                <span className="text-ink">
+                  <strong>{t.baseName}</strong>:{' '}
+                  <TraceableValue dataPointId={t.dataPointId} title={`${t.baseName} — base de prorrateo`}>
+                    {fmt(t.value)}{t.unit ? ` ${t.unit}` : ''}
+                  </TraceableValue>
+                </span>
                 <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-ink-soft">
                   registrado {formatDate(t.createdAt)}
                   {t.note ? <span>· {t.note}</span> : null}
@@ -283,18 +444,63 @@ function CenterCard({
           {/* Presupuesto derivado */}
           <Section title="Presupuesto (derivado del prorrateo — no se tipea)">
             <div className="grid gap-2 sm:grid-cols-3">
-              <Stat label="Presup. fijo" value={<Money value={data.budgetFixed ?? 0} />} />
-              <Stat label="Presup. variable" value={<Money value={data.budgetVariable ?? 0} />} />
-              <Stat label="Presup. total" value={<Money value={(data.budgetFixed ?? 0) + (data.budgetVariable ?? 0)} />} />
+              <Stat
+                label="Presup. fijo"
+                value={
+                  <TraceableValue title={`Presupuesto fijo · ${nombre}`} derivation={derivacionPresupuesto(nombre, data)}>
+                    <Money value={data.budgetFixed ?? 0} />
+                  </TraceableValue>
+                }
+              />
+              <Stat
+                label="Presup. variable"
+                value={
+                  <TraceableValue title={`Presupuesto variable · ${nombre}`} derivation={derivacionPresupuesto(nombre, data)}>
+                    <Money value={data.budgetVariable ?? 0} />
+                  </TraceableValue>
+                }
+              />
+              <Stat
+                label="Presup. total"
+                value={
+                  <TraceableValue title={`Presupuesto total · ${nombre}`} derivation={derivacionPresupuesto(nombre, data)}>
+                    <Money value={(data.budgetFixed ?? 0) + (data.budgetVariable ?? 0)} />
+                  </TraceableValue>
+                }
+              />
             </div>
           </Section>
 
           {/* Cuota predeterminada con fórmula */}
           <Section title="Cuota predeterminada = presupuesto ÷ capacidad normal">
             <div className="grid gap-2 sm:grid-cols-3">
-              <Stat label="Cuota fija" value={fmt(data.quotaFixed)} hint={`${fmt(data.budgetFixed)} ÷ ${fmt(data.normalCapacity)}`} />
-              <Stat label="Cuota variable" value={fmt(data.quotaVariable)} hint={`${fmt(data.budgetVariable)} ÷ ${fmt(data.normalCapacity)}`} />
-              <Stat label="Cuota total" value={fmt(data.quota)} hint="fija + variable" />
+              <Stat
+                label="Cuota fija"
+                value={
+                  <TraceableValue title={`Cuota fija · ${nombre}`} derivation={derivacionCuota(nombre, 'Cuota fija', data.budgetFixed, data.quotaFixed, data)}>
+                    {fmt(data.quotaFixed)}
+                  </TraceableValue>
+                }
+                hint={`${fmt(data.budgetFixed)} ÷ ${fmt(data.normalCapacity)}`}
+              />
+              <Stat
+                label="Cuota variable"
+                value={
+                  <TraceableValue title={`Cuota variable · ${nombre}`} derivation={derivacionCuota(nombre, 'Cuota variable', data.budgetVariable, data.quotaVariable, data)}>
+                    {fmt(data.quotaVariable)}
+                  </TraceableValue>
+                }
+                hint={`${fmt(data.budgetVariable)} ÷ ${fmt(data.normalCapacity)}`}
+              />
+              <Stat
+                label="Cuota total"
+                value={
+                  <TraceableValue title={`Cuota total · ${nombre}`} derivation={derivacionCuotaTotal(nombre, data)}>
+                    {fmt(data.quota)}
+                  </TraceableValue>
+                }
+                hint="fija + variable"
+              />
             </div>
           </Section>
 
@@ -327,7 +533,11 @@ function CenterCard({
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Stat
                     label="CIP aplicado (predeterminado)"
-                    value={<Money value={data.appliedCip} />}
+                    value={
+                      <TraceableValue title={`CIP aplicado · ${nombre}`} derivation={derivacionCipAplicado(nombre, data)}>
+                        <Money value={data.appliedCip} />
+                      </TraceableValue>
+                    }
                     hint={data.appliedOn === 'normalCapacity'
                       ? `cuota total × capacidad normal (${fmt(data.quota)} × ${fmt(data.normalCapacity)})`
                       : `cuota total × actividad real (${fmt(data.quota)} × ${fmt(data.actualActivity)})`}
@@ -337,13 +547,24 @@ function CenterCard({
               </>
             ) : (
               <div className="grid gap-2 sm:grid-cols-2">
-                <Stat label="CIP aplicado" value={<Money value={data.appliedCip} />} hint={`cuota total × actividad real (${fmt(data.quota)} × ${fmt(data.actualActivity)})`} />
+                <Stat
+                  label="CIP aplicado"
+                  value={
+                    <TraceableValue title={`CIP aplicado · ${nombre}`} derivation={derivacionCipAplicado(nombre, data)}>
+                      <Money value={data.appliedCip} />
+                    </TraceableValue>
+                  }
+                  hint={`cuota total × actividad real (${fmt(data.quota)} × ${fmt(data.actualActivity)})`}
+                />
                 <VarianceStat label="Sobre / sub-aplicación" value={data.overUnderApplied ?? (data.appliedCip - (data.actualCip ?? 0))}
+                  derivation={derivacionSobreAplicacion(nombre, data)}
                   positive="sobreaplicado (el costeo cargó de más)" negative="subaplicado (el costeo cargó de menos)" />
                 <VarianceStat label="Variación presupuesto" value={data.budgetVariance} invert
+                  derivation={derivacionVariacionPresupuesto(nombre, data)}
                   positive="desfavorable — exceso de gasto" negative="favorable — ahorro en el gasto"
                   hint="CIP real − presupuesto ajustado al nivel real" />
                 <VarianceStat label="Variación volumen" value={data.volumeVariance} invert
+                  derivation={derivacionVariacionVolumen(nombre, data)}
                   positive="desfavorable — capacidad ociosa (sub-absorción de fijos)" negative="favorable — sobre-absorción de fijos"
                   hint="cuota fija × (capacidad normal − actividad real)" />
               </div>
@@ -409,9 +630,11 @@ function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: 
 
 /** Muestra una variación con su lectura contable (favorable/desfavorable). */
 function VarianceStat({
-  label, value, positive, negative, invert, hint,
+  label, value, positive, negative, invert, hint, derivation,
 }: {
   label: string; value: number; positive: string; negative: string; invert?: boolean; hint?: string;
+  /** La cuenta detrás de la variación. Sin ella el número queda sin marcar. */
+  derivation?: DerivationDetail;
 }) {
   const zero = Math.abs(value) < 0.005;
   // Por convención de la cátedra, en presupuesto/volumen (+) es desfavorable
@@ -421,7 +644,9 @@ function VarianceStat({
     <div className="rounded-lg border border-line bg-surface px-3 py-2">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-soft">{label}</p>
       <p className={cn('text-[15px] font-semibold', zero ? 'text-ink' : good ? 'text-ok' : 'text-danger')}>
-        <Money value={Math.abs(value)} />
+        <TraceableValue title={label} derivation={derivation}>
+          <Money value={Math.abs(value)} />
+        </TraceableValue>
       </p>
       <p className={cn('text-[10.5px]', zero ? 'text-ink-soft' : good ? 'text-ok' : 'text-danger')}>
         {zero ? 'sin desvío' : good ? negative : positive}

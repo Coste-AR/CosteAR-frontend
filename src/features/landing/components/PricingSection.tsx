@@ -21,7 +21,7 @@ export function PricingSection({ onAccessClick }: PricingSectionProps) {
         <div className="grid gap-8 md:grid-cols-3 items-stretch">
           
           {/* Plan 1: Profesional */}
-          <div className="group flex flex-col justify-between rounded-3xl border border-line bg-surface p-8 shadow-xs transition-all duration-300 hover:border-granate/10 hover:shadow-md animate-fade-in">
+          <div className="group flex flex-col justify-between rounded-2xl border border-line bg-surface p-8 shadow-xs transition-all duration-300 hover:border-granate/10 hover:shadow-md animate-fade-in">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft/70">Plan Inicial</span>
               <h3 className="text-lg font-bold text-ink mt-1">Profesional</h3>
@@ -56,7 +56,7 @@ export function PricingSection({ onAccessClick }: PricingSectionProps) {
           </div>
 
           {/* Plan 2: Empresa (Destacado) */}
-          <div className="group relative flex flex-col justify-between rounded-3xl border-2 border-granate bg-surface p-8 shadow-[0_15px_40px_rgba(74,21,27,0.06)] transition-all duration-300 hover:shadow-[0_20px_50px_rgba(74,21,27,0.1)] animate-fade-in">
+          <div className="group relative flex flex-col justify-between rounded-2xl border-2 border-granate bg-surface p-8 shadow-[0_15px_40px_rgba(74,21,27,0.06)] transition-all duration-300 hover:shadow-[0_20px_50px_rgba(74,21,27,0.1)] animate-fade-in">
             {/* Pop de recomendado */}
             <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-granate px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-white">
               Más Popular
@@ -98,7 +98,7 @@ export function PricingSection({ onAccessClick }: PricingSectionProps) {
           </div>
 
           {/* Plan 3: Corporativo */}
-          <div className="group flex flex-col justify-between rounded-3xl border border-line bg-surface p-8 shadow-xs transition-all duration-300 hover:border-granate/10 hover:shadow-md animate-fade-in">
+          <div className="group flex flex-col justify-between rounded-2xl border border-line bg-surface p-8 shadow-xs transition-all duration-300 hover:border-granate/10 hover:shadow-md animate-fade-in">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft/70">Plan Corporativo</span>
               <h3 className="text-lg font-bold text-ink mt-1">Industrial / Custom</h3>

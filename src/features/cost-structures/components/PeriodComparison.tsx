@@ -72,7 +72,7 @@ function HeadlineCard({
 }) {
   if (!value) {
     return (
-      <div className="rounded-[28px] border border-line bg-surface-alt/60 p-5">
+      <div className="rounded-2xl border border-line bg-surface-alt/60 p-5">
         <p className="text-[11px] font-bold uppercase tracking-wider text-ink-soft">{title}</p>
         <p className="mt-3 text-sm text-ink-soft">{unavailable}</p>
       </div>
@@ -80,7 +80,7 @@ function HeadlineCard({
   }
 
   return (
-    <div className="rounded-[28px] border border-line bg-white/90 p-5 shadow-[0_8px_24px_rgba(74,21,27,0.01)]">
+    <div className="rounded-2xl border border-line bg-white/90 p-5 shadow-[0_8px_24px_rgba(74,21,27,0.01)]">
       <p className="text-[11px] font-bold uppercase tracking-wider text-ink-soft">{title}</p>
       <p className="mt-2 text-3xl font-bold tabular text-granate-deep">{formatMoney(value.b)}</p>
       <p className="mt-1 text-xs text-ink-soft tabular">

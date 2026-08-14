@@ -121,7 +121,7 @@ export function LibroCostosPage() {
       />
 
       {/* Filtros */}
-      <div className="mb-6 flex flex-col gap-3 rounded-[28px] border border-line bg-surface p-5 shadow-[0_10px_30px_rgba(74,21,27,0.015)] sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5 shadow-[0_10px_30px_rgba(74,21,27,0.015)] sm:flex-row sm:flex-wrap sm:items-center">
         <Select
           className="sm:w-56"
           value={companyId}

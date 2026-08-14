@@ -8,7 +8,7 @@ export function CTASection({ onAccessClick }: CTASectionProps) {
   return (
     <section className="bg-transparent py-24 text-center">
       <div className="mx-auto max-w-5xl px-6">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-granate via-granate-deep to-slate-950 px-8 py-16 shadow-[0_20px_50px_rgba(74,21,27,0.18)] sm:px-16 sm:py-24 animate-fade-in">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-granate via-granate-deep to-slate-950 px-8 py-16 shadow-[0_20px_50px_rgba(74,21,27,0.18)] sm:px-16 sm:py-24 animate-fade-in">
           
           {/* Subtle glow sphere behind the text inside card */}
           <div className="pointer-events-none absolute -right-[20%] -top-[40%] h-[350px] w-[350px] rounded-full bg-action-soft/20 blur-[80px]" />

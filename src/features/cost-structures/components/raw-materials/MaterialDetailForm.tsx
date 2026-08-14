@@ -6,13 +6,19 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { formatDate, formatDateOnly } from '@/lib/utils';
-import { useCreateDataPoint, useImputar, useMpMovements } from '../../trazabilidad-hooks';
+import { TraceableValue } from '@/components/ui/TraceableValue';
+import { formatDate, formatDateOnly, fractionToPercentInput } from '@/lib/utils';
+import {
+  useCreateDataPoint,
+  useDataPointIdByFieldKey,
+  useImputar,
+  useMpMovements,
+} from '../../trazabilidad-hooks';
 import { proposeImputation, newTrazableMovements } from '../../imputacion';
 import { ImputacionModal } from '../../ImputacionModal';
 import { type RawMaterialConfig, type StockMovement } from '../../cost-structure-types';
 import type { ImputacionOption, MpMovement } from '../../trazabilidad-types';
-import { cleanRawMaterialForForm, cleanRawMaterialForSubmit } from './helpers';
+import { cleanRawMaterialForForm, cleanRawMaterialForSubmit, mpFieldKey } from './helpers';
 
 /**
  * Clave natural para casar una fila de la sección (JSON) con su movimiento
@@ -35,6 +41,39 @@ function buildImputacionOptions(fechaHecho: string | null, periodo?: string): Im
   const proposal = proposeImputation(fechaHecho, periodo);
   if ('options' in proposal) return proposal.options;
   return [{ periodo: proposal.auto, label: `Imputar a ${proposal.auto} (devengado)`, recommended: true }];
+}
+
+/**
+ * EL VALOR REGISTRADO DE UN MOVIMIENTO (T-05).
+ *
+ * En una pantalla de carga el número vive dentro de un `<input>`, y un input no
+ * puede ir adentro de un botón: el click se lo comería el botón y el campo
+ * dejaría de escribirse. Así que lo que se marca no es el campo editable sino el
+ * valor tal como QUEDÓ REGISTRADO en el servidor, debajo de él — el mismo
+ * criterio que ya usaba la columna "Fecha de captación", que muestra el dato del
+ * server al lado del campo del formulario.
+ *
+ * Es el único lugar de Materia Prima con ficha alcanzable: los movimientos
+ * guardados traen su `dataPointId` en `mp-movements`. Sin dato guardado no se
+ * dibuja nada — el guardia de `TraceableValue` no llega ni a evaluarse.
+ */
+function ValorRegistrado({
+  dataPointId,
+  title,
+  children,
+}: {
+  dataPointId?: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  if (!dataPointId) return null;
+  return (
+    <div className="mt-0.5">
+      <TraceableValue dataPointId={dataPointId} title={title} className="!px-1.5 !py-0.5 text-[10.5px] text-ink-soft">
+        {children}
+      </TraceableValue>
+    </div>
+  );
 }
 
 /** Pill "Pendiente de imputar": es también el botón que abre el modal (F06). */
@@ -68,7 +107,12 @@ interface ImputacionQueueItem {
   dataPointIds: string[];
 }
 
-export function MaterialDetailForm({ structureId, period, material, onBack, onSaveMaterial, saving, isProcesses }: Props) {
+/** Cantidad tal como la lee el costista; '' si el dato no está cargado. */
+function num(v: number | undefined | null): string {
+  return v == null ? '—' : v.toLocaleString('es-AR');
+}
+
+export function MaterialDetailForm({ structureId, period, index, material, onBack, onSaveMaterial, saving, isProcesses }: Props) {
   const { register, control, handleSubmit, reset, watch, formState: { isDirty } } = useForm<RawMaterialConfig>({
     defaultValues: cleanRawMaterialForForm(material) as any,
   });
@@ -97,6 +141,11 @@ export function MaterialDetailForm({ structureId, period, material, onBack, onSa
   // F06 — estado de imputación real de cada movimiento (fuente de verdad de lo
   // "pendiente"). Vive en los data points, no en el JSON de la sección.
   const { data: mpMovements } = useMpMovements(structureId);
+  // T-05 — los PARÁMETROS de la materia prima (Wilson y existencia inicial) no
+  // son movimientos y no están en `mp-movements`: su ficha se ubica por la
+  // `fieldKey` con la que los guardó el backend.
+  const dpByKey = useDataPointIdByFieldKey(structureId);
+  const paramDp = (suffix: string) => dpByKey.get(mpFieldKey(material, index, suffix));
   // F07 — TODOS los movimientos trazables por clave natural (no solo los
   // pendientes): cada fila necesita su `fecha_captación` (server) para mostrarla
   // read-only, además del estado de imputación.
@@ -271,10 +320,33 @@ export function MaterialDetailForm({ structureId, period, material, onBack, onSa
             Lote óptimo de Wilson
           </h4>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Input label="Demanda anual (R)" type="number" step="1" numeric placeholder="Ej: 15000" info="Unidades totales de materia prima que consumís en el año. Número entero." {...register('wilson.annualDemand', { valueAsNumber: true })} />
-            <Input label="Costo de pedido (S) $" type="number" step="0.01" numeric placeholder="Ej: 8500" info="Costo fijo de emitir una orden de compra (gestión, flete fijo, etc.). En pesos." {...register('wilson.orderCost', { valueAsNumber: true })} />
-            <Input label="Tasa de mantenimiento (K)" type="number" step="0.1" numeric suffix="%" placeholder="Ej: 30" info="Costo anual de mantener stock como porcentaje del valor del inventario. Se escribe en porcentaje (ej: 30 = 30%)." {...register('wilson.holdingRate', { valueAsNumber: true })} />
-            <Input label="Costo unitario (C) $" type="number" step="0.01" numeric placeholder="Ej: 1200" info="Costo de una unidad de materia prima. En pesos." {...register('wilson.unitCost', { valueAsNumber: true })} />
+            {/* Debajo de cada campo, el valor tal como quedó REGISTRADO en el
+                servidor — mismo criterio que los movimientos: el número vive
+                dentro de un input y un input no puede ir adentro de un botón. */}
+            <div>
+              <Input label="Demanda anual (R)" type="number" step="1" numeric placeholder="Ej: 15000" info="Unidades totales de materia prima que consumís en el año. Número entero." {...register('wilson.annualDemand', { valueAsNumber: true })} />
+              <ValorRegistrado dataPointId={paramDp('wilson.demanda_anual')} title="Demanda anual (R) registrada">
+                {num(material.wilson?.annualDemand)} registradas
+              </ValorRegistrado>
+            </div>
+            <div>
+              <Input label="Costo de pedido (S) $" type="number" step="0.01" numeric placeholder="Ej: 8500" info="Costo fijo de emitir una orden de compra (gestión, flete fijo, etc.). En pesos." {...register('wilson.orderCost', { valueAsNumber: true })} />
+              <ValorRegistrado dataPointId={paramDp('wilson.costo_pedido')} title="Costo de pedido (S) registrado">
+                $ {num(material.wilson?.orderCost)} registrado
+              </ValorRegistrado>
+            </div>
+            <div>
+              <Input label="Tasa de mantenimiento (K)" type="number" step="0.1" numeric suffix="%" placeholder="Ej: 30" info="Costo anual de mantener stock como porcentaje del valor del inventario. Se escribe en porcentaje (ej: 30 = 30%)." {...register('wilson.holdingRate', { valueAsNumber: true })} />
+              <ValorRegistrado dataPointId={paramDp('wilson.tasa_almacenamiento')} title="Tasa de mantenimiento (K) registrada">
+                {fractionToPercentInput(material.wilson?.holdingRate) || 0} % registrado
+              </ValorRegistrado>
+            </div>
+            <div>
+              <Input label="Costo unitario (C) $" type="number" step="0.01" numeric placeholder="Ej: 1200" info="Costo de una unidad de materia prima. En pesos." {...register('wilson.unitCost', { valueAsNumber: true })} />
+              <ValorRegistrado dataPointId={paramDp('wilson.costo_unitario')} title="Costo unitario (C) registrado">
+                $ {num(material.wilson?.unitCost)} registrado
+              </ValorRegistrado>
+            </div>
           </div>
         </section>
       )}
@@ -297,8 +369,18 @@ export function MaterialDetailForm({ structureId, period, material, onBack, onSa
           Existencia inicial
         </h4>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input label="Cantidad inicial" type="number" step="1" numeric placeholder="Ej: 400" info="Unidades de materia prima en stock al inicio del período. Número entero." {...register('initialStock.quantity', { valueAsNumber: true })} />
-          <Input label="Costo unitario inicial $" type="number" step="0.01" numeric placeholder="Ej: 1150" info="Costo por unidad de la existencia inicial. En pesos." {...register('initialStock.unitCost', { valueAsNumber: true })} />
+          <div>
+            <Input label="Cantidad inicial" type="number" step="1" numeric placeholder="Ej: 400" info="Unidades de materia prima en stock al inicio del período. Número entero." {...register('initialStock.quantity', { valueAsNumber: true })} />
+            <ValorRegistrado dataPointId={paramDp('existencia_inicial.cantidad')} title="Cantidad inicial registrada">
+              {num(material.initialStock?.quantity)} registradas
+            </ValorRegistrado>
+          </div>
+          <div>
+            <Input label="Costo unitario inicial $" type="number" step="0.01" numeric placeholder="Ej: 1150" info="Costo por unidad de la existencia inicial. En pesos." {...register('initialStock.unitCost', { valueAsNumber: true })} />
+            <ValorRegistrado dataPointId={paramDp('existencia_inicial.precio')} title="Costo unitario inicial registrado">
+              $ {num(material.initialStock?.unitCost)} registrado
+            </ValorRegistrado>
+          </div>
         </div>
       </section>
 
@@ -407,6 +489,15 @@ export function MaterialDetailForm({ structureId, period, material, onBack, onSa
                     </td>
                     <td data-label="Cantidad" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
                       <input type="number" step="1" className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none sm:w-24" {...register(`movements.${i}.quantity`, { valueAsNumber: true })} />
+                      {/* `dataPointIds` llega en orden de creación y la cantidad
+                          se crea siempre primero (tanto acá como en la
+                          reconciliación del guardado). */}
+                      <ValorRegistrado
+                        dataPointId={mv?.dataPointIds[0]}
+                        title={`Cantidad registrada — ${saved?.detail || 'movimiento'}`}
+                      >
+                        {saved?.quantity?.toLocaleString('es-AR')} registradas
+                      </ValorRegistrado>
                     </td>
                     <td data-label="Costo unit. $" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
                       <input
@@ -417,6 +508,15 @@ export function MaterialDetailForm({ structureId, period, material, onBack, onSa
                         placeholder={isConsumption ? 'PPP' : 'Monto...'}
                         {...register(`movements.${i}.unitCost`, { valueAsNumber: true })}
                       />
+                      {/* El precio es el hermano del movimiento y solo existe en
+                          las compras: en un consumo el costo sale del PPP, que
+                          es una cuenta y no un dato cargado. */}
+                      <ValorRegistrado
+                        dataPointId={isConsumption ? undefined : mv?.dataPointIds[1]}
+                        title={`Costo unitario registrado — ${saved?.detail || 'movimiento'}`}
+                      >
+                        $ {saved?.unitCost?.toLocaleString('es-AR')} registrado
+                      </ValorRegistrado>
                     </td>
                     <td className="flex justify-end sm:table-cell sm:px-2 sm:py-1.5 sm:text-center">
                       <button type="button" onClick={() => remove(i)} className="text-ink-soft hover:text-danger">

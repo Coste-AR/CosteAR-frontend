@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { IndirectCostConfig } from './cost-structure-types';
 import { useAllocationBases } from './allocation-base-hooks';
-import { cleanIndirectCostsForForm, cleanIndirectCostsForSubmit } from './components/indirect-costs/helpers';
+import { cleanIndirectCostsForForm, cleanIndirectCostsForSubmit, centrosSinCapacidadNormal } from './components/indirect-costs/helpers';
 import { CostCentersSection } from './components/indirect-costs/CostCentersSection';
 import { PrimaryAllocationSection } from './components/indirect-costs/PrimaryAllocationSection';
 import { SecondaryAllocationSection } from './components/indirect-costs/SecondaryAllocationSection';
@@ -54,6 +54,8 @@ export function IndirectCostsForm({ defaultValues, onSave, saving, companyId }: 
   }, [defaultValues, reset]);
 
   const [pending, setPending] = useState<IndirectCostConfig | null>(null);
+  /** Centros productivos guardados sin capacidad normal — ver el submit. */
+  const [capacidadFaltante, setCapacidadFaltante] = useState<string[]>([]);
 
   const centers = useFieldArray({ control, name: 'centers' });
   const concepts = useFieldArray({ control, name: 'concepts' });
@@ -141,7 +143,22 @@ export function IndirectCostsForm({ defaultValues, onSave, saving, companyId }: 
 
   return (
     <>
-      <form onSubmit={handleSubmit((data) => setPending(cleanIndirectCostsForSubmit(data)))} className="space-y-6 pt-3">
+      <form onSubmit={handleSubmit((data) => {
+        const limpio = cleanIndirectCostsForSubmit(data);
+        // La capacidad normal es el divisor de la cuota de CIP: en cero, el
+        // producto sale costeado sin carga fabril y con un margen que parece
+        // sano. El backend lo rechaza con un 422 (corrección C-02); esto lo
+        // avisa acá para que el costista no pierda el viaje, nombrando el
+        // centro igual que lo hace el mensaje del servidor.
+        const sinCapacidad = centrosSinCapacidadNormal(limpio.productiveSettings, productiveCenters);
+
+        if (sinCapacidad.length > 0) {
+          setCapacidadFaltante(sinCapacidad);
+          return;
+        }
+        setCapacidadFaltante([]);
+        setPending(limpio);
+      })} className="space-y-6 pt-3">
         <CostCentersSection centers={centers} register={register} />
         
         <PrimaryAllocationSection
@@ -174,6 +191,13 @@ export function IndirectCostsForm({ defaultValues, onSave, saving, companyId }: 
         />
 
         <div className="space-y-2">
+          {capacidadFaltante.length > 0 && (
+            <p role="alert" className="rounded border border-danger/40 bg-danger/10 px-3 py-2 text-[13px] font-medium text-danger">
+              {capacidadFaltante.length === 1
+                ? `Cargá la capacidad normal del centro «${capacidadFaltante[0]}». Es el divisor de la cuota de costos indirectos: en cero, el producto queda costeado sin carga fabril.`
+                : `Cargá la capacidad normal de estos centros: ${capacidadFaltante.map((n) => `«${n}»`).join(', ')}. Es el divisor de la cuota de costos indirectos: en cero, el producto queda costeado sin carga fabril.`}
+            </p>
+          )}
           {isDirty && (
             <p className="flex items-center justify-center gap-1.5 text-[12px] font-medium text-warn">
               <span className="size-1.5 rounded-full bg-warn" /> Tenés cambios sin guardar

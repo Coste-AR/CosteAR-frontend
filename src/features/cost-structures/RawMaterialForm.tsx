@@ -63,6 +63,7 @@ export function RawMaterialForm({ structureId, period, defaultValues, onSave, sa
 
   return (
     <RawMaterialsList
+      structureId={structureId}
       materials={materials}
       saving={saving}
       toDelete={toDelete}

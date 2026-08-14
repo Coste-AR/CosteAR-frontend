@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
-import { useForm, useFieldArray, useWatch } from 'react-hook-form';
-import { Plus, Trash2, Sparkles, AlertTriangle } from 'lucide-react';
+import { useForm, useFieldArray, useWatch, type Control, type UseFormRegister } from 'react-hook-form';
+import { Plus, Trash2, Sparkles, AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { fractionToPercentInput, percentInputToFraction } from '@/lib/utils';
 import { catedraExample } from './catedra-example';
-import { SOCIAL_CHARGES_CATALOG, classifySocialCharge } from './social-charges-catalog';
+import { SOCIAL_CHARGES_CATALOG, classifySocialCharge, buildItcsBreakdown } from './social-charges-catalog';
+import { formatHours } from './components/labor/idle-capacity';
 import type { DirectLaborConfig } from './cost-structure-types';
 
 interface Props {
@@ -85,6 +86,14 @@ function cleanDirectLaborForForm(cfg?: DirectLaborConfig): any {
       ...d,
       basicRemuneration: d.basicRemuneration === 0 ? '' : (d.basicRemuneration ?? ''),
       hoursWorked: d.hoursWorked === 0 ? '' : (d.hoursWorked ?? ''),
+      // Horas netas productivas: vacío = no se declaró ociosidad. El cero SÍ se
+      // conserva (sería un departamento sin una sola hora productiva), por eso
+      // acá no se vacía como en los demás campos.
+      productiveHours: d.productiveHours == null ? '' : d.productiveHours,
+      // Tiempo estándar de producción: mismo criterio que las netas productivas
+      // (vacío = no declarado, cero = declarado en cero).
+      standardHours: d.standardHours == null ? '' : d.standardHours,
+      informedLostTime: (d.informedLostTime ?? []).map((m) => ({ ...m })),
       realHours: d.realHours === 0 || d.realHours == null ? '' : d.realHours,
     })),
   };
@@ -131,6 +140,26 @@ function cleanDirectLaborForSubmit(data: any): DirectLaborConfig {
       ...d,
       basicRemuneration: fallbackNum(d.basicRemuneration),
       hoursWorked: fallbackNum(d.hoursWorked),
+      // Sin dato → no viaja el campo: el motor asume que toda la presencia fue
+      // productiva y calcula exactamente igual que antes (retrocompatibilidad).
+      productiveHours:
+        d.productiveHours === '' || d.productiveHours == null || isNaN(Number(d.productiveHours))
+          ? undefined
+          : fallbackNum(d.productiveHours),
+      // Sin tiempo estándar no hay improductividad oculta: el campo no viaja y
+      // el motor calcula exactamente igual que antes.
+      standardHours:
+        d.standardHours === '' || d.standardHours == null || isNaN(Number(d.standardHours))
+          ? undefined
+          : fallbackNum(d.standardHours),
+      // Motivos: solo los que tengan nombre Y horas. Es un detalle descriptivo;
+      // una fila a medio llenar no puede ensuciar el desglose.
+      informedLostTime: (() => {
+        const filas = (d.informedLostTime ?? [])
+          .filter((m: any) => m?.reason?.trim() && fallbackNum(m.hours) > 0)
+          .map((m: any) => ({ reason: m.reason.trim(), hours: fallbackNum(m.hours) }));
+        return filas.length > 0 ? filas : undefined;
+      })(),
       realHours: d.realHours === '' || d.realHours == null ? undefined : fallbackNum(d.realHours),
     })),
   };
@@ -171,6 +200,8 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
   // con la clasificación CONTRARIA (una mala clasificación desvía el costo).
   const watchedRem = useWatch({ control, name: 'itcs.uncertainRemunerative' });
   const watchedNonRem = useWatch({ control, name: 'itcs.uncertainNonRemunerative' });
+  // C-04: mientras tipea las horas, el costista ve cuántas quedan ociosas.
+  const watchedDepts = useWatch({ control, name: 'departments' });
 
   /** Agrega el concepto del catálogo a la lista que le corresponde (auto). */
   const addFromCatalog = (name: string) => {
@@ -230,6 +261,8 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
           <Input label="Base de derivación" type="number" step="0.1" numeric suffix="%" placeholder="Ej: 27" info="Contribuciones patronales + ART variable, base para derivar cargas. En porcentaje (ej: 27 = 27%)." {...register('itcs.derivationBase', { valueAsNumber: true })} />
           <Input label="ART fija" type="number" step="0.01" numeric suffix="%" placeholder="Ej: 1.5" info="Alícuota fija de ART. En porcentaje (ej: 1.5 = 1,5%)." {...register('itcs.fixedArt', { valueAsNumber: true })} />
         </div>
+
+        <CertainChargesPreview control={control} />
 
         {/* D-1 — Clasificación AUTOMÁTICA: el costista elige del catálogo de la
             cátedra y el sistema lo manda a la lista correcta. Si prefiere
@@ -339,9 +372,31 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
           </Button>
         </div>
         <p className="mb-2 text-[11px] leading-snug text-ink-soft">
-          Las <strong className="font-medium text-ink">horas presupuestadas</strong> son la capacidad normal
-          del departamento (con las que se calcula la tarifa horaria). No son las horas realmente trabajadas:
-          esas son el dato real de fin de mes.
+          Las <strong className="font-medium text-ink">horas pagadas</strong> son la presencia en fábrica:
+          las horas por las que la empresa paga, trabaje o no el operario (la capacidad normal presupuestada
+          del departamento). Las <strong className="font-medium text-ink">horas netas productivas</strong> son
+          esa presencia menos los tiempos perdidos informados, y son las únicas que se imputan a las órdenes.
+          Ninguna de las dos son las horas realmente trabajadas: ese es el dato real de fin de mes.
+        </p>
+        <p className="mb-2 text-[11px] leading-snug text-ink-soft">
+          El <strong className="font-medium text-ink">tiempo estándar de producción</strong> es lo que, según la
+          oficina técnica, debería haber llevado producir lo que se produjo (horas estándar por unidad ×
+          unidades terminadas). Lo que sobra entre las netas productivas y el estándar es la{' '}
+          <strong className="font-medium text-ink">improductividad oculta</strong>: se trabajó, pero por debajo
+          del estándar. Los dos tipos de improductividad de la cátedra —informada y oculta— salen de esta cadena:
+          presencia − tiempos perdidos informados = netas productivas − estándar = improductividad oculta.
+        </p>
+        <p className="mb-2 flex items-start gap-1.5 rounded-lg border border-line bg-surface-alt/40 px-2.5 py-1.5 text-[11px] leading-snug text-ink-soft">
+          <Info className="mt-0.5 size-3.5 shrink-0 text-ink-soft" />
+          <span>
+            Si dejás las <strong className="font-medium text-ink">horas netas productivas</strong> y el{' '}
+            <strong className="font-medium text-ink">tiempo estándar vacíos</strong>, el sistema entiende que
+            toda la presencia fue productiva: <strong className="font-medium text-ink">no hay capacidad
+            ociosa</strong> y el cálculo queda exactamente igual que hasta ahora. Cargalos solo cuando quieras
+            separar las horas que se pagaron y no se pudieron cobrar a ninguna orden. Ojo: esas horas dejan de
+            ser costo del producto y pasan a ser <strong className="font-medium text-ink">pérdida del
+            período</strong>, así que el costo de producción baja y aparece la pérdida en el resultado.
+          </span>
         </p>
         <div className="overflow-x-auto rounded-xl border border-line p-2 sm:p-0">
           <table className="block w-full text-sm sm:table">
@@ -349,7 +404,9 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Departamento</th>
                 <th className="px-3 py-2 text-right font-medium">Remuneración básica $</th>
-                <th className="px-3 py-2 text-right font-medium text-action">Horas presupuestadas</th>
+                <th className="px-3 py-2 text-right font-medium text-action">Horas pagadas (presencia en fábrica)</th>
+                <th className="px-3 py-2 text-right font-medium text-action">Horas netas productivas</th>
+                <th className="px-3 py-2 text-right font-medium text-action">Tiempo estándar de producción</th>
                 <th className="border-l-2 border-line px-3 py-2 text-right font-medium">Horas reales (fin de mes)</th>
                 <th className="px-3 py-2" />
               </tr>
@@ -363,8 +420,17 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
                   <td data-label="Remuneración básica $" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
                     <input type="number" step="0.01" className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none" {...register(`departments.${i}.basicRemuneration`, { valueAsNumber: true })} />
                   </td>
-                  <td data-label="Horas presupuestadas" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
-                    <input type="number" step="1" className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none" {...register(`departments.${i}.hoursWorked`, { valueAsNumber: true })} />
+                  <td data-label="Horas pagadas (presencia en fábrica)" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
+                    <input type="number" step="1" title="Horas pagadas — presencia en fábrica: se paguen o no se trabajen." className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none" {...register(`departments.${i}.hoursWorked`, { valueAsNumber: true })} />
+                  </td>
+                  <td data-label="Horas netas productivas" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
+                    <input type="number" step="1" placeholder="opcional — sin ociosidad" title="Horas netas productivas = presencia en fábrica − tiempos perdidos informados. Vacío = toda la presencia fue productiva." className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none" {...register(`departments.${i}.productiveHours`, { valueAsNumber: true })} />
+                    <IdleHoursHint dept={watchedDepts?.[i]} />
+                    <InformedLostTimeEditor control={control} register={register} index={i} dept={watchedDepts?.[i]} />
+                  </td>
+                  <td data-label="Tiempo estándar de producción" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:px-2 sm:py-1.5 sm:before:hidden">
+                    <input type="number" step="1" placeholder="opcional — sin improd. oculta" title="Tiempo estándar de producción: las horas que la oficina técnica dice que debería haber llevado producir lo que se produjo (horas estándar por unidad × unidades terminadas)." className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none" {...register(`departments.${i}.standardHours`, { valueAsNumber: true })} />
+                    <HiddenIdleHint dept={watchedDepts?.[i]} />
                   </td>
                   <td data-label="Horas reales (fin de mes)" className="block before:block before:mb-1 before:text-[10px] before:font-semibold before:uppercase before:tracking-wide before:text-ink-soft before:content-[attr(data-label)] sm:table-cell sm:border-l-2 sm:border-line sm:px-2 sm:py-1.5 sm:before:hidden">
                     <input type="number" step="1" placeholder="opcional" className="w-full rounded border border-line bg-surface px-2 py-1 text-right text-sm text-ink focus:border-granate focus:outline-none" {...register(`departments.${i}.realHours`, { valueAsNumber: true })} />
@@ -375,7 +441,7 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
                 </tr>
               ))}
               {deptFields.length === 0 && (
-                <tr className="block sm:table-row"><td colSpan={5} className="block px-4 py-6 text-center text-[13px] text-ink-soft sm:table-cell">Sin departamentos — agregá al menos uno.</td></tr>
+                <tr className="block sm:table-row"><td colSpan={7} className="block px-4 py-6 text-center text-[13px] text-ink-soft sm:table-cell">Sin departamentos — agregá al menos uno.</td></tr>
               )}
             </tbody>
           </table>
@@ -409,6 +475,222 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
       onCancel={() => setPending(null)}
     />
     </>
+  );
+}
+
+/**
+ * Mientras el costista carga las horas del departamento, le devuelve al toque
+ * cuántas quedan OCIOSAS (presencia pagada − netas productivas). Sin horas
+ * productivas cargadas no dice nada: no hay ociosidad que informar y la fila
+ * tiene que verse igual que siempre.
+ */
+function IdleHoursHint({ dept }: { dept?: DirectLaborConfig['departments'][number] }) {
+  const paid = Number(dept?.hoursWorked);
+  const raw = dept?.productiveHours;
+  const declared = raw !== undefined && raw !== null && String(raw) !== '' && !isNaN(Number(raw));
+  if (!declared || !Number.isFinite(paid) || paid <= 0) return null;
+
+  const productive = Number(raw);
+  if (productive > paid) {
+    return (
+      <p className="mt-1 flex items-start gap-1 text-[10.5px] leading-snug text-warn">
+        <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+        <span>No se puede producir más de lo que se paga: el cálculo las recorta a las horas pagadas.</span>
+      </p>
+    );
+  }
+  const idle = paid - productive;
+  if (idle <= 0) {
+    return <p className="mt-1 text-[10.5px] leading-snug text-ink-soft">Sin capacidad ociosa.</p>;
+  }
+  return (
+    <p className="mt-1 text-[10.5px] leading-snug text-ink">
+      <strong className="font-semibold">{formatHours(idle)}</strong> de tiempos perdidos informados —
+      son pérdida del período, no costo del producto.
+    </p>
+  );
+}
+
+/**
+ * El segundo tipo de improductividad: lo que se trabajó por debajo del estándar.
+ * Sin tiempo estándar cargado no dice nada — no se puede deducir.
+ */
+function HiddenIdleHint({ dept }: { dept?: DirectLaborConfig['departments'][number] }) {
+  const rawProductive = dept?.productiveHours;
+  const rawStandard = dept?.standardHours;
+  const declared = (v: unknown) =>
+    v !== undefined && v !== null && String(v) !== '' && !isNaN(Number(v));
+  if (!declared(rawStandard)) return null;
+
+  const paid = Number(dept?.hoursWorked);
+  const productive = declared(rawProductive)
+    ? Math.min(Number(rawProductive), paid)
+    : paid;
+  if (!Number.isFinite(productive) || productive <= 0) return null;
+
+  const standard = Number(rawStandard);
+  if (standard >= productive) {
+    return (
+      <p className="mt-1 text-[10.5px] leading-snug text-ink-soft">
+        Sin improductividad oculta: se trabajó al estándar o por encima.
+      </p>
+    );
+  }
+  return (
+    <p className="mt-1 text-[10.5px] leading-snug text-ink">
+      <strong className="font-semibold">{formatHours(productive - standard)}</strong> de
+      improductividad oculta.
+    </p>
+  );
+}
+
+/**
+ * Motivos de los tiempos perdidos informados, tal como se registran en la
+ * planilla de producción (Clase 10). Es DESCRIPTIVO: la cuenta de cuántas horas
+ * se perdieron la sigue dando `horas pagadas − horas netas productivas`. Si los
+ * motivos no llegan a ese total, el cálculo completa con «Sin discriminar»; si
+ * se pasan, los recorta. El desglose nunca contradice al total.
+ */
+const MOTIVOS_CATEDRA = [
+  'Falta de materia prima',
+  'Corte de energía',
+  'Rotura de máquina',
+  'Mantenimiento programado',
+  'Limpieza y mantenimiento',
+  'Cambio de molde',
+  'Paro de transporte',
+  'Corte de rutas',
+  'Descanso (desayuno/merienda)',
+  'Almuerzo / colación',
+  'Gestiones personales',
+];
+
+function InformedLostTimeEditor({
+  control,
+  register,
+  index,
+  dept,
+}: {
+  control: Control<DirectLaborConfig>;
+  register: UseFormRegister<DirectLaborConfig>;
+  index: number;
+  dept?: DirectLaborConfig['departments'][number];
+}) {
+  const [open, setOpen] = useState(false);
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: `departments.${index}.informedLostTime` as const,
+  });
+
+  const paid = Number(dept?.hoursWorked);
+  const raw = dept?.productiveHours;
+  const declared = raw !== undefined && raw !== null && String(raw) !== '' && !isNaN(Number(raw));
+  const perdidas = declared && Number.isFinite(paid) ? Math.max(paid - Number(raw), 0) : 0;
+  if (perdidas <= 0) return null;
+
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-[10.5px] font-medium text-action underline-offset-2 hover:underline"
+      >
+        {open ? 'Ocultar motivos' : `Detallar motivos${fields.length > 0 ? ` (${fields.length})` : ''}`}
+      </button>
+      {open && (
+        <div className="mt-1 space-y-1 rounded-lg border border-line bg-surface-alt/40 p-1.5">
+          <datalist id={`motivos-perdida-${index}`}>
+            {MOTIVOS_CATEDRA.map((m) => (
+              <option key={m} value={m} />
+            ))}
+          </datalist>
+          {fields.map((f, j) => (
+            <div key={f.id} className="flex items-center gap-1">
+              <input
+                list={`motivos-perdida-${index}`}
+                placeholder="Motivo"
+                className="min-w-0 flex-1 rounded border border-line bg-surface px-1.5 py-0.5 text-[11px] text-ink focus:border-granate focus:outline-none"
+                {...register(`departments.${index}.informedLostTime.${j}.reason` as const)}
+              />
+              <input
+                type="number"
+                step="0.01"
+                placeholder="hs"
+                className="w-16 rounded border border-line bg-surface px-1.5 py-0.5 text-right text-[11px] text-ink focus:border-granate focus:outline-none"
+                {...register(`departments.${index}.informedLostTime.${j}.hours` as const, { valueAsNumber: true })}
+              />
+              <button type="button" onClick={() => remove(j)} className="text-ink-soft hover:text-danger">
+                <Trash2 className="size-3" />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => append({ reason: '', hours: 0 })}
+            className="text-[10.5px] font-medium text-action underline-offset-2 hover:underline"
+          >
+            + Agregar motivo
+          </button>
+          <p className="text-[10px] leading-snug text-ink-soft">
+            Total de tiempos perdidos informados: {formatHours(perdidas)}. Lo que no discrimines queda
+            como «Sin discriminar».
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Muestra, mientras el costista escribe, las cargas CIERTAS que resultan de lo
+ * que cargó — incluido el SAC, que se devenga por ley y por eso aparece aunque
+ * ponga todo en cero. Es lectura: la cuenta final la hace el motor al calcular.
+ */
+function CertainChargesPreview({ control }: { control: Control<DirectLaborConfig> }) {
+  const base = useWatch({ control, name: 'itcs.derivationBase' });
+  const art = useWatch({ control, name: 'itcs.fixedArt' });
+
+  const certain = buildItcsBreakdown({
+    derivationBase: percentInputToFraction(base),
+    fixedArt: percentInputToFraction(art),
+  }).blocks.find((b) => b.key === 'certain');
+  if (!certain) return null;
+
+  const pct = (n: number) =>
+    `${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} %`;
+
+  return (
+    <div className="mt-2 rounded-lg border border-line bg-surface-alt/40 px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
+        Cargas ciertas que resultan de estos dos valores
+      </p>
+      <ul className="mt-1 space-y-0.5">
+        {certain.lines.map((l, i) => (
+          <li key={i} className="flex items-baseline justify-between gap-3 text-[11.5px]">
+            <span className={l.alwaysApplies ? 'font-medium text-ink' : 'text-ink-soft'}>
+              {l.label}
+              {l.alwaysApplies && (
+                <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-granate">
+                  se aplica siempre
+                </span>
+              )}
+            </span>
+            <span className="tabular-nums text-ink">{pct(l.percent)}</span>
+          </li>
+        ))}
+        <li className="flex items-baseline justify-between gap-3 border-t border-line pt-1 text-[11.5px] font-semibold">
+          <span className="text-ink">Subtotal de cargas ciertas</span>
+          <span className="tabular-nums text-ink">{pct(certain.percent)}</span>
+        </li>
+      </ul>
+      <p className="mt-1.5 text-[10.5px] leading-snug text-ink-soft">
+        El <strong className="font-medium text-ink">SAC (aguinaldo)</strong> es una carga cierta:
+        un doceavo de la remuneración. Se suma siempre, aun con todo lo demás en cero — por eso el
+        costo de mano de obra nunca queda igual a la remuneración básica. A esto todavía le faltan
+        las cargas inciertas y sus derivadas; el índice completo se ve en la lista de departamentos
+        después de calcular.
+      </p>
+    </div>
   );
 }
 

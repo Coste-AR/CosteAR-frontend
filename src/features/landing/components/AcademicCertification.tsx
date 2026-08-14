@@ -4,7 +4,7 @@ export function AcademicCertification() {
   return (
     <section className="bg-transparent py-24 border-t border-line/40">
       <div className="mx-auto max-w-5xl px-6">
-        <div className="rounded-3xl border border-line bg-surface p-8 sm:p-12 shadow-[0_8px_30px_rgba(0,0,0,0.01)] relative overflow-hidden animate-fade-in">
+        <div className="rounded-2xl border border-line bg-surface p-8 sm:p-12 shadow-[0_8px_30px_rgba(0,0,0,0.01)] relative overflow-hidden animate-fade-in">
           
           {/* Subtle decoration stamp circle */}
           <div className="pointer-events-none absolute right-[-50px] bottom-[-50px] opacity-5 text-granate">

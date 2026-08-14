@@ -98,10 +98,10 @@ export function AppShell({
   return (
     <div className="flex h-screen bg-surface-alt font-outfit relative overflow-hidden">
       {/* FLOATING VERTICAL SIDEBAR DOCK (Bordó Wine Red, Overflow Visible) */}
-      <aside className="hidden lg:flex fixed top-4 bottom-4 left-4 w-20 bg-granate rounded-[30px] flex-col items-center py-6 justify-between z-30 overflow-visible">
+      <aside className="hidden lg:flex fixed top-4 bottom-4 left-4 w-20 bg-granate rounded-2xl flex-col items-center py-6 justify-between z-30 overflow-visible">
         {/* Top: Logo in white container */}
         <div className="flex flex-col items-center overflow-visible">
-          <div className="flex size-12 items-center justify-center rounded-[18px] bg-surface-alt text-granate shadow-md hover:scale-105 transition-transform duration-300">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-surface-alt text-granate shadow-md hover:scale-105 transition-transform duration-300">
             <CosteARLogo className="h-6.5 w-auto text-granate" />
           </div>
         </div>
@@ -199,7 +199,7 @@ export function AppShell({
             <Link
               to="/portal"
               viewTransition
-              className="flex size-12 items-center justify-center rounded-[18px] text-granate-tenue hover:text-white hover:bg-white/10 transition-all duration-200 relative group"
+              className="flex size-12 items-center justify-center rounded-2xl text-granate-tenue hover:text-white hover:bg-white/10 transition-all duration-200 relative group"
             >
               <Zap className="size-[20px]" />
               <span className="absolute left-18 bg-granate-deep border border-white/10 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap shadow-xl pointer-events-none z-50">
@@ -286,7 +286,7 @@ export function AppShell({
                 },
               })
             }
-            className="flex size-12 items-center justify-center rounded-[18px] text-white/70 hover:text-white hover:bg-red-900/40 transition-all duration-200 cursor-pointer relative group"
+            className="flex size-12 items-center justify-center rounded-2xl text-white/70 hover:text-white hover:bg-red-900/40 transition-all duration-200 cursor-pointer relative group"
           >
             <LogOut className="size-[20px]" />
             <span className="absolute left-18 bg-granate-deep border border-white/10 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap shadow-xl pointer-events-none z-50">
@@ -297,7 +297,7 @@ export function AppShell({
       </aside>
 
       {/* MOBILE FLOATING TAB BAR (same dock language as the desktop sidebar) */}
-      <nav className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-30 grid grid-cols-4 gap-1 rounded-[28px] bg-granate p-2 shadow-[0_16px_40px_rgba(74,21,27,0.18)] lg:hidden" style={{ gridTemplateColumns: `repeat(${activeNavItems.length}, minmax(0, 1fr))` }}>
+      <nav className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-30 grid grid-cols-4 gap-1 rounded-2xl bg-granate p-2 shadow-[0_16px_40px_rgba(74,21,27,0.18)] lg:hidden" style={{ gridTemplateColumns: `repeat(${activeNavItems.length}, minmax(0, 1fr))` }}>
         {activeNavItems.map((navItem) => {
           const { to, label, icon: Icon, ...rest } = navItem;
           const active = isNavActive(location.pathname, navItem);

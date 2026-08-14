@@ -47,10 +47,10 @@ export function SidebarDock({ activeTab, setActiveTab }: SidebarDockProps) {
         : 'center center';
 
   return (
-    <aside className="hidden lg:flex fixed top-4 bottom-4 left-4 w-20 bg-granate rounded-[30px] flex-col items-center py-6 justify-between z-30 overflow-visible">
+    <aside className="hidden lg:flex fixed top-4 bottom-4 left-4 w-20 bg-granate rounded-2xl flex-col items-center py-6 justify-between z-30 overflow-visible">
       {/* Top: Logo */}
       <div className="flex flex-col items-center overflow-visible">
-        <div className="flex size-12 items-center justify-center rounded-[18px] bg-surface-alt text-granate shadow-md">
+        <div className="flex size-12 items-center justify-center rounded-2xl bg-surface-alt text-granate shadow-md">
           <CosteARLogo className="h-6.5 w-auto text-granate" />
         </div>
       </div>

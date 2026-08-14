@@ -1,11 +1,14 @@
-import { useState } from 'react';
-import { AlertTriangle, Calculator, CheckCircle2 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { DerivationTree } from '../../DerivationTree';
-import { useProcessCalculate, useProcessProductionReport } from '../../process-costing-hooks';
-import type { ProcessDepartment, ProcessDepartmentResult } from '../../process-costing-types';
+import { useProcessProductionReport } from '../../process-costing-hooks';
+import { useRunForPeriod } from '../../trazabilidad-hooks';
+import type {
+  Incompletitud,
+  ProcessDepartment,
+  ProcessDepartmentResult,
+} from '../../process-costing-types';
 import { DepartmentSelector } from './DepartmentSelector';
 
 /**
@@ -210,32 +213,30 @@ export function ProductionCostReportView({
   departments,
   deptId,
   onDeptChange,
+  incompletitud,
 }: {
   structureId: string;
   periodId: string | null;
   departments: ProcessDepartment[];
   deptId: string | null;
   onDeptChange: (id: string) => void;
+  /** Marca F04 del último cálculo corrido en esta sesión, si lo hubo. */
+  incompletitud?: Incompletitud | null;
 }) {
   const informe = useProcessProductionReport(structureId, periodId);
-  const calcular = useProcessCalculate(structureId, periodId);
-  const [runId, setRunId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  const correr = async () => {
-    setError(null);
-    try {
-      const r = await calcular.mutateAsync();
-      // El server manda `runId`, no `run.id`. Leer la forma equivocada devolvía
-      // undefined, rompía acá y pintaba "ocurrió un error inesperado" sobre un
-      // cálculo que había guardado perfecto (200 y la corrida en la base).
-      // Peor: sin el id, el árbol de derivación no aparecía NUNCA — la pantalla
-      // que muestra de dónde sale cada número, que es la promesa del producto.
-      setRunId(r.runId);
-    } catch (e) {
-      setError(apiErrorMessage(e));
-    }
-  };
+  // EL ÁRBOL SALE DEL SERVER, NO DE UN BOTÓN.
+  //
+  // Antes el id de la corrida vivía en un `useState` que solo llenaba el botón
+  // "Calcular y guardar" de esta pestaña. Consecuencia: quien apretaba el
+  // "Calcular" de la cabecera calculaba bien, guardaba la corrida con su árbol
+  // completo… y no veía el árbol nunca; y al recargar la página desaparecía
+  // aunque la corrida siguiera en la base. La promesa central del producto
+  // —mostrar de dónde sale cada número— quedaba apagada por defecto.
+  //
+  // Ahora se ubica igual que en Órdenes: preguntándole al server cuál es la
+  // corrida vigente de este período.
+  const corrida = useRunForPeriod(structureId, periodId);
 
   if (!periodId || departments.length === 0) {
     return (
@@ -249,18 +250,14 @@ export function ProductionCostReportView({
 
   const data = informe.data;
   const activo = data?.departments.find((d) => d.id === deptId) ?? data?.departments[0] ?? null;
-  const incompletitud = calcular.data?.results.incompletitud;
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <DepartmentSelector departments={departments} value={deptId} onChange={onDeptChange} />
-        <Button size="sm" variant="primary" onClick={() => void correr()} loading={calcular.isPending}>
-          <Calculator className="size-4" /> Calcular y guardar
-        </Button>
-      </div>
-
-      {error && <div className="rounded-sm bg-danger/10 px-3 py-2 text-[13px] text-danger">{error}</div>}
+      {/* Un solo botón "Calcular", el de la cabecera. El que vivía acá adentro
+          hacía exactamente lo mismo con otro nombre y era el único que encendía
+          el árbol: dos botones para una acción, con resultados distintos según
+          cuál se apretara. */}
+      <DepartmentSelector departments={departments} value={deptId} onChange={onDeptChange} />
 
       {/* F04/F08 — un resultado con datos sin imputar no se presenta como sano. */}
       {incompletitud?.incompleto && (
@@ -310,8 +307,12 @@ export function ProductionCostReportView({
         </>
       )}
 
-      {runId && (
-        <DerivationTree runId={runId} structureId={structureId} period={data?.period} />
+      {/* Mientras no se sepa si hay corrida no se pinta nada: el estado vacío
+          dice "Presioná Calcular" y sería mentira durante la carga. Una vez que
+          se sabe, el árbol se muestra SIEMPRE — con la corrida o con su estado
+          vacío, nunca una tarjeta en blanco. */}
+      {!corrida.isLoading && (
+        <DerivationTree runId={corrida.runId} structureId={structureId} period={data?.period} />
       )}
     </div>
   );

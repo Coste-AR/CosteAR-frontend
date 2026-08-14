@@ -232,7 +232,14 @@ export function useProcessCalculate(structureId: string, periodId: string | null
       }>(`/structures/${structureId}/process/periods/${periodId}/calculate`, {});
       return res.data.data;
     },
-    onSuccess: () => invalidateProcess(qc, structureId),
+    onSuccess: () => {
+      void invalidateProcess(qc, structureId);
+      // El árbol de derivación se ubica por la corrida que devuelve
+      // `/structures/:id/runs` (ver `useRunForPeriod`), que vive fuera del
+      // subárbol `process`. Sin esta invalidación el árbol seguiría mostrando la
+      // corrida anterior —o el estado vacío— después de calcular bien.
+      void qc.invalidateQueries({ queryKey: ['structures', structureId, 'runs'] });
+    },
   });
 }
 
