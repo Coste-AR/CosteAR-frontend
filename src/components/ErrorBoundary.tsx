@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-surface-alt px-6">
-          <div className="w-full max-w-md rounded-[28px] border border-line bg-surface p-8 text-center shadow-[0_10px_30px_rgba(74,21,27,0.06)]">
+          <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-8 text-center shadow-[0_10px_30px_rgba(74,21,27,0.06)]">
             <div className="mb-5 flex items-center justify-center gap-2.5">
               <CosteARLogo className="h-8 w-auto text-granate" />
               <span className="text-lg font-extrabold tracking-tight text-granate">CosteAR</span>

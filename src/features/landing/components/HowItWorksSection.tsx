@@ -62,7 +62,7 @@ export function HowItWorksSection() {
           </div>
 
           {/* Right Column: Visual Dashboard Calculator Mockup */}
-          <div className="relative rounded-3xl border border-line bg-surface p-6 shadow-[0_20px_50px_rgba(0,0,0,0.06)] overflow-hidden">
+          <div className="relative rounded-2xl border border-line bg-surface p-6 shadow-[0_20px_50px_rgba(0,0,0,0.06)] overflow-hidden">
             
             {/* Header bar of mockup app */}
             <div className="flex items-center justify-between border-b border-line/60 pb-4 mb-6">

@@ -53,7 +53,7 @@ export function AlertsPage() {
   return (
     <AppShell wide>
       {/* Hero Section */}
-      <div className="mb-6 rounded-[28px] border border-line bg-white p-5 flex flex-col justify-between relative overflow-hidden shadow-[0_10px_30px_rgba(74,21,27,0.015)] hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300 sm:p-6 lg:mb-10 lg:p-8">
+      <div className="mb-6 rounded-2xl border border-line bg-white p-5 flex flex-col justify-between relative overflow-hidden shadow-[0_10px_30px_rgba(74,21,27,0.015)] hover:shadow-[0_20px_50px_rgba(74,21,27,0.04)] hover:border-granate/20 transition-all duration-300 sm:p-6 lg:mb-10 lg:p-8">
         <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-action/10 blur-3xl" />
         <div className="space-y-4 relative z-10">
           <div className="flex items-center gap-2">

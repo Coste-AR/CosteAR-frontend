@@ -1,5 +1,8 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { usePeriods } from './period-hooks';
+import type { CalculationResult } from '@/lib/types';
 import type {
   CalculationTree,
   RunSummary,
@@ -12,6 +15,8 @@ import type {
   ResultadoVigente,
   LateDataDecision,
   LateDataChoice,
+  EvidenceKind,
+  EvidenceCreated,
 } from './trazabilidad-types';
 
 /** Corre el motor con árbol persistido (Trazabilidad Total v1, D.1). Endpoint
@@ -23,11 +28,27 @@ export function useCalculateTraced(structureId: string) {
       const res = await api.post<{
         // `incompleto` (F04): marca de datos sin imputar para pintar la
         // advertencia en la pestaña Resultado en vez de un margen "sano".
-        data: { runId: string; runN: number; results: unknown; tree: unknown; incompleto: Incompletitud };
+        // T-07 — `results` es el MISMO objeto que alimentó el árbol y que se
+        // persistió en la fila legada: una sola ejecución del motor. Antes esta
+        // llamada solo servía para el árbol y los números venían de otra corrida.
+        data: {
+          runId: string;
+          runN: number;
+          calculationId: string;
+          results: CalculationResult;
+          tree: unknown;
+          incompleto: Incompletitud;
+        };
       }>(`/structures/${structureId}/calculate`, {});
       return res.data.data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['structures', structureId, 'runs'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['structures', structureId, 'runs'] });
+      // La fila legada la escribe ahora esta misma corrida, así que el Historial
+      // y la Comparación de períodos —que la leen— quedan desactualizados si no
+      // se invalidan acá.
+      void qc.invalidateQueries({ queryKey: ['cost-structures', structureId, 'calculations'] });
+    },
   });
 }
 
@@ -55,6 +76,36 @@ export function useStructureRuns(structureId: string) {
     },
     enabled: !!structureId,
   });
+}
+
+/**
+ * La corrida vigente de un (estructura, PERÍODO).
+ *
+ * Costeo por Procesos calcula siempre contra un período concreto, así que el
+ * árbol de derivación no puede salir de un `useState` que se llena cuando
+ * alguien aprieta un botón en esta sesión: se pierde al recargar y no aparece
+ * nunca si el cálculo se disparó desde otra pantalla. Sale del server, igual
+ * que en Órdenes.
+ *
+ * No agrega endpoint ni cache nueva: compone `useStructureRuns` (que ya trae
+ * las corridas con su período) con la lista de períodos, que es lo único que
+ * traduce el `periodId` que maneja la pantalla al `code` que trae cada corrida.
+ */
+export function useRunForPeriod(structureId: string, periodId: string | null) {
+  const runs = useStructureRuns(structureId);
+  const periods = usePeriods(structureId);
+
+  const code = periods.data?.find((p) => p.id === periodId)?.code ?? null;
+  // `listRuns` devuelve del más nuevo al más viejo: la primera del período es la
+  // vigente. Si no hay ninguna de ESTE período no se cae a la de otro: sería
+  // pintar un árbol con los números de otro mes.
+  const run = code ? (runs.data?.find((r) => r.periodo?.code === code) ?? null) : null;
+
+  return {
+    runId: run?.id ?? null,
+    run,
+    isLoading: runs.isLoading || periods.isLoading,
+  };
 }
 
 /** El resultado que vale hoy: la última validada, o la última automática marcada. */
@@ -136,6 +187,65 @@ export function useMpMovements(structureId: string) {
   });
 }
 
+/**
+ * Un insumo trazable de la estructura, visto desde la pantalla que lo cargó
+ * (T-05). No trae el valor: el número que se muestra sale siempre de la config
+ * guardada; acá viaja únicamente el vínculo entre un CAMPO y su ficha.
+ */
+export interface StructureDataPoint {
+  id: string;
+  element: CostElement;
+  /** Clave del campo, con la convención de `orders-input-points.ts`. */
+  fieldKey: string;
+  label: string;
+  unit: string | null;
+  periodoImputado: string | null;
+  pending: boolean;
+}
+
+/** Índice de insumos trazables de una estructura (T-05). */
+export function useStructureDataPoints(structureId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['structures', structureId, 'data-points'],
+    queryFn: async () => {
+      const res = await api.get<{ data: StructureDataPoint[] }>(
+        `/structures/${structureId}/data-points`,
+      );
+      return res.data.data;
+    },
+    enabled: !!structureId,
+  });
+}
+
+/**
+ * DE QUÉ CAMPO SALE CADA FICHA (T-05).
+ *
+ * Devuelve `fieldKey → dataPointId` para que una pantalla de carga marque el
+ * número que muestra con la ficha del dato que lo respalda. La clave la arma la
+ * pantalla con la MISMA convención que el lado de escritura
+ * (`orders-input-points.ts`), que es la única del sistema.
+ *
+ * Una clave REPETIDA no entra al índice. Las `fieldKey` de los movimientos de MP
+ * son legadas y compartidas por todos los movimientos de la estructura
+ * ('mp.compra.cantidad' y compañía): resolverlas por clave elegiría un dato al
+ * azar y abriría la ficha de otra compra. Esos valores se marcan por otro lado
+ * —`useMpMovements`, que sí los distingue— y acá quedan deliberadamente fuera:
+ * antes que marcar mal, no marcar.
+ */
+export function useDataPointIdByFieldKey(structureId: string | null | undefined) {
+  const { data } = useStructureDataPoints(structureId);
+  return useMemo(() => {
+    const unico = new Map<string, string>();
+    const repetida = new Set<string>();
+    for (const dp of data ?? []) {
+      if (unico.has(dp.fieldKey)) repetida.add(dp.fieldKey);
+      else unico.set(dp.fieldKey, dp.id);
+    }
+    for (const k of repetida) unico.delete(k);
+    return unico;
+  }, [data]);
+}
+
 export function useDataPointTrace(dataPointId: string | null | undefined) {
   return useQuery({
     queryKey: ['data-points', dataPointId, 'trace'],
@@ -183,6 +293,87 @@ export function usePedirRevision() {
         comment: input.comment,
       });
       return res.data;
+    },
+  });
+}
+
+// ── Comprobantes (T-04) ──────────────────────────────────────────────────────
+
+/** Tope del archivo: el backend corta en 700.000 caracteres de base64. */
+export const MAX_ARCHIVO_BYTES = 500 * 1024;
+export const MSG_ARCHIVO_GRANDE =
+  'El archivo es muy grande (máximo 500 KB). Subí una versión más liviana.';
+
+export interface AdjuntarComprobanteInput {
+  dataPointId: string;
+  kind: EvidenceKind;
+  reference: string;
+  counterparty?: string;
+  /** Opcional de verdad: un comprobante por referencia ya es auditable. */
+  file?: File | null;
+  /** Por qué se adjunta. Queda en la versión nueva del dato. */
+  reason?: string;
+}
+
+/** Lee un archivo como base64 pelado (sin el prefijo `data:...;base64,`). */
+async function leerBase64(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  let binario = '';
+  const bytes = new Uint8Array(buffer);
+  const CHUNK = 0x8000; // de a pedazos: String.fromCharCode(...) revienta con arrays grandes
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binario);
+}
+
+/**
+ * Adjunta un comprobante a un dato ya cargado.
+ *
+ * Son DOS llamadas al backend —dar de alta el comprobante y vincularlo— porque
+ * son dos hechos distintos: un comprobante existe por sí mismo (y mañana la
+ * ingesta de documentos va a crearlo sin que nadie apriete nada) y recién
+ * después se ata a un dato. Para el costista es UNA acción, así que la costura
+ * queda acá adentro y no en la pantalla.
+ *
+ * El vínculo NO pisa el dato: el backend crea una VERSIÓN NUEVA que lleva el
+ * comprobante, y la anterior queda intacta en el historial.
+ */
+export function useAdjuntarComprobante() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: AdjuntarComprobanteInput) => {
+      // Red de seguridad; la pantalla ya lo chequea antes de llegar acá para
+      // poder mostrar el motivo (apiErrorMessage sólo entiende errores del
+      // backend, un Error de acá se leería como "error inesperado").
+      if (input.file && input.file.size > MAX_ARCHIVO_BYTES) throw new Error(MSG_ARCHIVO_GRANDE);
+
+      const evidencia = await api.post<{ data: EvidenceCreated }>('/evidence', {
+        kind: input.kind,
+        reference: input.reference,
+        counterparty: input.counterparty || undefined,
+        file: input.file
+          ? {
+              data: await leerBase64(input.file),
+              mimeType: input.file.type || 'application/octet-stream',
+              fileName: input.file.name,
+            }
+          : undefined,
+      });
+      const comprobante = evidencia.data.data;
+
+      await api.post(`/data-points/${input.dataPointId}/evidence`, {
+        evidenceId: comprobante.id,
+        reason: input.reason?.trim() || 'Se adjuntó el comprobante que respalda este dato.',
+        sourceArea: 'costista',
+      });
+
+      return comprobante;
+    },
+    onSuccess: (_d, vars) => {
+      // La ficha se rehace sola: pasa a mostrar el comprobante y el historial
+      // con la versión nueva.
+      void qc.invalidateQueries({ queryKey: ['data-points', vars.dataPointId, 'trace'] });
     },
   });
 }

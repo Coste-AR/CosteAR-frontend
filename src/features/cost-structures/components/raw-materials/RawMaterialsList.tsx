@@ -1,9 +1,14 @@
+import { type ReactNode } from 'react';
 import { Plus, Trash2, Package, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { TraceableValue } from '@/components/ui/TraceableValue';
 import { type RawMaterialConfig } from '../../cost-structure-types';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useDataPointIdByFieldKey } from '../../trazabilidad-hooks';
+import { mpFieldKey } from './helpers';
 
 interface Props {
+  structureId?: string;
   materials: RawMaterialConfig[];
   saving: boolean;
   toDelete: number | null;
@@ -13,7 +18,47 @@ interface Props {
   onConfirmDelete: () => Promise<void>;
 }
 
-export function RawMaterialsList({ materials, saving, toDelete, setToDelete, setSelected, addMaterial, onConfirmDelete }: Props) {
+/** Cómo se le nombra una materia prima al costista (nunca por su id interno). */
+function nombreMp(m: RawMaterialConfig, index: number): string {
+  return m.name?.trim() || m.code?.trim() || `Materia prima ${index + 1}`;
+}
+
+/**
+ * UN VALOR DE LA LISTA CON SU FICHA (T-05).
+ *
+ * La fila entera es clickeable —abre la materia prima—, así que el click sobre
+ * el valor se corta acá: tocar un número marcado abre SU ficha y no navega. Sin
+ * esto, la ficha se abriría y la pantalla cambiaría abajo al mismo tiempo.
+ *
+ * Sin `dataPointId` no se envuelve nada: el número se muestra pelado, que es lo
+ * correcto para una materia prima que todavía no se guardó (no hay dato que
+ * mirar). El guardia de `TraceableValue` cubre lo mismo un nivel más adentro.
+ */
+function ValorDeLista({
+  dataPointId,
+  title,
+  children,
+}: {
+  dataPointId?: string;
+  title: string;
+  children: ReactNode;
+}) {
+  if (!dataPointId) return <>{children}</>;
+  return (
+    <span onClick={(e) => e.stopPropagation()}>
+      <TraceableValue dataPointId={dataPointId} title={title} className="!px-1.5 !py-0.5">
+        {children}
+      </TraceableValue>
+    </span>
+  );
+}
+
+export function RawMaterialsList({ structureId, materials, saving, toDelete, setToDelete, setSelected, addMaterial, onConfirmDelete }: Props) {
+  // T-05 — de acá sale la ficha de cada número de la lista. Los datos ya existen
+  // desde que el guardado de la sección los reconcilia; lo que faltaba era el
+  // vínculo entre el campo que se muestra y el dato que lo respalda.
+  const dpByKey = useDataPointIdByFieldKey(structureId);
+
   return (
     <div className="space-y-4 pt-3">
       <div className="flex items-center justify-between">
@@ -62,8 +107,26 @@ export function RawMaterialsList({ materials, saving, toDelete, setToDelete, set
                     <td className="px-3 py-2 font-medium text-ink">{m.name || <span className="text-ink-soft italic">Sin nombre</span>}</td>
                     <td className="px-3 py-2 text-ink-soft">{m.unit || '—'}</td>
                     <td className="px-3 py-2 text-ink-soft">{m.supplier || '—'}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-ink">{m.wilson?.unitCost ? m.wilson.unitCost.toLocaleString('es-AR') : '—'}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-ink-soft">{m.initialStock?.quantity ?? 0}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-ink">
+                      {m.wilson?.unitCost ? (
+                        <ValorDeLista
+                          dataPointId={dpByKey.get(mpFieldKey(m, i, 'wilson.costo_unitario'))}
+                          title={`Costo unitario (C) · ${nombreMp(m, i)}`}
+                        >
+                          {m.wilson.unitCost.toLocaleString('es-AR')}
+                        </ValorDeLista>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-ink-soft">
+                      <ValorDeLista
+                        dataPointId={dpByKey.get(mpFieldKey(m, i, 'existencia_inicial.cantidad'))}
+                        title={`Existencia inicial · ${nombreMp(m, i)}`}
+                      >
+                        {(m.initialStock?.quantity ?? 0).toLocaleString('es-AR')}
+                      </ValorDeLista>
+                    </td>
                     <td className="px-3 py-2 text-center">
                       <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${complete ? 'border-ok/20 bg-ok/10 text-ok' : 'border-idle/20 bg-idle/10 text-idle'}`}>
                         {complete ? 'Completa' : 'Incompleta'}

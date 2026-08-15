@@ -70,7 +70,7 @@ export function LedgerEntryModal({
   return (
     <PortalOverlay>
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[28px] border border-line bg-surface p-7 shadow-[0_24px_60px_rgba(74,21,27,0.18)]">
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-line bg-surface p-7 shadow-[0_24px_60px_rgba(74,21,27,0.18)]">
         <h3 className="mb-5 text-[13px] font-extrabold uppercase tracking-wider text-granate-deep">
           {isEdit ? 'Editar línea de costo' : 'Agregar costo manual'}
         </h3>

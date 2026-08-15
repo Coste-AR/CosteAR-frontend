@@ -47,12 +47,24 @@ function LegacyCalculationHistory({ structureId }: { structureId: string }) {
             {history.map((c: any, i: number) => (
               <tr key={c.id} className={cn('hover:bg-surface-alt/50', i === 0 && 'bg-action/5')}>
                 <td className="px-6 py-3 text-ink">
-                  {formatDate(c.executedAt)}
+                  {formatDate(c.calculatedAt)}
                   {i === 0 && <span className="ml-2 rounded-full bg-action/10 px-2 py-0.5 text-[10px] font-semibold text-action">Último</span>}
                 </td>
-                <td className="px-6 py-3 text-right"><Money value={Number(c.results.productionCost)} /></td>
-                <td className="px-6 py-3 text-right"><Money value={Number(c.results.costOfGoodsSold)} /></td>
-                <td className="px-6 py-3 text-right"><Percent value={Number(c.results.grossMarginPct)} colorize /></td>
+                {/* Esta tabla lee `cost_calculations`, cuyas columnas son PLANAS
+                    (`productionCost`, `calculatedAt`). Estaba escrita contra la
+                    forma de una CORRIDA (`c.results.productionCost`,
+                    `c.executedAt`), que es otro contrato: la fila no tiene
+                    `results`, así que la pantalla explotaba con
+                    "Cannot read properties of undefined (reading 'productionCost')".
+
+                    No saltaba porque el historial venía vacío —solo el endpoint
+                    legado escribía esa tabla y ya casi no se usaba— y el
+                    `if (!history?.length) return null` de arriba cortaba antes.
+                    T-07 hizo que la corrida única escriba la fila, el historial
+                    dejó de estar vacío y el bug despertó. */}
+                <td className="px-6 py-3 text-right"><Money value={Number(c.productionCost)} /></td>
+                <td className="px-6 py-3 text-right"><Money value={Number(c.costOfGoodsSold)} /></td>
+                <td className="px-6 py-3 text-right"><Percent value={Number(c.grossMarginPct)} colorize /></td>
               </tr>
             ))}
           </tbody>

@@ -208,15 +208,15 @@ export function EmpresaPortalPage() {
 
           {/* Logo */}
           <div className="mb-8 flex flex-col items-center gap-3">
-            <div className="flex size-14 items-center justify-center rounded-[20px] bg-white text-granate shadow-[0_8px_30px_rgba(74,21,27,0.12)] border border-granate/10">
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-white text-granate shadow-[0_8px_30px_rgba(74,21,27,0.12)] border border-granate/10">
               <CosteARLogo className="h-7 w-auto text-granate" />
             </div>
             <span className="text-2xl font-black tracking-tight text-granate font-outfit">CosteAR</span>
           </div>
 
           {/* Card */}
-          <Card className="p-8 shadow-[0_20px_60px_rgba(0,0,0,0.06)] border-line/50 bg-white/80 backdrop-blur-md rounded-[28px]">
-            <div className="mb-6 flex size-12 items-center justify-center rounded-[18px] bg-granate text-white shadow-lg shadow-granate/20">
+          <Card className="p-8 shadow-[0_20px_60px_rgba(0,0,0,0.06)] border-line/50 bg-white/80 backdrop-blur-md rounded-2xl">
+            <div className="mb-6 flex size-12 items-center justify-center rounded-2xl bg-granate text-white shadow-lg shadow-granate/20">
               <Upload className="size-5" />
             </div>
 
@@ -275,7 +275,7 @@ export function EmpresaPortalPage() {
       <SidebarDock activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* 2. BARRA DE NAVEGACIÓN FLOTANTE EN MOBILE */}
-      <nav className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-30 grid grid-cols-3 gap-1 rounded-[28px] bg-granate p-2 shadow-[0_16px_40px_rgba(74,21,27,0.18)] lg:hidden">
+      <nav className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-30 grid grid-cols-3 gap-1 rounded-2xl bg-granate p-2 shadow-[0_16px_40px_rgba(74,21,27,0.18)] lg:hidden">
         {[
           { id: 'chat' as const, label: 'Charla IA' },
           { id: 'feed' as const, label: 'Envíos' },
@@ -287,7 +287,7 @@ export function EmpresaPortalPage() {
               key={id}
               onClick={() => setActiveTab(id)}
               className={cn(
-                'flex flex-col items-center gap-1 py-2 text-[10px] font-semibold transition-all rounded-[20px] text-white/60',
+                'flex flex-col items-center gap-1 py-2 text-[10px] font-semibold transition-all rounded-2xl text-white/60',
                 active && 'bg-surface-alt text-granate'
               )}
             >
@@ -462,7 +462,7 @@ export function EmpresaPortalPage() {
       {/* 4. MODAL SELECTOR DE EMPRESAS */}
       {showCompanyPicker && companies.length > 1 && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/40 backdrop-blur-sm px-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-[32px] bg-surface p-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-line animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-line animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-5 px-1">
               <h2 className="text-lg font-black tracking-tight text-ink font-outfit">Cambiar de Empresa</h2>
               <button type="button" onClick={() => setShowCompanyPicker(false)} className="text-ink-soft hover:text-ink bg-surface-alt p-1.5 rounded-full transition-colors">

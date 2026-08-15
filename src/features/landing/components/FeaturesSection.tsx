@@ -35,7 +35,7 @@ export function FeaturesSection() {
         >
           
           {/* Tarjeta 1: Materia Prima */}
-          <div className="group flex flex-col justify-between rounded-3xl border border-line bg-surface p-8 shadow-[0_8px_30px_rgba(0,0,0,0.01)] transition-all duration-300 hover:-translate-y-1.5 hover:border-granate/35 hover:shadow-[0_20px_50px_rgba(74,21,27,0.06)] shrink-0 w-[78vw] snap-start lg:w-auto lg:translate-y-0">
+          <div className="group flex flex-col justify-between rounded-2xl border border-line bg-surface p-8 shadow-[0_8px_30px_rgba(0,0,0,0.01)] transition-all duration-300 hover:-translate-y-1.5 hover:border-granate/35 hover:shadow-[0_20px_50px_rgba(74,21,27,0.06)] shrink-0 w-[78vw] snap-start lg:w-auto lg:translate-y-0">
             <div>
               <div className="mb-6 flex size-12 items-center justify-center rounded-2xl bg-granate-tenue text-granate">
                 <FileSpreadsheet className="size-6" />
@@ -68,7 +68,7 @@ export function FeaturesSection() {
           </div>
 
           {/* Tarjeta 2: Mano de Obra */}
-          <div className="group flex flex-col justify-between rounded-3xl border border-line bg-surface p-8 shadow-[0_8px_30px_rgba(0,0,0,0.01)] transition-all duration-300 hover:-translate-y-1.5 hover:border-granate/35 hover:shadow-[0_20px_50px_rgba(74,21,27,0.06)] shrink-0 w-[78vw] snap-start lg:w-auto lg:translate-y-6">
+          <div className="group flex flex-col justify-between rounded-2xl border border-line bg-surface p-8 shadow-[0_8px_30px_rgba(0,0,0,0.01)] transition-all duration-300 hover:-translate-y-1.5 hover:border-granate/35 hover:shadow-[0_20px_50px_rgba(74,21,27,0.06)] shrink-0 w-[78vw] snap-start lg:w-auto lg:translate-y-6">
             <div>
               <div className="mb-6 flex size-12 items-center justify-center rounded-2xl bg-granate-tenue text-granate">
                 <Calculator className="size-6" />
@@ -101,7 +101,7 @@ export function FeaturesSection() {
           </div>
 
           {/* Tarjeta 3: Carga Indirecta */}
-          <div className="group flex flex-col justify-between rounded-3xl border border-line bg-surface p-8 shadow-[0_8px_30px_rgba(0,0,0,0.01)] transition-all duration-300 hover:-translate-y-1.5 hover:border-granate/35 hover:shadow-[0_20px_50px_rgba(74,21,27,0.06)] shrink-0 w-[78vw] snap-start lg:w-auto lg:translate-y-12">
+          <div className="group flex flex-col justify-between rounded-2xl border border-line bg-surface p-8 shadow-[0_8px_30px_rgba(0,0,0,0.01)] transition-all duration-300 hover:-translate-y-1.5 hover:border-granate/35 hover:shadow-[0_20px_50px_rgba(74,21,27,0.06)] shrink-0 w-[78vw] snap-start lg:w-auto lg:translate-y-12">
             <div>
               <div className="mb-6 flex size-12 items-center justify-center rounded-2xl bg-granate-tenue text-granate">
                 <TrendingUp className="size-6" />

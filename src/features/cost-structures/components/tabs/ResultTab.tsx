@@ -2,6 +2,10 @@ import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Money, Percent } from '@/components/ui/Money';
 import { TraceableValue, toDerivation } from '@/components/ui/TraceableValue';
 import { useCalculationTree, useResultadoVigente } from '@/features/cost-structures/trazabilidad-hooks';
+import { useCostStructure } from '@/features/cost-structures/cost-structure-hooks';
+import { buildIdleCapacity, DESTINO_COSTO_OCIOSO_VIGENTE } from '../labor/idle-capacity';
+import { IdleCapacityResultLine } from '../labor/IdleCapacityPanel';
+import type { DirectLaborConfig } from '@/features/cost-structures/cost-structure-types';
 import { ProvisionalBanner } from '../RunHistoryPanel';
 import { StatusBadge, marginStatus, isResultTrustworthy } from '@/components/ui/StatusBadge';
 import { AdvisorPanel } from '@/features/advisor/AdvisorPanel';
@@ -30,7 +34,17 @@ export function EmptyResult() {
  * Explicación breve (ES) de por qué el margen no es confiable. Regla #6/#7: sin
  * identificadores internos ni endpoints — solo términos de cátedra.
  */
-function untrustworthyReason(result: CalculationResult, incompleto?: boolean): string {
+function untrustworthyReason(
+  result: CalculationResult,
+  incompleto?: boolean,
+  corridaTrazableFallo?: boolean,
+): string {
+  // T-08 — va PRIMERO: si la corrida trazable no terminó, no sabemos siquiera si
+  // hay datos sin imputar. Es un estado peor que el de incompletitud conocida y
+  // merece su propio texto, no el de "faltan imputaciones".
+  if (corridaTrazableFallo) {
+    return 'Estos números se calcularon, pero la corrida que arma el árbol de derivación no terminó. No se pudo verificar si hay datos sin imputar, así que el margen no es confiable. Volvé a calcular.';
+  }
   if (incompleto) {
     return 'Resultado incompleto: se calculó con datos sin imputar a un período. El margen no es confiable hasta resolver la imputación.';
   }
@@ -45,16 +59,20 @@ function untrustworthyReason(result: CalculationResult, incompleto?: boolean): s
   return 'El cálculo no incluye CIP aplicados: el margen no refleja el costo real del producto.';
 }
 
-export function ResultTab({ result, companyId, period, incompleto, runId, structureId }: { result: CalculationResult; companyId?: string; period?: string; incompleto?: boolean; runId?: string | null; structureId?: string }) {
+export function ResultTab({ result, companyId, period, incompleto, runId, structureId, corridaTrazableFallo }: { result: CalculationResult; companyId?: string; period?: string; incompleto?: boolean; runId?: string | null; structureId?: string; corridaTrazableFallo?: boolean }) {
   // ¿Lo que se está mirando ya lo validó alguien? El backend responde con la
   // última validada o, si no hay ninguna, con la última automática marcada.
   const { data: vigente } = useResultadoVigente(structureId ?? '');
   // F08 — un margen sobre un resultado sin MP, sin CIP o marcado incompleto no
   // es confiable: el badge nunca debe decir "sano" sobre un número así.
+  // T-08 — si la corrida trazable falló, el resultado se marca no confiable por
+  // el MISMO mecanismo de F08, no por uno nuevo. Se reusa el parámetro
+  // `incompleto` porque significa exactamente lo mismo para esta decisión: no
+  // hay garantía de que el número esté completo.
   const trustworthy = isResultTrustworthy({
     rawMaterialConsumed: result.rawMaterialConsumed,
     indirectCostsApplied: result.indirectCostsApplied,
-    incompleto,
+    incompleto: incompleto || corridaTrazableFallo,
   });
   /**
    * TRAZABILIDAD DEL RESULTADO (U10).
@@ -69,6 +87,48 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
    * un número sin respaldo no debe parecer trazable.
    */
   const { data: arbol } = useCalculationTree(runId ?? null);
+
+  /**
+   * CAPACIDAD OCIOSA (C-04). Las horas netas productivas son parte de la
+   * configuración de Mano de Obra, no del resultado, así que la línea se arma
+   * leyendo la estructura (misma query que ya tiene cacheada la pantalla) y los
+   * importes del cálculo. Si la estructura no declara horas productivas —todas
+   * las cargadas hasta hoy— no hay ociosidad y no se muestra nada.
+   */
+  const { data: estructura } = useCostStructure(structureId ?? '');
+  const laborConfig = estructura?.directLaborConfig as DirectLaborConfig | null | undefined;
+  const idleCapacity = laborConfig
+    ? buildIdleCapacity(laborConfig, result.detail.directLabor)
+    : null;
+
+  /**
+   * La pérdida por capacidad ociosa que sale del estado de costos.
+   *
+   * Solo tiene sentido mostrarla cuando el destino vigente la saca del costo del
+   * producto: con `'absorbido-en-el-producto'` el importe sigue adentro de las
+   * filas de arriba y ponerlo también abajo lo contaría dos veces a la vista.
+   */
+  const perdidaOciosa =
+    DESTINO_COSTO_OCIOSO_VIGENTE === 'perdida-del-periodo'
+      ? idleCapacity?.idleCost
+      : undefined;
+
+  /**
+   * T-09 — el nombre del centro, no su id interno.
+   *
+   * `perDepartment` viene indexado por el id del centro (`prod1`, `mecanizado`),
+   * y la tabla de variaciones lo imprimía crudo: el costista leía «mecanizado»
+   * en minúscula y sin acento donde el resto de la pantalla dice «Mecanizado».
+   * El árbol ya se corrigió en el backend; esto es la otra mitad.
+   *
+   * Cae al id sólo si el centro no está en `centers[]` — config vieja, o un
+   * centro borrado de la lista sin borrar su configuración productiva. Un id
+   * feo es mejor que una fila sin nombre.
+   */
+  const cipConfig = estructura?.indirectCostConfig as { centers?: { id?: string; name?: string }[] } | null | undefined;
+  const centros = cipConfig?.centers ?? [];
+  const nombreDeCentro = (id: string) =>
+    centros.find((c) => c.id === id)?.name?.trim() || id;
 
   const raiz = (nombre: string) => {
     const nodo = arbol?.tree.find((n) => n.label.toLowerCase() === nombre.toLowerCase());
@@ -92,6 +152,50 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
       derivation: raiz('Costos Indirectos de Producción Aplicados'),
     },
   ];
+
+  /**
+   * La cuenta del costo de producción, armada una sola vez y reusada por las
+   * filas que la contienen (costo de producción, COGS y el costo unitario). Los
+   * tres números salen de la MISMA suma: si se armara por separado en cada lado
+   * podrían llegar a contar historias distintas.
+   */
+  const costoDeProduccion = {
+    label: 'Costo de producción',
+    formula: 'materia prima consumida + mano de obra directa + costos indirectos aplicados',
+    value: result.productionCost,
+    unit: '$',
+    children: rows.map((r) => ({
+      label: r.label,
+      formula: r.derivation?.formula ?? null,
+      value: r.value,
+      unit: '$',
+      children: r.derivation?.children ?? [],
+      dataPointId: r.derivation?.dataPointId ?? null,
+    })),
+  };
+
+  const margenBruto = {
+    label: 'Margen bruto',
+    formula: 'ingreso por ventas − costo de los productos vendidos',
+    value: result.grossMargin,
+    unit: '$',
+    children: [
+      {
+        label: 'Ingreso por ventas',
+        formula: 'precio unitario × unidades vendidas',
+        value: result.grossMargin + result.costOfGoodsSold,
+        unit: '$',
+        children: [],
+      },
+      {
+        label: 'Costo de los productos vendidos (COGS)',
+        formula: 'costo de producción ajustado por la variación de existencias de producto terminado',
+        value: result.costOfGoodsSold,
+        unit: '$',
+        children: [costoDeProduccion],
+      },
+    ],
+  };
 
   const handleExportPDF = async () => {
     const input = document.getElementById('pdf-export-content');
@@ -238,14 +342,48 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
                 ))}
                 <tr className="bg-surface-alt font-semibold">
                   <td className="px-6 py-3.5 text-ink">Costo de producción</td>
-                  <td className="px-6 py-3.5 text-right"><Money value={result.productionCost} /></td>
+                  <td className="px-6 py-3.5 text-right">
+                    <TraceableValue title="Costo de producción" derivation={costoDeProduccion}>
+                      <Money value={result.productionCost} />
+                    </TraceableValue>
+                  </td>
                   <td className="px-6 py-3.5 text-right text-ink-soft">100%</td>
                 </tr>
                 <tr className="bg-granate-tenue font-bold">
                   <td className="px-6 py-3.5 text-granate">Costo de productos vendidos (COGS)</td>
-                  <td className="px-6 py-3.5 text-right"><Money value={result.costOfGoodsSold} className="text-granate" /></td>
+                  <td className="px-6 py-3.5 text-right">
+                    <TraceableValue
+                      title="Costo de productos vendidos"
+                      derivation={{
+                        label: 'Costo de productos vendidos (COGS)',
+                        formula: 'costo de producción ajustado por la variación de existencias de producto terminado',
+                        value: result.costOfGoodsSold,
+                        unit: '$',
+                        children: [costoDeProduccion],
+                      }}
+                    >
+                      <Money value={result.costOfGoodsSold} className="text-granate" />
+                    </TraceableValue>
+                  </td>
                   <td className="px-6 py-3.5" />
                 </tr>
+                {/* La pérdida por capacidad ociosa NO está en las filas de
+                    arriba: salió del costo del producto y se fue al estado de
+                    resultados. Se muestra igual, acá abajo y separada por una
+                    línea, para que el costista sepa que el costo de producción
+                    ya no la contiene y no la busque adentro. */}
+                {perdidaOciosa != null && perdidaOciosa > 0 && (
+                  <tr className="border-t-4 border-line">
+                    <td className="px-6 py-3.5 text-ink">
+                      Pérdida por capacidad ociosa
+                      <span className="ml-2 text-[11px] font-normal text-ink-soft">
+                        fuera del costo de producción — otro egreso del estado de resultados
+                      </span>
+                    </td>
+                    <td className="px-6 py-3.5 text-right text-warn"><Money value={perdidaOciosa} /></td>
+                    <td className="px-6 py-3.5" />
+                  </tr>
+                )}
               </tbody>
             </table>
           </CardBody>
@@ -274,20 +412,44 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
                     const normalCapacity = d.normalCapacity ?? 0;
                     const quota = d.quota ?? 0;
                     const budgetedCip = normalCapacity * quota;
+                    const centro = nombreDeCentro(dept);
+                    // Una sola cuenta por celda, con los números que entraron.
+                    // La capacidad normal, la actividad real y el CIP real son
+                    // datos CARGADOS y no se marcan: desde acá no hay forma de
+                    // llegar a su ficha (ver el informe de T-05).
+                    const cuenta = (label: string, formula: string, value: number, unit = '$') => ({
+                      label: `${label} · ${centro}`, formula, value, unit, children: [],
+                    });
                     return (
                       <tr key={dept} className="hover:bg-surface-alt/45">
-                        <td className="px-4 py-3 font-semibold text-ink">{dept}</td>
-                        <td className="px-4 py-3 text-right"><Money value={budgetedCip} /></td>
+                        <td className="px-4 py-3 font-semibold text-ink">{centro}</td>
+                        <td className="px-4 py-3 text-right">
+                          <TraceableValue title={`CIP presupuestado · ${centro}`} derivation={cuenta('CIP presupuestado', `${quota.toLocaleString('es-AR')} de cuota × ${normalCapacity.toLocaleString('es-AR')} hs de capacidad normal`, budgetedCip)}>
+                            <Money value={budgetedCip} />
+                          </TraceableValue>
+                        </td>
                         <td className="px-4 py-3 text-right font-mono">{normalCapacity} hs</td>
-                        <td className="px-4 py-3 text-right"><Money value={quota} /></td>
+                        <td className="px-4 py-3 text-right">
+                          <TraceableValue title={`Cuota presupuestada · ${centro}`} derivation={cuenta('Cuota presupuestada', 'presupuesto del centro ÷ capacidad normal', quota, '$/hs')}>
+                            <Money value={quota} />
+                          </TraceableValue>
+                        </td>
                         <td className="px-4 py-3 text-right font-mono">{d.actualActivity ?? 0} hs</td>
-                        <td className="px-4 py-3 text-right font-bold text-ink"><Money value={d.appliedCip} /></td>
+                        <td className="px-4 py-3 text-right font-bold text-ink">
+                          <TraceableValue title={`CIP aplicado · ${centro}`} derivation={cuenta('CIP aplicado', `${quota.toLocaleString('es-AR')} de cuota × ${(d.actualActivity ?? 0).toLocaleString('es-AR')} hs de actividad real`, d.appliedCip)}>
+                            <Money value={d.appliedCip} />
+                          </TraceableValue>
+                        </td>
                         <td className="px-4 py-3 text-right font-bold text-ink"><Money value={d.actualCip ?? d.cipTotal} /></td>
                         <td className={cn('px-4 py-3 text-right font-medium', d.budgetVariance < 0 ? 'text-danger' : 'text-ok')}>
-                          <Money value={d.budgetVariance} />
+                          <TraceableValue title={`Variación presupuesto · ${centro}`} derivation={cuenta('Variación presupuesto', 'CIP real − presupuesto ajustado al nivel real de actividad', d.budgetVariance)}>
+                            <Money value={d.budgetVariance} />
+                          </TraceableValue>
                         </td>
                         <td className={cn('px-4 py-3 text-right font-medium', d.volumeVariance < 0 ? 'text-danger' : 'text-ok')}>
-                          <Money value={d.volumeVariance} />
+                          <TraceableValue title={`Variación volumen · ${centro}`} derivation={cuenta('Variación volumen', `cuota fija × (${normalCapacity.toLocaleString('es-AR')} hs de capacidad normal − ${(d.actualActivity ?? 0).toLocaleString('es-AR')} hs de actividad real)`, d.volumeVariance)}>
+                            <Money value={d.volumeVariance} />
+                          </TraceableValue>
                         </td>
                       </tr>
                     );
@@ -303,8 +465,18 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
         <Card>
           <CardBody className="space-y-3 py-8 text-center">
             <p className="text-[11px] uppercase tracking-widest text-ink-soft">Margen bruto</p>
-            <Percent value={result.grossMarginPct} colorize className="text-5xl font-bold" />
-            <Money value={result.grossMargin} className="block text-lg text-ink-soft" />
+            <TraceableValue title="Margen bruto (%)" derivation={{
+              label: 'Margen bruto (%)',
+              formula: 'margen bruto ÷ ingreso por ventas',
+              value: result.grossMarginPct,
+              unit: '%',
+              children: [margenBruto],
+            }}>
+              <Percent value={result.grossMarginPct} colorize className="text-5xl font-bold" />
+            </TraceableValue>
+            <TraceableValue title="Margen bruto" derivation={margenBruto}>
+              <Money value={result.grossMargin} className="block text-lg text-ink-soft" />
+            </TraceableValue>
             <div className="pt-2">
               <StatusBadge status={marginStatus(result.grossMarginPct, 15, trustworthy)}>
                 {!trustworthy
@@ -317,7 +489,7 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
               </StatusBadge>
               {!trustworthy && (
                 <p className="mx-auto mt-2 max-w-[16rem] text-[11px] leading-snug text-ink-soft">
-                  {untrustworthyReason(result, incompleto)}
+                  {untrustworthyReason(result, incompleto, corridaTrazableFallo)}
                 </p>
               )}
             </div>
@@ -327,31 +499,168 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
         <Card>
           <CardHeader title="Detalle MOD" />
           <CardBody className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-ink-soft">Días hábiles efectivos</span><span className="font-medium">{result.detail.directLabor.workingDays} días</span></div>
+            <div className="flex justify-between">
+              <span className="text-ink-soft">Días hábiles efectivos</span>
+              <span className="font-medium">
+                <TraceableValue
+                  title="Días hábiles efectivos"
+                  derivation={{
+                    label: 'Días hábiles efectivos',
+                    formula: 'días totales del año − ausentismo no pago − ausentismo pago',
+                    value: result.detail.directLabor.workingDays,
+                    unit: 'días',
+                    children: [],
+                  }}
+                >
+                  {result.detail.directLabor.workingDays} días
+                </TraceableValue>
+              </span>
+            </div>
             <div className="flex flex-col gap-0.5">
-              <div className="flex justify-between"><span className="text-ink-soft">IAP — Inasistencias pagas</span><span className="font-medium">{result.detail.directLabor.iapPercent.toFixed(2)}%</span></div>
+              <div className="flex justify-between">
+                <span className="text-ink-soft">IAP — Inasistencias pagas</span>
+                <span className="font-medium">
+                  <TraceableValue
+                    title="IAP — Inasistencias pagas"
+                    derivation={{
+                      label: 'IAP — Inasistencias pagas',
+                      formula: result.detail.directLabor.paidDays != null
+                        ? `${result.detail.directLabor.paidDays} días pagos ÷ ${result.detail.directLabor.workingDays} días efectivos`
+                        : 'ausentismo pago ÷ días hábiles efectivos',
+                      value: result.detail.directLabor.iapPercent,
+                      unit: '%',
+                      children: [],
+                    }}
+                  >
+                    {result.detail.directLabor.iapPercent.toFixed(2)}%
+                  </TraceableValue>
+                </span>
+              </div>
               {result.detail.directLabor.paidDays != null && (
                 <span className="text-[11px] text-ink-soft">
                   IAP = {result.detail.directLabor.paidDays} días pagos / {result.detail.directLabor.workingDays} efectivos = {result.detail.directLabor.iapPercent.toFixed(2)}% · derivado, solo lectura
                 </span>
               )}
             </div>
-            <div className="flex justify-between"><span className="text-ink-soft">ITCS</span><span className="font-medium">{result.detail.directLabor.itcsPercent.toFixed(2)}%</span></div>
-            {Object.entries(result.detail.directLabor.hourlyRates).map(([dept, rate]) => (
-              <div key={dept} className="flex justify-between">
-                <span className="text-ink-soft">{dept}</span>
-                <span><Money value={rate} className="font-medium" /><span className="ml-1 text-[11px] text-ink-soft">/h</span></span>
-              </div>
-            ))}
+            <div className="flex justify-between">
+              <span className="text-ink-soft">ITCS</span>
+              <span className="font-medium">
+                <TraceableValue
+                  title="Índice total de cargas sociales"
+                  derivation={{
+                    label: 'Índice total de cargas sociales',
+                    formula: 'cargas ciertas + inciertas remunerativas + derivadas + inciertas no remunerativas',
+                    value: result.detail.directLabor.itcsPercent,
+                    unit: '%',
+                    children: result.detail.directLabor.itcsBreakdown
+                      ? [
+                          { label: 'Cargas sociales ciertas', formula: 'las que fija la ley y se devengan siempre (incluye el SAC)', value: result.detail.directLabor.itcsBreakdown.certain, unit: '%', children: [] },
+                          { label: 'Inciertas remunerativas', formula: 'suma de los coeficientes remunerativos estimados', value: result.detail.directLabor.itcsBreakdown.uncertainRemunerative, unit: '%', children: [] },
+                          { label: 'Cargas derivadas', formula: 'las que se calculan sobre el ausentismo pago', value: result.detail.directLabor.itcsBreakdown.derived, unit: '%', children: [] },
+                          { label: 'Inciertas no remunerativas', formula: 'suma de los coeficientes no remunerativos estimados', value: result.detail.directLabor.itcsBreakdown.uncertainNonRemunerative, unit: '%', children: [] },
+                        ]
+                      : [],
+                  }}
+                >
+                  {result.detail.directLabor.itcsPercent.toFixed(2)}%
+                </TraceableValue>
+              </span>
+            </div>
+            {Object.entries(result.detail.directLabor.hourlyRates).map(([dept, rate]) => {
+              const d = result.detail.directLabor.departments?.find((x) => x.name === dept);
+              return (
+                <div key={dept} className="flex justify-between">
+                  <span className="text-ink-soft">{dept}</span>
+                  <span>
+                    <TraceableValue
+                      title={`Tarifa horaria integral · ${dept}`}
+                      derivation={d ? {
+                        label: `Tarifa horaria integral · ${dept}`,
+                        formula: `costo total de mano de obra ÷ ${d.budgetedHours.toLocaleString('es-AR')} hs`,
+                        value: rate,
+                        unit: '$/hs',
+                        children: [{
+                          label: 'Costo total de mano de obra',
+                          formula: 'remuneración básica + costo de cargas sociales',
+                          value: d.totalMod,
+                          unit: '$',
+                          children: [{
+                            label: 'Costo de cargas sociales',
+                            formula: 'remuneración básica × índice total de cargas sociales',
+                            value: d.socialChargesCost,
+                            unit: '$',
+                            children: [],
+                          }],
+                        }],
+                      } : null}
+                    >
+                      <Money value={rate} className="font-medium" />
+                    </TraceableValue>
+                    <span className="ml-1 text-[11px] text-ink-soft">/h</span>
+                  </span>
+                </div>
+              );
+            })}
+            {/* C-04 — la capacidad ociosa NUNCA se pliega dentro de las órdenes:
+                si hay horas pagadas sin trabajo asignado, van en su propia línea
+                con sus horas y su costo. Sin horas netas productivas cargadas la
+                línea no existe y el detalle se ve igual que siempre. */}
+            {idleCapacity?.anyDeclared && <IdleCapacityResultLine summary={idleCapacity} />}
           </CardBody>
         </Card>
 
         <Card>
           <CardHeader title="Detalle MP" />
           <CardBody className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-ink-soft">Lote óptimo</span><span className="font-medium">{result.detail.rawMaterial.optimalLot.toFixed(0)} u</span></div>
-            <div className="flex justify-between"><span className="text-ink-soft">Stock final</span><span className="font-medium">{result.detail.rawMaterial.finalStockQty.toFixed(0)} u</span></div>
-            <div className="flex justify-between"><span className="text-ink-soft">Valor stock final</span><Money value={result.detail.rawMaterial.finalStockValue} className="font-medium" /></div>
+            <div className="flex justify-between">
+              <span className="text-ink-soft">Lote óptimo</span>
+              <span className="font-medium">
+                <TraceableValue
+                  title="Lote óptimo de Wilson"
+                  derivation={{
+                    label: 'Lote óptimo (Wilson)',
+                    formula: 'LE = √(2 × demanda anual × costo de pedido ÷ (tasa de almacenamiento × costo unitario))',
+                    value: result.detail.rawMaterial.optimalLot,
+                    unit: 'u',
+                    children: [],
+                  }}
+                >
+                  {result.detail.rawMaterial.optimalLot.toFixed(0)} u
+                </TraceableValue>
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-ink-soft">Stock final</span>
+              <span className="font-medium">
+                <TraceableValue
+                  title="Stock final en unidades"
+                  derivation={{
+                    label: 'Stock final (unidades)',
+                    formula: 'existencia inicial + compras − consumos',
+                    value: result.detail.rawMaterial.finalStockQty,
+                    unit: 'u',
+                    children: [],
+                  }}
+                >
+                  {result.detail.rawMaterial.finalStockQty.toFixed(0)} u
+                </TraceableValue>
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-ink-soft">Valor stock final</span>
+              <TraceableValue
+                title="Valor del stock final"
+                derivation={{
+                  label: 'Valor del stock final',
+                  formula: `${result.detail.rawMaterial.finalStockQty.toFixed(0)} u de saldo × el precio promedio ponderado vigente`,
+                  value: result.detail.rawMaterial.finalStockValue,
+                  unit: '$',
+                  children: [],
+                }}
+              >
+                <Money value={result.detail.rawMaterial.finalStockValue} className="font-medium" />
+              </TraceableValue>
+            </div>
           </CardBody>
         </Card>
       </div>

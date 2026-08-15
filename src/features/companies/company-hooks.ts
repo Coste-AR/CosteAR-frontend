@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Company, CostStructure, Periodicity } from '@/lib/types';
+import type { CondicionIva, Company, CostStructure, Periodicity } from '@/lib/types';
 
 export function useCompanies() {
   return useQuery({
@@ -33,6 +33,8 @@ export function useCreateCompany() {
       description?: string;
       /** El ritmo de costeo. Solo al dar de alta: después queda fijo. */
       periodicity?: Periodicity;
+      /** Condición frente al IVA: decide si el IVA entra o no al costo. */
+      condicionIva?: CondicionIva;
     }) => {
       const res = await api.post<{ data: Company }>('/companies', input);
       return res.data.data;
@@ -78,8 +80,10 @@ export function useRestoreCostStructure(companyId: string) {
 export function useUpdateCompany() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, industry, cuit, description, periodicity }: { id: string; name: string; industry?: string; cuit?: string; description?: string; periodicity?: Periodicity }) => {
-      const res = await api.put<{ data: Company }>(`/companies/${id}`, { name, industry, cuit, description, periodicity });
+    // Mandar `condicionIva` es además lo que CONFIRMA la condición: el backend
+    // apaga la bandera `condicionIvaRevisar` cuando el costista la guarda.
+    mutationFn: async ({ id, name, industry, cuit, description, periodicity, condicionIva }: { id: string; name: string; industry?: string; cuit?: string; description?: string; periodicity?: Periodicity; condicionIva?: CondicionIva }) => {
+      const res = await api.put<{ data: Company }>(`/companies/${id}`, { name, industry, cuit, description, periodicity, condicionIva });
       return res.data.data;
     },
     onSuccess: (_, variables) => {

@@ -19,7 +19,7 @@ export function Navbar({ onAccessClick }: NavbarProps) {
   return (
     <header className={cn(
       "fixed top-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-5xl lg:max-w-7xl xl:max-w-[1360px] -translate-x-1/2 border border-line/80 bg-surface/80 px-4 py-2.5 md:px-6 md:py-3 shadow-[0_8px_32px_rgba(0,0,0,0.06)] backdrop-blur-md transition-all duration-300 ease-in-out",
-      isOpen ? "rounded-[20px] pb-5" : "rounded-[20px] md:rounded-full"
+      isOpen ? "rounded-2xl pb-5" : "rounded-2xl md:rounded-full"
     )}>
 
       {/* ── Mobile top bar: brand izquierda | hamburger derecha ── */}

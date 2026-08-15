@@ -18,6 +18,38 @@ export const PERIODICITY_LABEL: Record<Periodicity, string> = {
   QUARTERLY: 'Trimestral',
 };
 
+/**
+ * La CONDICIÓN DE LA EMPRESA FRENTE AL IVA. No es un dato administrativo: es lo
+ * que decide qué importe de cada comprobante entra al costo.
+ *
+ * Cátedra, Clase 4 ("Materia prima — costo de adquisición, desperdicio y lote
+ * económico"), línea 27: "IVA: solo aplica si la empresa es responsable no
+ * inscripta o monotributista; si es responsable inscripta, el IVA no forma
+ * parte del costo de adquisición".
+ */
+export type CondicionIva = 'RESPONSABLE_INSCRIPTO' | 'MONOTRIBUTO' | 'EXENTO';
+
+export const CONDICION_IVA_OPTIONS: { value: CondicionIva; label: string }[] = [
+  { value: 'RESPONSABLE_INSCRIPTO', label: 'Responsable Inscripto — el IVA no es costo, se costea sobre el neto' },
+  { value: 'MONOTRIBUTO', label: 'Monotributo — el IVA sí es costo, se costea sobre el total' },
+  { value: 'EXENTO', label: 'Exento / No inscripto — el IVA sí es costo, se costea sobre el total' },
+];
+
+export const CONDICION_IVA_LABEL: Record<CondicionIva, string> = {
+  RESPONSABLE_INSCRIPTO: 'Responsable Inscripto',
+  MONOTRIBUTO: 'Monotributo',
+  EXENTO: 'Exento / No inscripto',
+};
+
+/** La explicación contable, con la cita de la cátedra, para mostrar bajo el campo. */
+export const CONDICION_IVA_AYUDA =
+  'Define si el IVA de cada comprobante entra al costo. Según la cátedra: ' +
+  '"el IVA solo aplica si la empresa es responsable no inscripta o monotributista; ' +
+  'si es responsable inscripta, el IVA no forma parte del costo de adquisición". ' +
+  'Un Responsable Inscripto recupera el IVA como crédito fiscal, así que se costea ' +
+  'sobre el NETO; un monotributista o un exento no lo recupera, así que se costea ' +
+  'sobre el TOTAL. Elegir mal cambia cada línea de costo entre un 10,5 % y un 21 %.';
+
 export interface Company {
   id: string;
   name: string;
@@ -26,6 +58,11 @@ export interface Company {
   isActive: boolean;
   createdAt: string;
   periodicity: Periodicity;
+  condicionIva: CondicionIva;
+  /** La IA vio indicios de que la condición declarada no es la real. */
+  condicionIvaRevisar?: boolean;
+  condicionIvaRevisarNota?: string | null;
+  condicionIvaRevisarAt?: string | null;
   _count?: { costStructures: number };
 }
 
@@ -83,6 +120,39 @@ export interface CalculationResult {
         budgetedHours: number;
         realHours?: number;
       }>;
+      /**
+       * CAPACIDAD OCIOSA (cátedra, Clase 10) — la pérdida por horas pagadas que
+       * no se le pueden cobrar al producto, abierta POR TIPO DE
+       * IMPRODUCTIVIDAD, con el cartel ya redactado por el motor.
+       *
+       * OPCIONAL: los cálculos guardados antes de que esto existiera no lo
+       * traen. Ausente ≠ "no hay ociosidad".
+       */
+      idleCapacity?: {
+        paidHours: number;
+        productiveHours: number;
+        chargeableHours: number;
+        idleHours: number;
+        fullMod: number;
+        idleCost: number;
+        applicableMod: number;
+        hasIdleCapacity: boolean;
+        destination: 'absorbido-en-el-producto' | 'perdida-del-periodo';
+        breakdown: Array<{
+          tipo: 'tiempos-perdidos-informados' | 'improductividad-oculta';
+          label: string;
+          hours: number;
+          cost: number;
+          reasons: Array<{ reason: string; hours: number; cost: number }>;
+        }>;
+        alert: {
+          level: 'advertencia' | 'critico';
+          title: string;
+          message: string;
+          cost: number;
+          sharePercent: number;
+        } | null;
+      };
     };
     indirectCosts: {
       perDepartment: Record<

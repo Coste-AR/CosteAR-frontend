@@ -36,7 +36,7 @@ export function WhatsappConfigModal({
   return (
     <PortalOverlay>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
             <Smartphone className="size-6" />

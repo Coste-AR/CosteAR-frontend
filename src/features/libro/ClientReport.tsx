@@ -79,7 +79,7 @@ export function ClientReport({
         </div>
 
         {/* Documento */}
-        <div id="client-report" className="rounded-[28px] bg-white p-10 shadow-[0_20px_50px_rgba(74,21,27,0.08)] print:rounded-none print:p-0 print:shadow-none">
+        <div id="client-report" className="rounded-2xl bg-white p-10 shadow-[0_20px_50px_rgba(74,21,27,0.08)] print:rounded-none print:p-0 print:shadow-none">
           {/* Encabezado */}
           <div className="mb-8 flex items-start justify-between border-b border-ink/10 pb-5">
             <div>
