@@ -24,6 +24,11 @@ export function ValidationEntryRow({
   const isImage = entry.fileMimeType?.startsWith("image/");
   const isPdf = entry.fileMimeType === "application/pdf";
   const aiAnalysis = parseAIAnalysis(entry.reviewNote);
+  // H18: la tarjeta leía aiAnalysis.costSection (sugerencia cruda de la IA)
+  // pero la decisión final es classificationAudits[0].costSection, que es lo
+  // que aprueba el costista y lo que entra al libro. Cuando la cascada corrige
+  // a la IA, la tarjeta y el modal mostraban valores distintos.
+  const finalSection = entry.classificationAudits?.[0]?.costSection;
 
   return (
     <div className="px-4 py-4 sm:px-6 sm:py-4.5">
@@ -44,13 +49,11 @@ export function ValidationEntryRow({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-              {aiAnalysis?.costSection &&
-                aiAnalysis.costSection !== "DESCONOCIDO" && (
-                  <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10.5px] font-bold text-indigo-700 shadow-sm">
-                    {SECTION_LABELS[aiAnalysis.costSection] ??
-                      aiAnalysis.costSection}
-                  </span>
-                )}
+              {finalSection && finalSection !== "DESCONOCIDO" && (
+                <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10.5px] font-bold text-indigo-700 shadow-sm">
+                  {SECTION_LABELS[finalSection] ?? finalSection}
+                </span>
+              )}
               {aiAnalysis?.quality === "ilegible" && (
                 <span className="flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10.5px] font-bold text-red-700 shadow-sm">
                   <AlertTriangle className="size-3" /> Ilegible

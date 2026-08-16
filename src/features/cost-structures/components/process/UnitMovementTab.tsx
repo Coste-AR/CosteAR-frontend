@@ -491,6 +491,13 @@ export function UnitMovementTab({
             />
           </Fila>
 
+          {n(form.totalLossReported ?? '') !== undefined && n(form.normalLossPct ?? '') === undefined && !readOnly && (
+            <div className="flex items-start gap-2 rounded-sm bg-warn/10 px-3 py-2 text-[12.5px] text-warn">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+              Sin porcentaje de merma admitida, las pérdidas se tratan como extraordinarias y no entran al costo unitario.
+            </div>
+          )}
+
           <Fila label="Existencia final en proceso" traceId={traces.finalWip}>
             {derivada?.campo === 'finalWip' ? (
               <Derivado
@@ -717,11 +724,18 @@ export function UnitMovementTab({
         onConfirm={() => void enviar()}
         onCancel={() => setConfirmando(false)}
         message={
-          <p>
-            Cada valor que cargaste queda guardado con su ficha de trazabilidad: quién lo cargó,
-            cuándo y desde dónde. Los datos que se deducen por diferencia no generan ficha, porque
-            son calculados.
-          </p>
+          <div className="space-y-2">
+            <p>
+              Cada valor que cargaste queda guardado con su ficha de trazabilidad: quién lo cargó,
+              cuándo y desde dónde. Los datos que se deducen por diferencia no generan ficha, porque
+              son calculados.
+            </p>
+            {n(form.totalLossReported ?? '') !== undefined && n(form.normalLossPct ?? '') === undefined && (
+              <p className="text-[12px] text-warn">
+                Atención: no declaraste merma normal admitida. Las pérdidas informadas se tratarán como extraordinarias y no entrarán al costo unitario.
+              </p>
+            )}
+          </div>
         }
       />
     </div>
