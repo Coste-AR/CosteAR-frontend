@@ -42,6 +42,8 @@ Closes #
 
 - [ ] Issue vinculado
 - [ ] Commits convencionales y atómicos
+- [ ] **Review**: se lo pedí a alguien, o decidí conscientemente mergear sin review.
+      *GitHub no lo bloquea. Pedilo igual si toca plata del cliente o va a `main`.*
 - [ ] **Lo abrí en el navegador y lo probé** (obligatorio si toca UI o flujo)
 - [ ] Tests escritos o actualizados
 - [ ] `.env.example` actualizado si agregué variables
