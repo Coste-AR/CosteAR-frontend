@@ -9,10 +9,9 @@ import type { CalculationResult } from '@/lib/types';
  * para que el PE sea finito y testeable. Los valores exactos vendrán del fixture
  * de Santi (S-01); estos son suficientes para validar la LÓGICA del simulador.
  *
- * TODO(S-01): reemplazar por los números del fixture de Santi una vez mergeado.
- * Los valores de referencia del plan son:
- *   6.300 aves → −$3.936.805/mes  (resultado real con fixture corregido)
- *   8.560 aves → +$31.897/mes     (punto de cruce verificado)
+ * S-01 ya está mergeado (tests/domain/avicola-fixture.test.ts en el backend).
+ * El fixture real del cliente vive en el repo privado CosteAR-admin (docs/verticales/).
+ * Este test usa números ficticios coherentes para validar la lógica del simulador.
  *
  * Economía del fixture de prueba:
  *   - 472 cajones producidos con 6.300 aves
