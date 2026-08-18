@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, ArrowRight, TrendingDown, TrendingUp, Plus, Trash2, Bird } from 'lucide-react';
+import { Activity, ArrowRight, TrendingDown, TrendingUp, Plus, Trash2, Bird, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Money } from '@/components/ui/Money';
@@ -96,6 +96,68 @@ export function calcularProyeccionAvicola(
   return { cajones, rawMaterial, directLabor, indirectCosts, productionCost, revenue, resultado, peEnCajones, peEnAves };
 }
 
+// ── Capacidad ociosa del galpón ───────────────────────────────────────────────
+
+export interface CapacidadOciosaResult {
+  utilizacionPct: number;
+  avesOciosas: number;
+  costoFijoTotal: number;
+  costoOcioso: number;
+  costoCubierto: number;
+  costoUnitarioReal: number;
+  costoUnitarioPlenaCapacidad: number;
+}
+
+/**
+ * Calcula la capacidad ociosa del galpón para el período actual.
+ *
+ * Los costos fijos (MOD + CIP) son los del resultado calculado — el galpón ya
+ * incurrió en ellos. Si no está lleno, una fracción de esos costos no tiene
+ * producción que los absorba: eso es el costo ocioso.
+ *
+ * El costo unitario a plena capacidad muestra qué unitario tendría si el galpón
+ * funcionara al 100%: es el piso al que puede llegar escalando.
+ */
+export function calcularCapacidadOciosa(
+  currentResult: CalculationResult,
+  capacidadNormalAves: number,
+  avesActuales: number,
+): CapacidadOciosaResult | null {
+  if (capacidadNormalAves <= 0 || avesActuales <= 0) return null;
+  if (avesActuales > capacidadNormalAves) return null;
+
+  const cajonesActuales = currentResult.detail.unitCost?.unitsProduced;
+  if (!cajonesActuales || cajonesActuales === 0) return null;
+
+  const utilizacionPct = (avesActuales / capacidadNormalAves) * 100;
+  const avesOciosas = capacidadNormalAves - avesActuales;
+
+  // Los costos fijos son MOD + CIP — variables (MP) escalan con producción y no tienen ociosidad
+  const costoFijoTotal = Number(currentResult.directLaborTotal) + Number(currentResult.indirectCostsApplied);
+  const fraccionOciosa = 1 - avesActuales / capacidadNormalAves;
+  const costoOcioso = costoFijoTotal * fraccionOciosa;
+  const costoCubierto = costoFijoTotal - costoOcioso;
+
+  // Costo unitario real (del período calculado)
+  const costoUnitarioReal = Number(currentResult.costOfGoodsSold) / cajonesActuales;
+
+  // A plena capacidad los cajones escalan proporcionalmente con las aves
+  const cajonesPlenaCapacidad = cajonesActuales * (capacidadNormalAves / avesActuales);
+  const costoUnitarioPlenaCapacidad =
+    (Number(currentResult.rawMaterialConsumed) * (capacidadNormalAves / avesActuales) + costoFijoTotal) /
+    cajonesPlenaCapacidad;
+
+  return {
+    utilizacionPct,
+    avesOciosas,
+    costoFijoTotal,
+    costoOcioso,
+    costoCubierto,
+    costoUnitarioReal,
+    costoUnitarioPlenaCapacidad,
+  };
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 interface Props {
@@ -136,6 +198,7 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
   const [nextId, setNextId] = useState(1);
   const [proyLote, setProyLote] = useState<ProyeccionAvicola | null>(null);
   const [proyPlanteil, setProyPlanteil] = useState<ProyeccionAvicola | null>(null);
+  const [capacidadNormalGalpon, setCapacidadNormalGalpon] = useState(0);
 
   const addEscalon = () => {
     setEscalones((prev) => [
@@ -525,6 +588,65 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                       </table>
                     </div>
                   )}
+                </div>
+
+                {/* Capacidad ociosa del galpón */}
+                <div className="mb-6 border-t border-line pt-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Building2 className="size-4 text-ink-soft" />
+                    <p className="text-sm font-semibold text-ink">Capacidad ociosa del galpón</p>
+                  </div>
+                  <p className="text-xs text-ink-soft mb-4">
+                    Ingresá la capacidad máxima del galpón para ver qué fracción de los costos fijos
+                    no tiene producción que los absorba.
+                  </p>
+                  <div className="max-w-xs">
+                    <Input
+                      label="Capacidad máxima del galpón (aves)"
+                      type="number"
+                      numeric
+                      value={capacidadNormalGalpon || ''}
+                      onChange={(e) => setCapacidadNormalGalpon(Number(e.target.value))}
+                      hint="Cantidad de aves para las que está dimensionado el galpón"
+                    />
+                  </div>
+                  {(() => {
+                    if (!currentResult || avesBase <= 0 || capacidadNormalGalpon <= 0) return null;
+                    const oc = calcularCapacidadOciosa(currentResult, capacidadNormalGalpon, avesBase);
+                    if (!oc) return (
+                      <p className="mt-2 text-xs text-danger">
+                        Las aves actuales no pueden superar la capacidad del galpón.
+                      </p>
+                    );
+                    return (
+                      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 animate-in fade-in duration-300">
+                        <div className="rounded-xl border border-line bg-surface-alt p-3">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">Utilización</p>
+                          <p className={`text-xl font-mono font-bold ${oc.utilizacionPct < 70 ? 'text-danger' : oc.utilizacionPct < 90 ? 'text-warning' : 'text-ok'}`}>
+                            {oc.utilizacionPct.toFixed(1)}%
+                          </p>
+                          <p className="text-[10px] text-ink-soft mt-1">{Math.round(oc.avesOciosas).toLocaleString('es-AR')} aves ociosas</p>
+                        </div>
+                        <div className="rounded-xl border border-line bg-surface-alt p-3">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">Costo fijo total</p>
+                          <p className="text-sm font-mono font-bold text-ink"><Money value={oc.costoFijoTotal} /></p>
+                          <p className="text-[10px] text-ink-soft mt-1">MOD + CIP del período</p>
+                        </div>
+                        <div className="rounded-xl border border-line bg-surface-alt p-3">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">Costo ocioso</p>
+                          <p className="text-sm font-mono font-bold text-danger"><Money value={oc.costoOcioso} /></p>
+                          <p className="text-[10px] text-ink-soft mt-1">sin producción que lo absorba</p>
+                        </div>
+                        <div className="rounded-xl border border-line bg-surface-alt p-3">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">Unitario a plena cap.</p>
+                          <p className="text-sm font-mono font-bold text-ok"><Money value={oc.costoUnitarioPlenaCapacidad} /></p>
+                          <p className="text-[10px] text-ink-soft mt-1">
+                            actual: <Money value={oc.costoUnitarioReal} />
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="flex justify-end border-t border-line pt-4">
