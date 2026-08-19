@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcularProyeccionAvicola } from './components/ScenarioSimulator';
+import { calcularProyeccionAvicola, calcularCapacidadOciosa } from './components/ScenarioSimulator';
 import type { CalculationResult } from '@/lib/types';
 
 /**
@@ -9,10 +9,9 @@ import type { CalculationResult } from '@/lib/types';
  * para que el PE sea finito y testeable. Los valores exactos vendrán del fixture
  * de Santi (S-01); estos son suficientes para validar la LÓGICA del simulador.
  *
- * TODO(S-01): reemplazar por los números del fixture de Santi una vez mergeado.
- * Los valores de referencia del plan son:
- *   6.300 aves → −$3.936.805/mes  (resultado real con fixture corregido)
- *   8.560 aves → +$31.897/mes     (punto de cruce verificado)
+ * S-01 ya está mergeado (tests/domain/avicola-fixture.test.ts en el backend).
+ * El fixture real del cliente vive en el repo privado CosteAR-admin (docs/verticales/).
+ * Este test usa números ficticios coherentes para validar la lógica del simulador.
  *
  * Economía del fixture de prueba:
  *   - 472 cajones producidos con 6.300 aves
@@ -110,7 +109,7 @@ describe('calcularProyeccionAvicola', () => {
     expect(isFinite(proy!.peEnCajones)).toBe(true);
   });
 
-  it('dos escalones activos se suman al CIP', () => {
+  it('un escalón activo suma al CIP (dos escalones)', () => {
     const escalones = [
       { id: 1, aves_desde: 5000, aves_hasta: 8000, costo_fijo: 300_000, inversion_requerida: 0, descripcion: 'personal extra' },
       { id: 2, aves_desde: 8000, aves_hasta: 12000, costo_fijo: 700_000, inversion_requerida: 0, descripcion: 'segundo galpón' },
@@ -119,5 +118,50 @@ describe('calcularProyeccionAvicola', () => {
     expect(proy).not.toBeNull();
     // avesObjetivo 10.000 >= 5.000 y >= 8.000 → ambos escalones activos
     expect(proy!.indirectCosts).toBeCloseTo(1_400_000 + 300_000 + 700_000, 0);
+  });
+});
+
+describe('calcularCapacidadOciosa', () => {
+  it('devuelve null si capacidadNormal es 0', () => {
+    expect(calcularCapacidadOciosa(BASE_RESULT, 0, 6300)).toBeNull();
+  });
+
+  it('devuelve null si avesActuales es 0', () => {
+    expect(calcularCapacidadOciosa(BASE_RESULT, 10000, 0)).toBeNull();
+  });
+
+  it('devuelve null si avesActuales supera la capacidad normal', () => {
+    expect(calcularCapacidadOciosa(BASE_RESULT, 5000, 8000)).toBeNull();
+  });
+
+  it('a plena capacidad la utilización es 100% y el costo ocioso es 0', () => {
+    const oc = calcularCapacidadOciosa(BASE_RESULT, 6300, 6300);
+    expect(oc).not.toBeNull();
+    expect(oc!.utilizacionPct).toBeCloseTo(100, 1);
+    expect(oc!.costoOcioso).toBeCloseTo(0, 0);
+    expect(oc!.avesOciosas).toBe(0);
+  });
+
+  it('al 50% de capacidad el costo ocioso es la mitad de los costos fijos', () => {
+    // 5.000 aves sobre capacidad de 10.000 → 50% utilización
+    const oc = calcularCapacidadOciosa(BASE_RESULT, 10000, 5000);
+    expect(oc).not.toBeNull();
+    const costoFijo = 800_000 + 1_400_000; // MOD + CIP del fixture
+    expect(oc!.costoFijoTotal).toBeCloseTo(costoFijo, 0);
+    expect(oc!.costoOcioso).toBeCloseTo(costoFijo * 0.5, 0);
+    expect(oc!.utilizacionPct).toBeCloseTo(50, 1);
+    expect(oc!.avesOciosas).toBe(5000);
+  });
+
+  it('el costo unitario a plena capacidad es menor que el real', () => {
+    const oc = calcularCapacidadOciosa(BASE_RESULT, 10000, 5000);
+    expect(oc).not.toBeNull();
+    expect(oc!.costoUnitarioPlenaCapacidad).toBeLessThan(oc!.costoUnitarioReal);
+  });
+
+  it('costo cubierto + costo ocioso = costo fijo total', () => {
+    const oc = calcularCapacidadOciosa(BASE_RESULT, 8000, 6300);
+    expect(oc).not.toBeNull();
+    expect(oc!.costoCubierto + oc!.costoOcioso).toBeCloseTo(oc!.costoFijoTotal, 0);
   });
 });
