@@ -194,9 +194,56 @@ Por eso `/costear-bitacora` al cerrar una sesión (DOC-03) y el ADR en el mismo 
 
 ---
 
-## 7. Registro de cambios de este archivo
+## 7. Ciclo de trabajo obligatorio (skills)
+
+> **Esta sección es OBLIGATORIA en toda sesión de Claude Code en este repo.** No es una sugerencia
+> ni un "flujo recomendado": saltear un paso es un error, no una optimización.
+
+### El ciclo
+
+```
+código listo → /costear-commit → /costear-pr → /costear-review → merge (lo hace Alan a mano)
+                                                                        ↓
+                                                              /costear-bitacora
+```
+
+|ID|Regla|
+|---|---|
+|**SK-01**|**El ciclo es siempre el mismo:** código listo → `/costear-commit` → `/costear-pr` → `/costear-review` → merge. **El merge lo decide y lo ejecuta Alan a mano.** Claude nunca mergea.|
+|**SK-02**|**Si hubo una decisión técnica no obvia, el ADR va en el MISMO PR** que implementa la decisión. Se crea con `/costear-adr` (ver **DOC-01**). Un PR con decisión no obvia y sin ADR está incompleto.|
+|**SK-03**|**Al cerrar la sesión, después del merge, correr `/costear-bitacora`.** La bitácora vive en `CosteAR-admin`, no en este repo (ver **DOC-03**).|
+|**SK-04**|**Nunca saltear `/costear-commit`** al terminar un pedazo de trabajo. Nada de `git commit` a mano "porque es un cambio chico".|
+|**SK-05**|**Nunca saltear `/costear-review` antes de mergear** algo que toque: el **motor de cálculo**, **migraciones**, **plata del cliente**, o que vaya a **`main`**. En esos cuatro casos el review no es opcional aunque GitHub no lo bloquee (ver **REV-07**: tampoco se mergea el mismo día que se abre el PR).|
+|**SK-06**|**Nunca `--no-verify`.** Si un hook frena el commit, el hook tiene razón: se arregla lo que marcó y se vuelve a commitear con el mismo mensaje. (Es la regla de oro #6, repetida acá porque es la que más se tienta saltear.)|
+|**SK-07**|**Si el diff toca `prisma/schema.prisma`, correr `npx prisma generate` antes de commitear.** Sin eso el typecheck del hook `pre-commit` tira errores falsos. *En este repo (frontend) hoy no hay `prisma/`; la regla aplica en `CosteAR-backend` y acá solo si algún día aparece ese archivo.*|
+|**SK-08**|**Nunca editar a mano los archivos de `.claude/skills/`.** Son una copia generada: se sobreescriben con `npm run skills:sync` desde `CosteAR-admin`. Un arreglo hecho acá se pierde en el próximo sync. Si una skill está mal, se corrige **en `CosteAR-admin`** y se vuelve a sincronizar.|
+|**SK-09**|**Si hay más de una skill con el mismo nombre disponible** (porque está duplicada en varios repos o instalada a nivel usuario), **usar siempre la de este repo** (`.claude/skills/`).|
+|**SK-10**|**Antes de empezar, verificar de qué rama se sale.** `git fetch origin` y salir de `origin/dev` (**GIT-02**). Trabajar sobre una rama atrasada produce un diff que borra trabajo ajeno sin que nadie lo note.|
+
+### Qué hace cada skill (verificado contra `.claude/skills/`, 2026-08-21)
+
+|Skill|Qué hace realmente|Ejecuta directo|
+|---|---|---|
+|`/costear-commit`|Agrupa el diff staged por concepto y hace **un commit convencional por grupo**. Valida contra el mismo regex que `commitlint`. Usa `git add -p` si un archivo mezcla dos conceptos.|Sí, salvo que haya que partir por hunks|
+|`/costear-pr`|Corre los chequeos previos (`npm test`, `npm run lint`, `npm run typecheck`), verifica que la rama salga de `dev`, la pushea y abre el PR **siempre contra `dev`** con la plantilla completa. Pregunta si se probó en el navegador cuando toca UI o flujo.|Sí, pero **frena antes de pushear** si el árbol está sucio o algo falla|
+|`/costear-review`|Revisa un PR (`gh pr diff N`) o el diff local (`git diff origin/dev...HEAD`) contra los checklists de dominio, antipatrones, frontend, design system y proceso. Clasifica en **CRITICAL / WARNING / SUGGESTION**.|Sí|
+|`/costear-adr`|Crea `docs/adr/NNNN-slug.md` desde `_template.md`, numeración correlativa de 4 dígitos, y actualiza `docs/adr/README.md`. **Alternativas descartadas** y **Consecuencias** son obligatorias.|Sí|
+|`/costear-bitacora`|Ubica `CosteAR-admin` (env `COSTEAR_ADMIN_PATH`, `git config costear.adminPath`, o pregunta), lee el `git log` y los PRs **reales**, escribe la entrada en `bitacora/sesiones/` y actualiza `INDICE.md`.|Sí, pero **muestra el borrador antes de commitear** y no pushea sin preguntar|
+|`/costear-issue`|Entrevista hasta tener lo mínimo, elige repo, busca duplicados con `gh issue list`, redacta con la plantilla y crea el issue **sin asignar**, con `type:` + `priority:` + `area:`.|**No.** Muestra el borrador y espera el OK|
+
+### Lo que el ciclo NO cubre
+
+- Las promociones `dev → staging` y `staging → main` **no las abre ninguna skill**: son decisión del
+  equipo (ver **GIT-04** y los gotchas de `/costear-pr`).
+- El review **no bloquea el merge en GitHub** (decisión del 15-08-2026). Que no lo bloquee la
+  herramienta no lo vuelve opcional: **SK-05** sigue valiendo.
+
+---
+
+## 8. Registro de cambios de este archivo
 
 |Fecha|Qué cambió|Fuente|
 |---|---|---|
+|2026-08-21|Sección **7** (ciclo de trabajo obligatorio con skills, SK-01 a SK-10) y tabla de qué hace cada skill, verificada leyendo `.claude/skills/`. Se reordenaron las secciones: 5.bis estaba al final, después del registro de cambios, que pasó a ser la sección 8. **SK-10** sale de esta misma sesión: la sección se escribió primero sobre una copia atrasada de este archivo, en `staging`, y el diff resultante borraba 5.bis y 6.bis enteras.|Alan|
 |2026-08-18|Secciones **5.bis** (datos de clientes en repos públicos, CLI-01 a CLI-04) y **6.bis** (protocolo de revisión, REV-01 a REV-08). Las dos salen de cosas que pasaron ese día: se publicó la estructura de costos de un betatester en un repo público, y ocho PRs se mergearon el mismo día que se abrieron.|Santiago|
 |2026-08-15|Creación. Reglas destiladas del repo `asomelab/de-wall` y de las convenciones del equipo.|Santiago|
