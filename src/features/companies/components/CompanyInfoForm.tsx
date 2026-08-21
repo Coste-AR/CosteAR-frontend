@@ -12,7 +12,7 @@ import {
 } from '@/lib/types';
 import { apiErrorMessage } from '@/lib/api';
 import { useUpdateCompany } from '../company-hooks';
-import toast from 'react-hot-toast';
+import { toast } from '@/components/ui/toast';
 
 export function CompanyInfoForm({
   company,
