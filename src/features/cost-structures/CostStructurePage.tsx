@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link } from '@tanstack/react-router';
 import {
-  ArrowLeft, Calculator, CheckCircle2,
+  ArrowLeft, Calculator,
   Download, Upload, Lock,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
@@ -29,6 +29,7 @@ import { PeriodComparison } from './components/PeriodComparison';
 import type { RawMaterialConfig, DirectLaborConfig, IndirectCostConfig } from './cost-structure-types';
 import { apiErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { TabList, Tab } from '@/components/ui/Tabs';
 import type { CalculationResult } from '@/lib/types';
 
 // Extracted Components
@@ -543,38 +544,26 @@ export function CostStructurePage() {
       )}
 
       {/* Tab bar — scrollable horizontal menu for systems with many tabs (e.g. Costeo por Procesos) */}
-      <div className={cn("relative mb-8 border-b border-line", needsProcessSetup && "hidden")}>
-        <div className="flex gap-2 overflow-x-auto scrollbar-hidden pb-[2px] snap-x snap-mandatory">
+      <div className={cn("relative mb-8", needsProcessSetup && "hidden")}>
+        <TabList className="gap-2 snap-x snap-mandatory">
           {tabsFor(structure?.costingSystem).map(({ id: tabId, label, icon: Icon, configKey }) => {
-            // En Procesos las secciones de Órdenes no existen, así que su tilde
-            // no puede depender de ellas: se enciende cuando la pestaña tiene su
-            // propio contenido cargado.
             const isDone = isProcesses
               ? (configKey ? processDepartments.length > 0 : !!shown)
               : (configKey ? configured[configKey] : !!shown);
-            const active = activeTab === tabId;
             return (
-              <button
+              <Tab
                 key={tabId}
-                type="button"
+                active={activeTab === tabId}
                 onClick={() => setActiveTab(tabId)}
-                className={cn(
-                  'flex shrink-0 snap-start items-center gap-2 px-4 py-3 text-[13px] font-medium transition-all relative',
-                  active
-                    ? 'text-granate'
-                    : 'text-ink-soft hover:text-ink hover:bg-zinc-50/50 rounded-t-xl',
-                )}
+                done={isDone}
+                className="snap-start text-[13px]"
               >
-                <Icon className="size-4" />
+                <Icon className="size-4" aria-hidden />
                 <span className="whitespace-nowrap">{label}</span>
-                {isDone && <CheckCircle2 className="size-3.5 text-ok" />}
-                {active && (
-                  <span className="absolute bottom-[-2px] left-0 right-0 h-[2px] bg-granate rounded-t-sm" />
-                )}
-              </button>
+              </Tab>
             );
           })}
-        </div>
+        </TabList>
       </div>
 
       {/* Tab content — los 4 formularios de carga se mantienen MONTADOS (solo se

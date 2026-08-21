@@ -3,6 +3,7 @@ import { Activity, ArrowRight, TrendingDown, TrendingUp, Plus, Trash2, Bird, Bui
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Money } from '@/components/ui/Money';
+import { TabList, Tab } from '@/components/ui/Tabs';
 import { useSimulate } from '../cost-structure-hooks';
 import type { CalculationResult } from '@/lib/types';
 
@@ -263,27 +264,24 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
       {/* ── Selector de pestaña ──────────────────────────────────────────── */}
-      <div className="flex gap-0 border-b border-line">
+      <TabList>
         {(
           [
             { key: 'shock', label: 'Shock de costos', icon: Activity },
             { key: 'aves', label: 'Escala de aves', icon: Bird },
           ] as const
         ).map(({ key, label, icon: Icon }) => (
-          <button
+          <Tab
             key={key}
+            active={activeTab === key}
             onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === key
-                ? 'border-action text-action'
-                : 'border-transparent text-ink-soft hover:text-ink'
-            }`}
+            className={activeTab === key ? 'text-action' : undefined}
           >
-            <Icon className="size-4" />
+            <Icon className="size-4" aria-hidden />
             {label}
-          </button>
+          </Tab>
         ))}
-      </div>
+      </TabList>
 
       {/* ── Shock de costos (existente) ───────────────────────────────────── */}
       {activeTab === 'shock' && (
