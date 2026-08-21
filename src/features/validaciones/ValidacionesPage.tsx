@@ -26,6 +26,7 @@ import { ReviewValidationModal } from "./components/ReviewValidationModal";
 import { CompanyValidationsSection } from "./components/CompanyValidationsSection";
 import { VaultProposalsSection } from "./components/VaultProposalsSection";
 import { useAuthStore } from "@/stores/auth-store";
+import { TabList, Tab } from "@/components/ui/Tabs";
 
 export function ValidacionesPage() {
   const user = useAuthStore((s) => s.user);
@@ -184,38 +185,27 @@ export function ValidacionesPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6 flex border-b border-zinc-200">
-        <button
-          onClick={() => setActiveTab("data")}
-          className={`flex items-center gap-2 border-b-2 px-6 py-4 text-sm font-medium transition-colors ${
-            activeTab === "data"
-              ? "border-granate text-granate"
-              : "border-transparent text-zinc-500 hover:text-zinc-700"
-          }`}
-        >
-          <FileText className="size-4" />
+      <TabList className="mb-6">
+        <Tab active={activeTab === 'data'} onClick={() => setActiveTab('data')}>
+          <FileText className="size-4" aria-hidden />
           Validación de Costos
           {data?.total ? (
             <span className="rounded-full bg-granate/10 px-2 py-0.5 text-xs font-semibold text-granate">
               {data.total}
             </span>
           ) : null}
-        </button>
+        </Tab>
         {isAdmin && (
-          <button
-            onClick={() => setActiveTab("vault")}
-            className={`flex items-center gap-2 border-b-2 px-6 py-4 text-sm font-medium transition-colors ${
-              activeTab === "vault"
-                ? "border-amber-600 text-amber-700"
-                : "border-transparent text-zinc-500 hover:text-zinc-700"
-            }`}
+          <Tab
+            active={activeTab === 'vault'}
+            onClick={() => setActiveTab('vault')}
+            className={activeTab === 'vault' ? 'text-amber-700' : undefined}
           >
-            <BookOpen className="size-4" />
+            <BookOpen className="size-4" aria-hidden />
             Aprendizaje (Plantillas IA)
-          </button>
+          </Tab>
         )}
-      </div>
+      </TabList>
 
       {activeTab === "vault" && isAdmin ? (
         <VaultProposalsSection />

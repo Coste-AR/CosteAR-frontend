@@ -48,7 +48,7 @@ export function AccessGateModal({ onClose, onSuccess }: Props) {
         }
       `}</style>
       <div
-        className="relative w-full max-w-md rounded-2xl border border-line/80 bg-surface/90 p-8 text-ink shadow-[0_30px_70px_rgba(74,21,27,0.12)] backdrop-blur-xl"
+        className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-line/80 bg-surface/90 p-8 text-ink shadow-[0_30px_70px_rgba(74,21,27,0.12)] backdrop-blur-xl"
         style={{ animation: shake ? 'gateShake .4s' : undefined }}
         onClick={(e) => e.stopPropagation()}
       >

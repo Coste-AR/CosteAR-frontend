@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Building2, FileText, Factory } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { PortalOverlay } from '@/components/ui/PortalOverlay';
 import { cn } from '@/lib/utils';
@@ -176,11 +177,8 @@ export function ReviewValidationModal({
               />
             </div>
             <div className="mb-4">
-              <label className="block text-[12px] font-medium uppercase tracking-wide text-ink-soft mb-1.5">
-                Contenido corregido
-              </label>
-              <textarea
-                className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-ink transition-colors focus:border-granate focus:outline-none min-h-20"
+              <Textarea
+                label="Contenido corregido"
                 placeholder="Escribí la versión corregida del dato…"
                 value={correctedContent}
                 onChange={(e) => setCorrectedContent(e.target.value)}

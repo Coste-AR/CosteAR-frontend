@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuthStore } from '@/stores/auth-store';
 import { api, apiErrorMessage } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { TabList, Tab } from '@/components/ui/Tabs';
 import { AvatarCropModal } from './AvatarCropModal';
 
 const MAX_AVATAR_BYTES = 6 * 1024 * 1024;
@@ -78,33 +78,26 @@ export function ProfilePage() {
     <AppShell>
       <PageHeader title="Mi perfil" description="Administrá tu cuenta, seguridad y preferencias" />
 
-      {/* Tabs */}
-      <div className="mb-6 flex overflow-x-auto border-b border-line pb-[1px]">
+      <TabList className="mb-6">
         {[
           { id: 'cuenta', label: 'Cuenta', icon: User },
           { id: 'seguridad', label: 'Seguridad', icon: Lock },
           { id: 'preferencias', label: 'Preferencias', icon: Bell },
           { id: 'personalizacion', label: 'Personalización', icon: Palette },
         ].map((t) => {
-          const ActiveIcon = t.icon;
-          const active = activeTab === t.id;
+          const Icon = t.icon;
           return (
-            <button
+            <Tab
               key={t.id}
-              onClick={() => setActiveTab(t.id as any)}
-              className={cn(
-                'flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors border-transparent whitespace-nowrap',
-                active
-                  ? 'border-granate text-granate font-semibold'
-                  : 'text-ink-soft hover:text-ink hover:bg-zinc-50'
-              )}
+              active={activeTab === t.id}
+              onClick={() => setActiveTab(t.id as typeof activeTab)}
             >
-              <ActiveIcon className="size-4" />
+              <Icon className="size-4" aria-hidden />
               {t.label}
-            </button>
+            </Tab>
           );
         })}
-      </div>
+      </TabList>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* TAB: CUENTA */}

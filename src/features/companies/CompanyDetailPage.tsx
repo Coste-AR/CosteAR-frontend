@@ -5,7 +5,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useCompany, useCostStructures, useDeleteCompany } from './company-hooks';
 import { apiErrorMessage } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { TabList, Tab, TabPanel } from '@/components/ui/Tabs';
 import { CompanyInfoForm } from './components/CompanyInfoForm';
 import { AiSuggesterSection } from './components/AiSuggesterSection';
 import { CompanyStructuresList } from './components/CompanyStructuresList';
@@ -79,52 +79,37 @@ export function CompanyDetailPage() {
       {/* Radar Competitivo */}
       {id && <BenchmarkRadarWidget companyId={id} />}
 
-      {/* Tabs */}
-      <div className="mb-6 flex border-b border-zinc-200 overflow-x-auto">
+      <TabList className="mb-6">
         {[
           { id: 'structures', label: 'Estructuras de Costos', icon: FileSpreadsheet },
           { id: 'ledger', label: 'Libro de Costos', icon: BookOpen },
           { id: 'history', label: 'Historial', icon: History },
           { id: 'operators', label: 'Personal Autorizado', icon: Users },
         ].map((t) => {
-          const ActiveIcon = t.icon;
-          const active = activeTab === t.id;
+          const Icon = t.icon;
           return (
-            <button
+            <Tab
               key={t.id}
-              onClick={() => setActiveTab(t.id as any)}
-              className={cn(
-                'flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors border-transparent whitespace-nowrap',
-                active
-                  ? 'border-granate text-granate font-semibold'
-                  : 'text-zinc-500 hover:text-zinc-800'
-              )}
+              active={activeTab === t.id}
+              onClick={() => setActiveTab(t.id as typeof activeTab)}
             >
-              <ActiveIcon className="size-4" />
+              <Icon className="size-4" aria-hidden />
               {t.label}
-            </button>
+            </Tab>
           );
         })}
-      </div>
+      </TabList>
 
-      {/* Tab Contents */}
-      <div className="mt-4">
+      <TabPanel>
         {activeTab === 'structures' && (
           <CompanyStructuresList companyId={id} periodicity={company?.periodicity} structures={structures ?? []} />
         )}
-
         {activeTab === 'ledger' && (
           <CompanyLedgerTab companyId={id} companyName={company?.name ?? 'Cliente'} />
         )}
-
-        {activeTab === 'history' && (
-          <CompanyHistoryTab companyId={id} />
-        )}
-
-        {activeTab === 'operators' && (
-          <CompanyOperatorsTab companyId={id} />
-        )}
-      </div>
+        {activeTab === 'history' && <CompanyHistoryTab companyId={id} />}
+        {activeTab === 'operators' && <CompanyOperatorsTab companyId={id} />}
+      </TabPanel>
 
       {/* Modals */}
       {showEditModal && company && (
