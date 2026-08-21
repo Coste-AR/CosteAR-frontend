@@ -19,7 +19,7 @@ interface ConfirmDialogProps {
 /**
  * Diálogo de confirmación para operaciones que necesitan un paso explícito antes
  * de ejecutarse (borrar / recuperar). Bloquea el fondo y resalta la acción según
- * el tono. No hay sistema de toasts: la confirmación vive en este modal.
+ * el tono. Para notificaciones inline usar `toast` de `@/components/ui/toast`.
  */
 export function ConfirmDialog({
   open,
