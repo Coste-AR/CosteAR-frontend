@@ -32,7 +32,7 @@ import {
   type CondicionIva,
 } from "@/lib/types";
 import { useDictation } from "@/lib/use-dictation";
-import toast from 'react-hot-toast';
+import { toast } from "@/components/ui/toast";
 const PREDEFINED_INDUSTRIES = [
   'Gastronomía',
   'Comercio Minorista (Retail)',
@@ -342,7 +342,7 @@ export function CompaniesPage() {
   );
 }
 
-function NewCompanyForm({ onDone }: { onDone: () => void }) {
+export function NewCompanyForm({ onDone }: { onDone: () => void }) {
   const create = useCreateCompany();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
@@ -381,7 +381,7 @@ function NewCompanyForm({ onDone }: { onDone: () => void }) {
         periodicity: values.periodicity as Periodicity,
         condicionIva: values.condicionIva as CondicionIva,
       });
-      // Redirect to the target budget setup screen
+      toast.success(`${values.name} agregado a tu cartera`);
       navigate({ to: "/companies/$id/setup", params: { id: company.id } });
     } catch (e) {
       setError(apiErrorMessage(e));
