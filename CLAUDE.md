@@ -125,6 +125,23 @@ Se abren con `/costear-pr`.
 
 ---
 
+## 5.bis Datos de clientes en repositorios públicos
+
+`CosteAR-backend` y `CosteAR-frontend` son **públicos**. `CosteAR-admin` es privado.
+
+|ID|Regla|
+|---|---|
+|**CLI-01**|**Los datos de un cliente no entran a un repositorio público.** Ni su nombre, ni su localidad, ni sus números reales — no en tests, no en seeds, no en comentarios, no en ejemplos, no en cuerpos de PR ni en mensajes de commit.|
+|**CLI-02**|Un fixture que necesita números realistas usa **datos ficticios** que ejerciten la misma matemática. El caso real, si hace falta conservarlo, va a `CosteAR-admin` (privado).|
+|**CLI-03**|Antes de abrir un PR que toque un vertical de un cliente: `git grep -in "<nombre del cliente>"`. Si devuelve algo, no se abre.|
+|**CLI-04**|Esto incluye la estructura económica: costo unitario, punto de equilibrio, precio de venta, márgenes y escala. **Que un competidor pueda leer el margen de un productor es un problema para él, no para nosotros.**|
+
+> **Ya pasó** (18-08-2026): se subió la estructura de costos completa de un cliente, con su nombre
+> al lado, a un repositorio público. Se anonimizó, pero **el historial de git es permanente**.
+> Lo barato es no escribirlo; una vez publicado, ya no hay vuelta atrás completa.
+
+---
+
 ## 6. Guardarraíles — antipatrones ya observados
 
 |ID|Antipatrón|Qué hacer en su lugar|
@@ -137,8 +154,6 @@ Se abren con `/costear-pr`.
 |**GR-06**|Resolver una ambigüedad del ticket en silencio|Marcala como pregunta abierta|
 |**GR-07**|Pisar el scope de otro issue|Andamio mínimo + `TODO`, y avisá|
 |**GR-08**|Confiar en tests unitarios para validar un flujo|**Caso real: 98 tests verdes y el flujo roto en dos lugares.** Ningún cambio de UI o de flujo se pushea sin abrirlo en el navegador|
-
----
 
 ---
 
@@ -177,26 +192,11 @@ Pero escribirlo no alcanza.
 
 Por eso `/costear-bitacora` al cerrar una sesión (DOC-03) y el ADR en el mismo PR que lo implementa (DOC-01) no son burocracia: son el único mecanismo que tenemos para que el equipo sepa lo que el equipo ya sabe.
 
+---
+
 ## 7. Registro de cambios de este archivo
 
 |Fecha|Qué cambió|Fuente|
 |---|---|---|
 |2026-08-18|Secciones **5.bis** (datos de clientes en repos públicos, CLI-01 a CLI-04) y **6.bis** (protocolo de revisión, REV-01 a REV-08). Las dos salen de cosas que pasaron ese día: se publicó la estructura de costos de un betatester en un repo público, y ocho PRs se mergearon el mismo día que se abrieron.|Santiago|
 |2026-08-15|Creación. Reglas destiladas del repo `asomelab/de-wall` y de las convenciones del equipo.|Santiago|
-
----
-
-## 5.bis Datos de clientes en repositorios públicos
-
-`CosteAR-backend` y `CosteAR-frontend` son **públicos**. `CosteAR-admin` es privado.
-
-|ID|Regla|
-|---|---|
-|**CLI-01**|**Los datos de un cliente no entran a un repositorio público.** Ni su nombre, ni su localidad, ni sus números reales — no en tests, no en seeds, no en comentarios, no en ejemplos, no en cuerpos de PR ni en mensajes de commit.|
-|**CLI-02**|Un fixture que necesita números realistas usa **datos ficticios** que ejerciten la misma matemática. El caso real, si hace falta conservarlo, va a `CosteAR-admin` (privado).|
-|**CLI-03**|Antes de abrir un PR que toque un vertical de un cliente: `git grep -in "<nombre del cliente>"`. Si devuelve algo, no se abre.|
-|**CLI-04**|Esto incluye la estructura económica: costo unitario, punto de equilibrio, precio de venta, márgenes y escala. **Que un competidor pueda leer el margen de un productor es un problema para él, no para nosotros.**|
-
-> **Ya pasó** (18-08-2026): se subió la estructura de costos completa de un cliente, con su nombre
-> al lado, a un repositorio público. Se anonimizó, pero **el historial de git es permanente**.
-> Lo barato es no escribirlo; una vez publicado, ya no hay vuelta atrás completa.
