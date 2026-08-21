@@ -254,11 +254,11 @@ function LedgerRow({
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => onEdit(entry)} title="Editar" className="rounded-xl p-1.5 text-ink-soft hover:bg-granate-tenue hover:text-granate transition-colors">
-            <Pencil className="size-3.5" />
+          <button type="button" onClick={() => onEdit(entry)} title="Editar" aria-label="Editar entrada" className="rounded-xl p-1.5 text-ink-soft hover:bg-granate-tenue hover:text-granate transition-colors">
+            <Pencil className="size-3.5" aria-hidden />
           </button>
-          <button type="button" onClick={() => onDelete(entry)} title="Borrar" className="rounded-xl p-1.5 text-ink-soft hover:bg-danger/10 hover:text-danger transition-colors">
-            <Trash2 className="size-3.5" />
+          <button type="button" onClick={() => onDelete(entry)} title="Borrar" aria-label="Borrar entrada" className="rounded-xl p-1.5 text-ink-soft hover:bg-danger/10 hover:text-danger transition-colors">
+            <Trash2 className="size-3.5" aria-hidden />
           </button>
         </div>
       </div>

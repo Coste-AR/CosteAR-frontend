@@ -39,7 +39,7 @@ export function ConfirmDialog({
   return (
     <PortalOverlay>
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
+      <div className="w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-xl bg-white p-5 shadow-xl">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div
@@ -52,8 +52,8 @@ export function ConfirmDialog({
             </div>
             <h2 className="text-base font-semibold text-ink">{title}</h2>
           </div>
-          <button type="button" onClick={onCancel} className="text-ink-soft hover:text-ink">
-            <X className="size-5" />
+          <button type="button" onClick={onCancel} aria-label="Cerrar" className="text-ink-soft hover:text-ink">
+            <X className="size-5" aria-hidden />
           </button>
         </div>
 
