@@ -166,15 +166,10 @@ Se abren con `/costear-pr`.
 
 ## 5. Reglas de frontend
 
-|ID|Regla|
-|---|---|
-|**FE-01**|**Nada de `fetch` o `axios` directo dentro de componentes.** Todo el estado del servidor pasa por hooks de TanStack Query.|
-|**FE-02**|**Zustand es para estado de cliente** (sesión, UI). Nunca para estado del servidor.|
-|**FE-03**|**Ninguna URL de API hardcodeada.** Todo por el cliente Axios centralizado con refresh de token.|
-|**FE-04**|El access token vive **en memoria**, nunca en `localStorage`. Es una decisión de seguridad tomada, no la revierta nadie sin ADR.|
-|**FE-05**|**Antes de crear un componente nuevo, buscá si ya existe.** Un botón/input/modal duplicado es deuda inmediata.|
-|**FE-06**|**Nada de colores en hex crudo ni spacing arbitrario** donde hay token de Tailwind. La identidad visual es el granate de la guía "Identidad Visual v1.0".|
-|**FE-07**|Los números que se muestran al usuario son **plata de un cliente real**. Formato y redondeo se respetan tal cual los define el backend — el frontend no recalcula.|
+**FE-01 a FE-07** — sin fetch directo en componentes, Zustand solo para estado de cliente, sin URLs
+hardcodeadas, el token en memoria, buscar antes de crear un componente, sin colores hex crudos, y
+que el frontend no recalcula los números que ya vienen del backend. **Viven en
+`.claude/rules/frontend-ui.md`**: cargan al tocar cualquier archivo de `src/`.
 
 ---
 
@@ -234,6 +229,7 @@ Por eso `/costear-bitacora` al cerrar una sesión (DOC-03) y el ADR en el mismo 
 
 |Fecha|Qué cambió|Fuente|
 |---|---|---|
+|2026-08-22|**Pieza 1 — FE-01..07 se mudan a `.claude/rules/frontend-ui.md`**, scoped a `src/**`. Antes cargaban en todas las sesiones; ahora solo cuando el trabajo toca código de la app.|Santiago|
 |2026-08-22|**PR-04/05/06**: el PR nace en draft, se mergea con `--auto`, y después se verifica que el trabajo llegó. Reemplazan por mecanismo lo que REV-08 pedía recordar. La skill `/costear-pr` ya crea los PRs en borrador.|Santiago|
 |2026-08-22|**Sección 0.bis — la filosofía: diagnosticar, planificar, recién ahí implementar.** Se escribió después de que aplicarla encontrara, en una tarde, la causa de tres días de re-trabajo: cuatro casillas de configuración apagadas, no falta de disciplina. Incluye las tres trampas que el orden evita.|Santiago|
 |2026-08-18|Secciones **5.bis** (datos de clientes en repos públicos, CLI-01 a CLI-04) y **6.bis** (protocolo de revisión, REV-01 a REV-08). Las dos salen de cosas que pasaron ese día: se publicó la estructura de costos de un betatester en un repo público, y ocho PRs se mergearon el mismo día que se abrieron.|Santiago|
