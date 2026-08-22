@@ -154,6 +154,29 @@ Se abren con `/costear-pr`.
 
 ---
 
+## El briefing automático y `ESTADO.md`
+
+Al abrir cualquier sesión de Claude en este repo, un hook (`SessionStart`) corre
+`.claude/hooks/briefing.mjs` e **inyecta el estado real del proyecto** antes de que nadie escriba
+nada: la rama, si `origin/dev` avanzó, los PRs abiertos, los issues asignados y el contenido de
+`ESTADO.md`.
+
+|ID|Regla|
+|---|---|
+|**EST-01**|**`ESTADO.md` es el mensaje del orquestador**: qué se está haciendo, qué **no** tocar y por qué. Se inyecta entero en cada sesión, así que vale más **corto que completo** — máximo 20 líneas. **Cada repo tiene el suyo**: lo que no hay que tocar acá no es lo mismo que en el backend.|
+|**EST-02**|**Actualizarlo al abrir y al cerrar un bloque de trabajo.** Un estado viejo es peor que ninguno: enseña a ignorarlo, igual que un semáforo que siempre está en rojo.|
+|**EST-03**|**El briefing nunca puede romper una sesión.** Si `git` o `gh` fallan, imprime lo que pudo y sigue. Se prueba con `node .claude/hooks/briefing.mjs`.|
+|**EST-04**|**Cada línea del briefing ocupa contexto de la conversación real.** Antes de agregarle algo: ¿cambia lo que la persona va a hacer? Si no, no va.|
+|**EST-05**|**Antes de commitear un cambio en `.claude/settings.json`, correr `node .claude/hooks/briefing.mjs --check-settings`.** Un `settings.json` inválido **se descarta entero**, no solo la parte mal escrita — y el error recién aparece al abrir una sesión nueva.|
+
+> **Por qué existe.** La trazabilidad estaba escrita en documentos, y un documento depende de que
+> alguien se acuerde de leerlo — el mismo modo de fallar que el diagnóstico del 22-08 encontró en el
+> flujo de PRs. Además envejece. Esto no reemplaza la documentación: la vuelve innecesaria de buscar.
+>
+> El script es **el mismo en los tres repos**. Si se cambia acá, se cambia en los tres.
+
+---
+
 ## 4. Decisiones y trazabilidad
 
 |ID|Regla|
