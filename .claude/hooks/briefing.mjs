@@ -122,8 +122,9 @@ agregar(`Rama: ${rama}  ·  Working tree: ${estado}`);
 const atras = git('rev-list', '--count', `${rama}..origin/dev`);
 if (atras && Number(atras) > 0) {
   agregar(
-    `⚠️  origin/dev tiene ${atras} commit(s) que vos no tenés. ` +
-      'Antes de abrir una rama nueva: `git checkout dev && git pull`.',
+    `⚠️  origin/dev tiene ${atras} commit(s) que esta copia no tiene. ` +
+      'Sincronizala vos, Claude, antes de abrir una rama: `git checkout dev && git pull`. ' +
+      'No se lo pidas a la persona.',
   );
 }
 
@@ -203,6 +204,15 @@ agregar(
   'Recordá: el PR nace en draft (`gh pr create --draft`) y se mergea con squash; ' +
     'las promociones van con merge commit. Manual completo: ' +
     'https://github.com/Coste-AR/CosteAR-backend/blob/dev/docs/manual-de-flujo-de-trabajo.md',
+);
+// El reparto de tareas con git. Va en el briefing y no solo en el CLAUDE.md
+// porque es lo primero que se rompe: el briefing avisa que la copia quedó
+// atrás, y si la línea está escrita en segunda persona, Claude le pasa el
+// comando a la persona en vez de correrlo. Los socios no hacen pulls a mano.
+agregar(
+  'Reparto con git: **Claude corre git** — pull, fetch, checkout, push, prune y ' +
+    'limpieza de ramas — y abre los PRs. **La persona solo mergea**, desde la web. ' +
+    'Nunca le pases un comando de git para que lo copie: corrélo vos y contale qué quedó.',
 );
 agregar('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
