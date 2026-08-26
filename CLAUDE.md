@@ -148,6 +148,20 @@ nada: la rama, si `origin/dev` avanzó, los PRs abiertos, los issues asignados y
 
 ---
 
+## 4.bis Definition of Done
+
+**Cuándo algo está "terminado", no solo "andando en mi máquina".** Resumen operativo (Nivel 1):
+probado en `staging` —no alcanza tu máquina—, PR con la plantilla completa, `lint` + `typecheck` +
+`test` en verde, sin `console.log` de debug, commits atómicos. **Si tocó UI o un flujo: se abrió
+en el navegador y se probó de punta a punta** — los tests unitarios no alcanzan.
+
+Los tres niveles completos —por tarea, por tanda de trabajo (cada promoción a `staging`) y por
+entrega al cliente— viven en
+[`DEFINITION-OF-DONE.md`](https://github.com/Coste-AR/CosteAR-admin/blob/dev/DEFINITION-OF-DONE.md)
+(`CosteAR-admin`, privado). Es la **fuente única**: no se duplica acá, se referencia.
+
+---
+
 ## 5. Reglas de frontend
 
 **FE-01 a FE-07** — sin fetch directo en componentes, Zustand solo para estado de cliente, sin URLs
