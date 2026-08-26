@@ -20,6 +20,17 @@
 
 ---
 
+## 0.bis La filosofía: diagnosticar, planificar, recién ahí implementar
+
+**La forma de trabajar, no una recomendación.** Diagnosticar con números → planificar con
+alternativas descartadas → recién ahí implementar, y verificar donde el trabajo va a vivir, no
+donde uno está parado. Se movió el 22-08-2026 para no cargarla en cada sesión sin importar la
+tarea. La versión completa —con el caso que la probó y el detalle de cada trampa— vive en
+[`CosteAR-admin/docs/2026-08-22-filosofia-diagnosticar-planificar-implementar.md`](https://github.com/Coste-AR/CosteAR-admin/blob/dev/docs/2026-08-22-filosofia-diagnosticar-planificar-implementar.md)
+(fuente canónica: el Second Brain de Santiago, fuera de los repos de código).
+
+---
+
 ## 1. Contexto del proyecto
 
 CosteAR es un SaaS de costeo para profesionales de costos en PyMEs. Este repo es la **SPA del producto**.
@@ -98,6 +109,32 @@ Se abren con `/costear-pr`.
 |**PR-01**|**`Closes #N`** solo si el PR cierra el issue **entero**. Si no, `part of #N`.|
 |**PR-02**|Antes de pedir review: tests, lint y typecheck en verde localmente.|
 |**PR-03**|Si no lo describís en 3 bullets, es más de un PR.|
+|**PR-04**|**Todo PR nace en DRAFT.** GitHub **impide mergear un borrador**: mientras el trabajo crece, nadie lo mergea por error. Se marca `gh pr ready` cuando está listo de verdad — y se dice **«terminé de pushear»**. Entre el 20 y el 22-08 se perdieron 4 PRs de trabajo por mergear PRs que todavía estaban creciendo; en un caso, 12 minutos antes del commit que faltaba.|
+|**PR-05**|**Para mergear se usa `gh pr merge --auto --squash`**, no el botón a mano. GitHub mergea solo cuando el CI pasa: nadie espera mirando la pantalla y nadie mergea en el medio. *(En `CosteAR-admin` no está disponible: es privado y el plan Free no lo incluye.)*|
+|**PR-06**|**Después de mergear, verificar que el trabajo LLEGÓ** (`git log origin/dev`), no que el PR figura en verde. Un PR apilado mergeado contra su rama de abajo aparece como `MERGED` y el trabajo no llega. Pasó 3 veces entre el 20 y el 21-08.|
+
+---
+
+## El briefing automático y `ESTADO.md`
+
+Al abrir cualquier sesión de Claude en este repo, un hook (`SessionStart`) corre
+`.claude/hooks/briefing.mjs` e **inyecta el estado real del proyecto** antes de que nadie escriba
+nada: la rama, si `origin/dev` avanzó, los PRs abiertos, los issues asignados y el contenido de
+`ESTADO.md`.
+
+|ID|Regla|
+|---|---|
+|**EST-01**|**`ESTADO.md` es el mensaje del orquestador**: qué se está haciendo, qué **no** tocar y por qué. Se inyecta entero en cada sesión, así que vale más **corto que completo** — máximo 20 líneas. **Cada repo tiene el suyo**: lo que no hay que tocar acá no es lo mismo que en el backend.|
+|**EST-02**|**Actualizarlo al abrir y al cerrar un bloque de trabajo.** Un estado viejo es peor que ninguno: enseña a ignorarlo, igual que un semáforo que siempre está en rojo.|
+|**EST-03**|**El briefing nunca puede romper una sesión.** Si `git` o `gh` fallan, imprime lo que pudo y sigue. Se prueba con `node .claude/hooks/briefing.mjs`.|
+|**EST-04**|**Cada línea del briefing ocupa contexto de la conversación real.** Antes de agregarle algo: ¿cambia lo que la persona va a hacer? Si no, no va.|
+|**EST-05**|**Antes de commitear un cambio en `.claude/settings.json`, correr `node .claude/hooks/briefing.mjs --check-settings`.** Un `settings.json` inválido **se descarta entero**, no solo la parte mal escrita — y el error recién aparece al abrir una sesión nueva.|
+
+> **Por qué existe.** La trazabilidad estaba escrita en documentos, y un documento depende de que
+> alguien se acuerde de leerlo — el mismo modo de fallar que el diagnóstico del 22-08 encontró en el
+> flujo de PRs. Además envejece. Esto no reemplaza la documentación: la vuelve innecesaria de buscar.
+>
+> El script es **el mismo en los tres repos**. Si se cambia acá, se cambia en los tres.
 
 ---
 
@@ -111,17 +148,26 @@ Se abren con `/costear-pr`.
 
 ---
 
+## 4.bis Definition of Done
+
+**Cuándo algo está "terminado", no solo "andando en mi máquina".** Resumen operativo (Nivel 1):
+probado en `staging` —no alcanza tu máquina—, PR con la plantilla completa, `lint` + `typecheck` +
+`test` en verde, sin `console.log` de debug, commits atómicos. **Si tocó UI o un flujo: se abrió
+en el navegador y se probó de punta a punta** — los tests unitarios no alcanzan.
+
+Los tres niveles completos —por tarea, por tanda de trabajo (cada promoción a `staging`) y por
+entrega al cliente— viven en
+[`DEFINITION-OF-DONE.md`](https://github.com/Coste-AR/CosteAR-admin/blob/dev/DEFINITION-OF-DONE.md)
+(`CosteAR-admin`, privado). Es la **fuente única**: no se duplica acá, se referencia.
+
+---
+
 ## 5. Reglas de frontend
 
-|ID|Regla|
-|---|---|
-|**FE-01**|**Nada de `fetch` o `axios` directo dentro de componentes.** Todo el estado del servidor pasa por hooks de TanStack Query.|
-|**FE-02**|**Zustand es para estado de cliente** (sesión, UI). Nunca para estado del servidor.|
-|**FE-03**|**Ninguna URL de API hardcodeada.** Todo por el cliente Axios centralizado con refresh de token.|
-|**FE-04**|El access token vive **en memoria**, nunca en `localStorage`. Es una decisión de seguridad tomada, no la revierta nadie sin ADR.|
-|**FE-05**|**Antes de crear un componente nuevo, buscá si ya existe.** Un botón/input/modal duplicado es deuda inmediata.|
-|**FE-06**|**Nada de colores en hex crudo ni spacing arbitrario** donde hay token de Tailwind. La identidad visual es el granate de la guía "Identidad Visual v1.0".|
-|**FE-07**|Los números que se muestran al usuario son **plata de un cliente real**. Formato y redondeo se respetan tal cual los define el backend — el frontend no recalcula.|
+**FE-01 a FE-07** — sin fetch directo en componentes, Zustand solo para estado de cliente, sin URLs
+hardcodeadas, el token en memoria, buscar antes de crear un componente, sin colores hex crudos, y
+que el frontend no recalcula los números que ya vienen del backend. **Viven en
+`.claude/rules/frontend-ui.md`**: cargan al tocar cualquier archivo de `src/`.
 
 ---
 
@@ -181,6 +227,10 @@ Por eso `/costear-bitacora` al cerrar una sesión (DOC-03) y el ADR en el mismo 
 
 |Fecha|Qué cambió|Fuente|
 |---|---|---|
+|2026-08-22|**0.bis sale de acá.** La filosofía (diagnosticar/planificar/implementar) cargaba en TODAS las sesiones sin importar la tarea. El resumen operativo queda inline; la versión completa vive en `CosteAR-admin/docs/2026-08-22-filosofia-diagnosticar-planificar-implementar.md` (espejo del Second Brain de Santiago, que es la fuente canónica). Se evaluó y descartó ponerla en `costear-knowledge-base`: ese repo alimenta el RAG del clasificador y mete cualquier `.md` al índice — se habría mezclado con la doctrina de costeo.|Santiago|
+|2026-08-22|**Pieza 1 — FE-01..07 se mudan a `.claude/rules/frontend-ui.md`**, scoped a `src/**`. Antes cargaban en todas las sesiones; ahora solo cuando el trabajo toca código de la app.|Santiago|
+|2026-08-22|**PR-04/05/06**: el PR nace en draft, se mergea con `--auto`, y después se verifica que el trabajo llegó. Reemplazan por mecanismo lo que REV-08 pedía recordar. La skill `/costear-pr` ya crea los PRs en borrador.|Santiago|
+|2026-08-22|**Sección 0.bis — la filosofía: diagnosticar, planificar, recién ahí implementar.** Se escribió después de que aplicarla encontrara, en una tarde, la causa de tres días de re-trabajo: cuatro casillas de configuración apagadas, no falta de disciplina. Incluye las tres trampas que el orden evita.|Santiago|
 |2026-08-18|Secciones **5.bis** (datos de clientes en repos públicos, CLI-01 a CLI-04) y **6.bis** (protocolo de revisión, REV-01 a REV-08). Las dos salen de cosas que pasaron ese día: se publicó la estructura de costos de un betatester en un repo público, y ocho PRs se mergearon el mismo día que se abrieron.|Santiago|
 |2026-08-15|Creación. Reglas destiladas del repo `asomelab/de-wall` y de las convenciones del equipo.|Santiago|
 

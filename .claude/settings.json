@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/briefing.mjs\"",
+            "timeout": 20,
+            "statusMessage": "Trayendo el estado del proyecto..."
+          }
+        ]
+      }
+    ]
+  }
+}
