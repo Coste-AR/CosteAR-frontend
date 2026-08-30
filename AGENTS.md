@@ -9,6 +9,21 @@ Las convenciones de fondo están en [`CLAUDE.md`](CLAUDE.md), [`CONTRIBUTING.md`
 y las reglas de UI en `.claude/rules/frontend-ui.md`. Aplican igual. Este archivo es lo mínimo que
 no podés no saber.
 
+## Lo primero, antes de leer el issue
+
+```bash
+npm run briefing
+```
+
+Te imprime en qué estado está el proyecto **ahora**: en qué rama estás, si tu copia quedó atrás
+de `origin/dev`, qué PRs tuyos hay abiertos, qué issues tenés asignados, y el `ESTADO.md` con lo
+que está pasando esta semana — incluidos los tests flaky conocidos, para que no pierdas media hora
+re-corriendo una suite que ya sabemos que falla.
+
+Existe porque la trazabilidad escrita en documentos depende de que alguien se acuerde de leerlos,
+y además envejece: un documento dice qué pasaba el 22 de agosto, no qué pasa hoy. Esto sale de
+git y de `gh` en el momento.
+
 ## El ciclo
 
 1. **Ramificá desde `dev`.** Nunca desde `main`: es producción, con un cliente real usándola.
