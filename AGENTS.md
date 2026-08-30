@@ -31,7 +31,20 @@ git y de `gh` en el momento.
 2. **Commits convencionales** (`feat:`, `fix:`, `test:`, `chore:`). Hay commitlint: un mensaje mal
    formado te rebota el commit. Escribí el **por qué** en el cuerpo, no sólo el qué.
 3. **Abrí PR contra `dev`.**
-4. **No mergees.** Ni el tuyo. Cuando alguien lo revise le pone la etiqueta `auto-merge` y entra
+4. **Antes de marcar el PR listo, poné tu rama al día con `dev`:**
+
+   ```bash
+   gh pr update-branch <numero-de-tu-pr>
+   ```
+
+   No es un trámite. El verde que tenías se calculó contra la versión de `dev` de cuando abriste
+   la rama; si `dev` avanzó, ese verde ya no dice nada sobre cómo queda tu cambio integrado con lo
+   que hay ahora. Dos PR verdes contra el mismo `dev` viejo entran los dos, y el segundo puede
+   romperlo.
+
+   Si no lo hacés, el auto-merge te lo va a pedir por comentario y el PR se queda esperando.
+
+5. **No mergees.** Ni el tuyo. Cuando alguien lo revise le pone la etiqueta `auto-merge` y entra
    solo apenas el CI esté verde.
 
 ## Con qué se verifica
