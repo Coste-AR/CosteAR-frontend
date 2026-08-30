@@ -1,0 +1,44 @@
+# Verificacion de pantalla del frontend.
+#
+# Corre en dev y staging, NO en main: un test visual que corre sobre main te
+# avisa del layout roto despues de publicarlo. main es produccion.
+name: Frontend E2E
+
+on:
+  push:
+    branches: [ "dev", "staging" ]
+  pull_request:
+    branches: [ "dev", "staging" ]
+
+jobs:
+  e2e:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright Browsers
+      run: npx playwright install --with-deps
+
+    - name: Run E2E tests
+      run: npm run test:e2e
+
+    # La evidencia. Sin esto un agente que revisa la corrida ve "fallo" y nada
+    # mas; con esto baja el reporte y mira la captura de la pantalla rota.
+    - uses: actions/upload-artifact@v4
+      if: ${{ !cancelled() }}
+      with:
+        name: playwright-report-frontend
+        path: |
+          playwright-report/
+          test-results/
+        retention-days: 30
