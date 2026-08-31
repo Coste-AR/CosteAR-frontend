@@ -110,7 +110,7 @@ Se abren con `/costear-pr`.
 |**PR-02**|Antes de pedir review: tests, lint y typecheck en verde localmente.|
 |**PR-03**|Si no lo describís en 3 bullets, es más de un PR.|
 |**PR-04**|**Todo PR nace en DRAFT.** GitHub **impide mergear un borrador**: mientras el trabajo crece, nadie lo mergea por error. Se marca `gh pr ready` cuando está listo de verdad — y se dice **«terminé de pushear»**. Entre el 20 y el 22-08 se perdieron 4 PRs de trabajo por mergear PRs que todavía estaban creciendo; en un caso, 12 minutos antes del commit que faltaba.|
-|**PR-05**|**Para mergear se usa `gh pr merge --auto --squash`**, no el botón a mano. GitHub mergea solo cuando el CI pasa: nadie espera mirando la pantalla y nadie mergea en el medio. *(En `CosteAR-admin` no está disponible: es privado y el plan Free no lo incluye.)*|
+|**PR-05**|**Nadie mergea a mano, y el agente no mergea nunca — tampoco con `gh pr merge --auto`.** Desde el 30-08-2026 un PR entra solo cuando pasan dos cosas: todos sus checks en verde (cero checks no cuenta como verde) **y** alguien le puso la etiqueta `auto-merge`. La etiqueta la pone Santiago y es el juicio humano que **reemplaza al review**. Mergea `.github/workflows/auto-merge.yml`: squash contra `dev`, merge commit contra `staging`, y `main` a mano. El agente llega hasta `gh pr ready` y avisa. Canónico: `CosteAR-os/ORQUESTACION.md`.|
 |**PR-06**|**Después de mergear, verificar que el trabajo LLEGÓ** (`git log origin/dev`), no que el PR figura en verde. Un PR apilado mergeado contra su rama de abajo aparece como `MERGED` y el trabajo no llega. Pasó 3 veces entre el 20 y el 21-08.|
 
 ---
