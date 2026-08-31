@@ -50,6 +50,14 @@ export default defineConfig({
   ],
 
   webServer: {
+    // VITE_MIN_SPLASH_MS=0 apaga el splash minimo de 5 s que `main.tsx` fuerza
+    // en cada carga. No es cosmetico: la suite navega muchas veces y en cuatro
+    // viewports, asi que esos 5 segundos se pagaban en cada navegacion — una
+    // corrida completa tardaba ~4 minutos, casi toda esperando el loader.
+    //
+    // No cambia lo que ve una persona de verdad: en produccion el valor sigue
+    // siendo 5 s. Solo deja de cobrarselo al CI.
+    env: { VITE_MIN_SPLASH_MS: '0' },
     command: 'npm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,

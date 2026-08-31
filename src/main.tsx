@@ -21,7 +21,21 @@ const queryClient = new QueryClient({
 // resuelva al instante — cubre al menos 2 ciclos completos del logo
 // (CYCLE=2.4s en CosteARLogo.tsx) para que se note que "carga". No queda
 // infinito: apenas se cumple, y ya terminó el auth check, se oculta.
-const MIN_SPLASH_MS = 5000;
+//
+// CONFIGURABLE A PROPÓSITO, y el motivo no es de producto sino de tiempo de CI.
+//
+// La suite E2E navega muchas veces, en cuatro viewports, y **cada navegación
+// paga estos 5 segundos**: una corrida completa tardaba ~4 minutos, casi toda
+// esperando este loader. Y va a empeorar, porque la cantidad de tests crece.
+//
+// Además fue lo primero que rompió la suite cuando se escribió: mientras el
+// loader está montado, `#root` no tiene caja de layout, y con el timeout por
+// defecto de Playwright —justo 5 s— todos los tests fallaban en el límite.
+//
+// Con `VITE_MIN_SPLASH_MS=0` la suite deja de pagarlo. El valor para gente de
+// verdad no lo cambia esta variable: sigue siendo 5 s, y **si conviene bajarlo
+// es una decisión de marca, no de CI.**
+const MIN_SPLASH_MS = Number(import.meta.env.VITE_MIN_SPLASH_MS ?? 5000);
 
 // Debe coincidir con la duración del fade de salida del loader
 // (transition-opacity duration-300 en CosteARLoadingScreen).
