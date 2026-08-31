@@ -3,7 +3,7 @@
 - **Issue:** #68
 - **Repo:** CosteAR-frontend
 - **Rama:** `test/e2e-auth-session`
-- **PR:** pendiente al redactar; se completa al abrirlo
+- **PR:** #80
 - **Agente:** Codex · GPT-5
 - **Tanda:** B0
 
