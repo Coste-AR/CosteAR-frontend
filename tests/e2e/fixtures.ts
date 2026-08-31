@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from '@playwright/test';
+import { test as base, expect, type Page, type Route } from '@playwright/test';
 
 /**
  * Errores de consola y excepciones no atrapadas.
@@ -51,6 +51,71 @@ export const test = base.extend<{ consola: ErroresDeConsola }>({
     });
 
     await use({ mensajes });
+  },
+});
+
+const USUARIO_E2E = {
+  id: 'usuario-e2e',
+  email: 'costista@ejemplo.com',
+  name: 'Persona de Prueba',
+  role: 'COST_PROFESSIONAL',
+  mustChangePassword: false,
+  needsTermsAcceptance: false,
+};
+
+const RESPUESTAS_DASHBOARD: Record<string, unknown> = {
+  '/api/v1/user/profile': { data: USUARIO_E2E },
+  '/api/v1/companies': { data: [] },
+  '/api/v1/alerts': { data: [] },
+  '/api/v1/validaciones/pending/count': { data: { count: 0 } },
+  '/api/v1/validaciones/pending': {
+    data: { items: [], total: 0, page: 1, limit: 20 },
+  },
+  '/api/v1/validaciones/attention': { data: [] },
+  '/api/v1/macro/latest': { data: [] },
+  '/api/v1/validaciones/feed': { data: [], total: 0 },
+};
+
+function responderJson(route: Route, body: unknown, status = 200) {
+  return route.fulfill({
+    status,
+    contentType: 'application/json',
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Variante autenticada del fixture base.
+ *
+ * Simula el bootstrap completo (refresh + perfil) y las lecturas iniciales del
+ * dashboard. Asi cualquier spec puede importar `testConSesion` y entrar a una
+ * ruta protegida sin cookie real, credenciales ni backend levantado.
+ */
+export const testConSesion = test.extend({
+  page: async ({ page }, use) => {
+    // Esta ruta se registra despues del 401 del fixture publico. Playwright
+    // evalua las rutas en orden inverso, asi que para esta variante gana la
+    // sesion valida sin cambiar el comportamiento de los tests publicos.
+    await page.route('**/api/v1/**', (route) => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+
+      if (request.method() === 'POST' && pathname === '/api/v1/auth/refresh') {
+        return responderJson(route, { data: { accessToken: 'token-e2e' } });
+      }
+
+      if (request.method() === 'GET' && pathname in RESPUESTAS_DASHBOARD) {
+        return responderJson(route, RESPUESTAS_DASHBOARD[pathname]);
+      }
+
+      return responderJson(
+        route,
+        { error: `request E2E sin fixture: ${request.method()} ${pathname}` },
+        501,
+      );
+    });
+
+    await use(page);
   },
 });
 
