@@ -1,0 +1,118 @@
+# Destraba solo los issues que esperaban a otro.
+#
+# EL PROBLEMA QUE RESUELVE
+#
+# Un agente de Codex arranca frio y no puede preguntar. Si el reparto de
+# trabajo depende de que una persona le mande el proximo issue, el desarrollo
+# se frena cada vez que esa persona no esta.
+#
+# COMO FUNCIONA
+#
+# Cada issue bloqueado declara de que depende, en una linea del cuerpo:
+#
+#     Depende de #123
+#
+# Este barrido recorre los issues abiertos con la etiqueta `bloqueado`, mira si
+# TODAS sus dependencias estan cerradas, y a los que ya no esperan nada les
+# saca `bloqueado`, les pone `listo` y les deja un comentario.
+#
+# POR QUE BARRIDO POR CRON Y NO UN EVENTO DE `issues: closed`
+#
+# Asi estaba escrito la primera vez, y NO FUNCIONABA. GitHub, por diseño, no
+# dispara workflows a partir de acciones hechas con el GITHUB_TOKEN del propio
+# Actions. Como los issues los cierra el merge que hace `auto-merge.yml` con
+# ese token, el evento `closed` nunca llega a existir.
+#
+# Se comprobo el 01-09-2026 sobre un PR de prueba: `merged_by` quedo como
+# `github-actions[bot]` y no se disparo ningun workflow encadenado.
+#
+# El barrido no depende de quien cerro el issue, y ademas se auto-repara: si
+# una corrida se pierde, la siguiente levanta lo que falto. Un evento perdido
+# no vuelve nunca.
+#
+# POR QUE LEE EL CUERPO DEL ISSUE
+#
+# Es lo unico que el agente ve sin permisos extra ni una consulta aparte. La
+# dependencia tiene que estar donde el agente ya esta mirando, o vuelve a ser
+# conocimiento que vive fuera del issue — la falla que perseguimos toda la
+# tanda B0.
+name: Desbloquear issues
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: desbloquear-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  desbloquear:
+    name: desbloquear (este mismo workflow)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Destrabar lo que ya no espera a nadie
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          candidatos=$(gh issue list --repo "$REPO" --state open --label bloqueado \
+            --limit 200 --json number,title,body)
+
+          total=$(jq 'length' <<<"$candidatos")
+          echo "$total issue(s) con la etiqueta bloqueado."
+
+          echo "$candidatos" | jq -c '.[]' | while read -r issue; do
+            n=$(jq -r '.number' <<<"$issue")
+            titulo=$(jq -r '.title' <<<"$issue")
+            cuerpo=$(jq -r '.body // ""' <<<"$issue")
+
+            deps=$(grep -oE 'Depende de #[0-9]+' <<<"$cuerpo" | grep -oE '[0-9]+' | sort -u || true)
+
+            echo "::group::#$n — $titulo"
+
+            if [ -z "$deps" ]; then
+              # Bloqueado sin decir por que. No se destraba solo: si el agente
+              # no puede saber que espera, una persona tiene que mirarlo.
+              echo "Sin linea 'Depende de #N'. Queda como esta; hay que revisarlo a mano."
+              echo "::endgroup::"; continue
+            fi
+
+            # SE MIRAN TODAS LAS DEPENDENCIAS, NO ALCANZA CON UNA.
+            # Un issue puede esperar a dos. Destrabarlo cuando cae la primera lo
+            # manda a la cola antes de tiempo, y el agente se encuentra el
+            # terreno a medio hacer — peor que esperar, porque ya empezo.
+            abiertas=""
+            for d in $deps; do
+              estado=$(gh issue view "$d" --repo "$REPO" --json state --jq .state 2>/dev/null || echo "DESCONOCIDO")
+              if [ "$estado" != "CLOSED" ]; then
+                abiertas="$abiertas #$d"
+              fi
+            done
+
+            if [ -n "$abiertas" ]; then
+              echo "Sigue esperando:$abiertas"
+              echo "::endgroup::"; continue
+            fi
+
+            gh issue edit "$n" --repo "$REPO" \
+              --remove-label bloqueado --add-label listo >/dev/null
+
+            # EL MENSAJE VA EN UNA SOLA LINEA FISICA. NO LO PARTAS.
+            # Adentro de un bloque `run: |`, un texto multilinea pegado a la
+            # columna cero rompe el archivo entero y el workflow falla en
+            # silencio. Los saltos se escriben \n dentro de printf.
+            cuerpo_com=$(printf '**Destrabado.** Ya se cerraron todas sus dependencias, asi que este issue paso de `bloqueado` a `listo` y se puede tomar.\n\nSi estas trabajando en este repo, pedi tu proximo trabajo con:\n\n```bash\ngh issue list --assignee @me --label listo --json number,title --jq "sort_by(.number)[] | \\"#\\(.number) \\(.title)\\""\n```\n')
+            gh issue comment "$n" --repo "$REPO" --body "$cuerpo_com" >/dev/null || true
+
+            echo "DESTRABADO #$n"
+            echo "::endgroup::"
+          done
+
+          echo "Barrido terminado."

@@ -1,14 +1,20 @@
 # Verificacion de pantalla del frontend.
 #
-# Corre en dev y staging, NO en main: un test visual que corre sobre main te
-# avisa del layout roto despues de publicarlo. main es produccion.
+# NO corre sobre main ya publicado: un test visual que corre sobre main te avisa
+# del layout roto despues de publicarlo. main es produccion.
+#
+# Pero SI corre en los PR que apuntan a main, que es antes de publicar. Sin eso
+# quedaba un agujero: un PR abierto de una rama de trabajo directo a main
+# —salteando staging— no disparaba e2e, y main solo exigia build-and-test. El
+# camino normal dev -> staging -> main ya pasaba e2e dos veces; este trigger
+# cubre el atajo.
 name: Frontend E2E
 
 on:
   push:
     branches: [ "dev", "staging" ]
   pull_request:
-    branches: [ "dev", "staging" ]
+    branches: [ "dev", "staging", "main" ]
 
 jobs:
   e2e:
@@ -16,9 +22,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v7
       with:
         node-version: 22.x
         cache: 'npm'
@@ -34,7 +40,7 @@ jobs:
 
     # La evidencia. Sin esto un agente que revisa la corrida ve "fallo" y nada
     # mas; con esto baja el reporte y mira la captura de la pantalla rota.
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       if: ${{ !cancelled() }}
       with:
         name: playwright-report-frontend
