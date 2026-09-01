@@ -17,3 +17,20 @@ test('dashboard carga con la sesion iniciada', async ({ page, consola }, testInf
 
   expect(consola.mensajes, 'errores en /dashboard').toEqual([]);
 });
+
+test.fail(
+  'el fixture autenticado falla ante una request sin respuesta definida',
+  async ({ page }) => {
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+    await laAppPinto(page);
+
+    const status = await page.evaluate(async () => {
+      const response = await fetch('/api/v1/e2e/sin-fixture');
+      return response.status;
+    });
+
+    // El cuerpo del test termina bien. La falla esperada ocurre en el teardown
+    // de testConSesion, que debe nombrar GET /api/v1/e2e/sin-fixture.
+    expect(status).toBe(501);
+  },
+);
