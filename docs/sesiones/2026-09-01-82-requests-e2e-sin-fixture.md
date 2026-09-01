@@ -3,7 +3,7 @@
 - **Issue:** #82
 - **Repo:** CosteAR-frontend
 - **Rama:** `test/e2e-unmocked-requests`
-- **PR:** pendiente
+- **PR:** #83
 - **Agente:** Codex · GPT-5
 - **Tanda:** B0
 
