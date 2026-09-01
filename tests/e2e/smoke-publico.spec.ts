@@ -1,5 +1,10 @@
 import { test, expect, laAppPinto } from './fixtures';
 
+// La captura full-page y el cierre del contexto pueden superar 30 s cuando
+// Playwright arranca en frio. Las expectativas conservan su timeout de 15 s:
+// esto da margen a la evidencia, no a una pantalla que nunca renderiza.
+test.setTimeout(60_000);
+
 /**
  * Rutas públicas: las únicas que se pueden verificar sin sesión.
  *

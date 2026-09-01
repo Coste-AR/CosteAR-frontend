@@ -93,6 +93,8 @@ function responderJson(route: Route, body: unknown, status = 200) {
  */
 export const testConSesion = test.extend({
   page: async ({ page }, use) => {
+    const requestsSinFixture: string[] = [];
+
     // Esta ruta se registra despues del 401 del fixture publico. Playwright
     // evalua las rutas en orden inverso, asi que para esta variante gana la
     // sesion valida sin cambiar el comportamiento de los tests publicos.
@@ -108,6 +110,7 @@ export const testConSesion = test.extend({
         return responderJson(route, RESPUESTAS_DASHBOARD[pathname]);
       }
 
+      requestsSinFixture.push(`${request.method()} ${pathname}`);
       return responderJson(
         route,
         { error: `request E2E sin fixture: ${request.method()} ${pathname}` },
@@ -116,6 +119,14 @@ export const testConSesion = test.extend({
     });
 
     await use(page);
+
+    if (requestsSinFixture.length > 0) {
+      throw new Error(
+        ['requests E2E sin fixture:', ...requestsSinFixture.map((request) => `- ${request}`)].join(
+          '\n',
+        ),
+      );
+    }
   },
 });
 
