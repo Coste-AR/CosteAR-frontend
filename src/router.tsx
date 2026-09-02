@@ -29,6 +29,7 @@ import { ChangePasswordPage } from '@/features/auth/ChangePasswordPage';
 import { AcceptTermsPage } from '@/features/auth/AcceptTermsPage';
 import { LandingPage } from '@/features/landing/LandingPage';
 import { TrazabilidadDatoPage, TrazabilidadCalculoPage } from '@/features/trazabilidad/TrazabilidadPages';
+import { OwnerDashboardPage } from '@/features/owner-dashboard/OwnerDashboardPage';
 
 
 const rootRoute = createRootRoute({
@@ -78,6 +79,7 @@ const forgotRoute = createRoute({ getParentRoute: () => rootRoute, path: '/forgo
 const resetRoute = createRoute({ getParentRoute: () => rootRoute, path: '/reset-password', component: ResetPasswordPage });
 
 const dashboardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/dashboard', beforeLoad: requireAuth, component: DashboardPage });
+const ownerDashboardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/owner-dashboard', beforeLoad: requireAuth, component: OwnerDashboardPage });
 const companiesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/companies', beforeLoad: requireAuth, component: CompaniesPage });
 const companyDetailRoute = createRoute({ getParentRoute: () => rootRoute, path: '/companies/$id', beforeLoad: requireAuth, component: CompanyDetailPage });
 const companySetupRoute = createRoute({ getParentRoute: () => rootRoute, path: '/companies/$id/setup', beforeLoad: requireAuth, component: CompanyTargetSetup });
@@ -158,6 +160,7 @@ const routeTree = rootRoute.addChildren([
   forgotRoute,
   resetRoute,
   dashboardRoute,
+  ownerDashboardRoute,
   companiesRoute,
   companyDetailRoute,
   companySetupRoute,

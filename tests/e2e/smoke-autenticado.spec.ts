@@ -9,6 +9,10 @@ test('dashboard carga con la sesion iniciada', async ({ page, consola }, testInf
 
   await laAppPinto(page);
   await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByText('Clientes Activos', { exact: true })).toBeVisible();
+  await expect(page.getByText('Por Validar', { exact: true })).toBeVisible();
+  await expect(page.getByText('Alertas Activas', { exact: true })).toBeVisible();
+  await expect(page.getByText('Estructuras Totales', { exact: true })).toBeVisible();
 
   await testInfo.attach(`dashboard-${testInfo.project.name}`, {
     body: await page.screenshot({ fullPage: true }),
