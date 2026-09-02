@@ -3,7 +3,7 @@
 - **Issue:** #89
 - **Repo:** CosteAR-frontend
 - **Rama:** `feat/tablero-dueno`
-- **PR:** pendiente
+- **PR:** #106
 - **Agente:** Codex · GPT-5
 - **Tanda:** B1
 
