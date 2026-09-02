@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  AlertCircle,
   AlertTriangle,
   BarChart3,
   CalendarClock,
@@ -9,15 +10,81 @@ import {
   TrendingUp,
   WalletCards,
 } from 'lucide-react';
+import { useSearch } from '@tanstack/react-router';
 import { AppShell, PageHeader } from '@/components/layout/AppShell';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { apiErrorMessage } from '@/lib/api';
+import { formatDate, formatMoney } from '@/lib/utils';
+import {
+  useOwnerDashboard,
+  type OwnerDashboardNumber,
+} from './owner-dashboard-hooks';
 
 const SIN_DATOS = 'Sin datos';
+const INCOMPLETO = 'Incompleto';
 
-function EmptyValue({ detail = 'Expresado en cajones' }: { detail?: string }) {
+const cajonesFormatter = new Intl.NumberFormat('es-AR', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
+function numeroSeguro(numero: OwnerDashboardNumber | undefined): numero is OwnerDashboardNumber & { valor: number } {
+  return Boolean(numero?.completo && numero.valor !== null && Number.isFinite(numero.valor));
+}
+
+function motivosUnicos(...numeros: Array<OwnerDashboardNumber | undefined>): string[] {
+  const motivos = numeros.flatMap((numero) => numero?.motivos ?? []).filter(Boolean);
+  return [...new Set(motivos)];
+}
+
+function MissingReasons({ motivos }: { motivos: string[] }) {
+  const items = motivos.length > 0 ? motivos : ['Faltan datos para calcular este valor.'];
+
+  return (
+    <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-ink-soft">
+      {items.map((motivo) => (
+        <li key={motivo} className="flex items-start gap-1.5">
+          <AlertCircle className="mt-0.5 size-3 shrink-0 text-warning" aria-hidden="true" />
+          <span>{motivo}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function MetricValue({
+  numero,
+  kind,
+  detail,
+}: {
+  numero: OwnerDashboardNumber | undefined;
+  kind: 'money' | 'cajones';
+  detail: string;
+}) {
+  if (!numero) {
+    return (
+      <div>
+        <p className="font-mono-jb text-xl font-bold text-ink-soft">{SIN_DATOS}</p>
+        <p className="mt-1 text-[11px] font-semibold text-ink-soft/70">{detail}</p>
+      </div>
+    );
+  }
+
+  if (!numeroSeguro(numero)) {
+    return (
+      <div data-testid="incomplete-metric">
+        <p className="font-mono-jb text-base font-bold text-warning">{INCOMPLETO}</p>
+        <p className="mt-1 text-[11px] font-semibold text-ink-soft/70">{detail}</p>
+        <MissingReasons motivos={numero.motivos} />
+      </div>
+    );
+  }
+
   return (
     <div>
-      <p className="font-mono-jb text-xl font-bold text-ink-soft">{SIN_DATOS}</p>
+      <p className="font-mono-jb text-xl font-bold text-ink">
+        {kind === 'money' ? formatMoney(numero.valor) : cajonesFormatter.format(numero.valor)}
+      </p>
       <p className="mt-1 text-[11px] font-semibold text-ink-soft/70">{detail}</p>
     </div>
   );
@@ -30,7 +97,7 @@ function MetricCard({
 }: {
   title: string;
   icon: LucideIcon;
-  children?: React.ReactNode;
+  children: React.ReactNode;
 }) {
   return (
     <Card data-testid="owner-metric" className="h-full">
@@ -43,7 +110,7 @@ function MetricCard({
             <Icon className="size-4.5" aria-hidden="true" />
           </span>
         </div>
-        <div className="mt-auto">{children ?? <EmptyValue />}</div>
+        <div className="mt-auto">{children}</div>
       </CardBody>
     </Card>
   );
@@ -68,19 +135,93 @@ function EmptyBlock({ title, icon: Icon }: { title: string; icon: LucideIcon }) 
   );
 }
 
+function ProducedProgress({
+  producido,
+  equilibrio,
+}: {
+  producido: OwnerDashboardNumber | undefined;
+  equilibrio: OwnerDashboardNumber | undefined;
+}) {
+  const completo = numeroSeguro(producido) && numeroSeguro(equilibrio) && equilibrio.valor > 0;
+
+  if (!completo) {
+    return (
+      <div data-testid="incomplete-metric">
+        <p className="font-mono-jb text-base font-bold text-warning">{producido || equilibrio ? INCOMPLETO : SIN_DATOS}</p>
+        <MissingReasons motivos={motivosUnicos(producido, equilibrio)} />
+        <div
+          role="progressbar"
+          aria-label="Producido contra equilibrio"
+          aria-valuetext={producido || equilibrio ? INCOMPLETO : SIN_DATOS}
+          className="mt-4 h-3 w-full overflow-hidden rounded-full bg-line"
+        />
+      </div>
+    );
+  }
+
+  const porcentaje = Math.max(0, producido.valor / equilibrio.valor * 100);
+  const ancho = Math.min(porcentaje, 100);
+  const descripcion = `${cajonesFormatter.format(producido.valor)} de ${cajonesFormatter.format(equilibrio.valor)} cajones`;
+
+  return (
+    <div>
+      <p className="mb-3 font-mono-jb text-xl font-bold text-ink">{descripcion}</p>
+      <div
+        role="progressbar"
+        aria-label="Producido contra equilibrio"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(ancho)}
+        aria-valuetext={`${descripcion} (${cajonesFormatter.format(porcentaje)} %)`}
+        className="h-3 w-full overflow-hidden rounded-full bg-line"
+      >
+        <div className="h-full rounded-full bg-granate" style={{ width: `${ancho}%` }} />
+      </div>
+      <p className="mt-2 text-[11px] font-semibold text-ink-soft/70">Cajones producidos sobre el equilibrio</p>
+    </div>
+  );
+}
+
 export function OwnerDashboardPage() {
+  const { periodId } = useSearch({ strict: false }) as { periodId?: string };
+  const tablero = useOwnerDashboard(periodId);
+  const data = tablero.data;
+
   return (
     <AppShell>
       <div className="animate-rise space-y-8" data-testid="owner-dashboard">
         <PageHeader
           title="Tablero de la empresa"
-          description="Una vista simple del período, expresada en cajones."
+          description={data ? `Período ${data.periodo.codigo}, expresado en cajones.` : 'Una vista simple del período, expresada en cajones.'}
           action={(
             <span className="inline-flex items-center rounded-full border border-granate/15 bg-granate-tenue px-3.5 py-1.5 text-[11px] font-bold text-granate">
               Unidad: cajones
             </span>
           )}
         />
+
+        {!periodId && (
+          <Card role="status">
+            <CardBody className="flex items-start gap-3 text-sm text-ink-soft">
+              <AlertCircle className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden="true" />
+              <p>Falta indicar el período que querés consultar.</p>
+            </CardBody>
+          </Card>
+        )}
+
+        {tablero.isLoading && (
+          <Card role="status" aria-live="polite">
+            <CardBody className="text-sm text-ink-soft">Cargando los números del período…</CardBody>
+          </Card>
+        )}
+
+        {tablero.isError && (
+          <Card role="alert">
+            <CardBody className="text-sm text-danger">
+              No se pudo cargar el tablero: {apiErrorMessage(tablero.error)}
+            </CardBody>
+          </Card>
+        )}
 
         <section aria-labelledby="owner-summary-title">
           <div className="mb-4 flex items-center gap-2">
@@ -93,41 +234,44 @@ export function OwnerDashboardPage() {
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             <MetricCard title="Costo por cajón" icon={WalletCards}>
               <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {['Variable', 'Fijo', 'Total'].map((label) => (
+                {([
+                  ['Variable', data?.costoPorCajon.variable],
+                  ['Fijo', data?.costoPorCajon.fijo],
+                  ['Total', data?.costoPorCajon.total],
+                ] as const).map(([label, numero]) => (
                   <div key={label} className="rounded-xl border border-line bg-surface-alt px-2 py-3">
                     <dt className="text-[10px] font-bold uppercase tracking-wider text-ink-soft">{label}</dt>
-                    <dd className="mt-1 whitespace-nowrap font-mono-jb text-[12px] font-bold text-ink-soft">{SIN_DATOS}</dd>
+                    <dd className="mt-1">
+                      <MetricValue numero={numero} kind="money" detail="Por cajón" />
+                    </dd>
                   </div>
                 ))}
               </dl>
             </MetricCard>
 
             <MetricCard title="Precio promedio de venta del período" icon={PackageCheck}>
-              <EmptyValue detail="Precio por cajón" />
+              <MetricValue numero={data?.precioPromedioVenta} kind="money" detail="Precio por cajón" />
             </MetricCard>
 
-            <MetricCard title="Contribución marginal por cajón" icon={TrendingUp} />
+            <MetricCard title="Contribución marginal por cajón" icon={TrendingUp}>
+              <MetricValue numero={data?.contribucionMarginalPorCajon} kind="money" detail="Por cajón" />
+            </MetricCard>
 
             <MetricCard title="Punto de equilibrio en cajones" icon={Scale}>
-              <EmptyValue />
+              <MetricValue numero={data?.puntoEquilibrioCajones} kind="cajones" detail="Cajones" />
               <div className="mt-4 flex items-center gap-2 border-t border-line pt-3 text-[11px] text-ink-soft">
                 <CalendarClock className="size-3.5" aria-hidden="true" />
-                <span>Último recálculo: <strong>{SIN_DATOS}</strong></span>
+                <span>Último recálculo: <strong>{data?.puntoEquilibrioCajones.fechaUltimoRecalculo ? formatDate(data.puntoEquilibrioCajones.fechaUltimoRecalculo) : SIN_DATOS}</strong></span>
               </div>
             </MetricCard>
 
             <MetricCard title="Producido contra equilibrio" icon={BarChart3}>
-              <p className="mb-3 font-mono-jb text-xl font-bold text-ink-soft">{SIN_DATOS}</p>
-              <div
-                role="progressbar"
-                aria-label="Producido contra equilibrio"
-                aria-valuetext={SIN_DATOS}
-                className="h-3 w-full overflow-hidden rounded-full bg-line"
-              />
-              <p className="mt-2 text-[11px] font-semibold text-ink-soft/70">Cajones producidos sobre el equilibrio</p>
+              <ProducedProgress producido={data?.producidoCajones} equilibrio={data?.puntoEquilibrioCajones} />
             </MetricCard>
 
-            <MetricCard title="Resultado del período" icon={WalletCards} />
+            <MetricCard title="Resultado del período" icon={WalletCards}>
+              <MetricValue numero={data?.resultadoPeriodo} kind="money" detail="Resultado total" />
+            </MetricCard>
           </div>
         </section>
 
