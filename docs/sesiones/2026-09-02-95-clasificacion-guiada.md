@@ -3,7 +3,7 @@
 - **Issue:** #95
 - **Repo:** CosteAR-frontend
 - **Rama:** `feat/issue-95-clasificacion-guiada`
-- **PR:** pendiente
+- **PR:** #110
 - **Agente:** Codex · GPT-5
 - **Tanda:** B1
 
