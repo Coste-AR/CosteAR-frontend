@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams, useNavigate } from '@tanstack/react-router';
-import { Edit2, Trash2, ArrowLeft, Users, FileSpreadsheet, BookOpen, History } from 'lucide-react';
+import { Edit2, Trash2, ArrowLeft, Users, FileSpreadsheet, BookOpen, History, Tags } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useCompany, useCostStructures, useDeleteCompany } from './company-hooks';
@@ -14,6 +14,7 @@ import { CompanyHistoryTab } from './components/CompanyHistoryTab';
 import { CompanyOperatorsTab } from './components/CompanyOperatorsTab';
 import { DeviationWidget } from './components/DeviationWidget';
 import { BenchmarkRadarWidget } from './components/BenchmarkRadarWidget';
+import { CostBehaviorClassificationTab } from './components/CostBehaviorClassificationTab';
 import toast from 'react-hot-toast';
 
 export function CompanyDetailPage() {
@@ -25,7 +26,7 @@ export function CompanyDetailPage() {
   
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'structures' | 'ledger' | 'history' | 'operators'>('structures');
+  const [activeTab, setActiveTab] = useState<'structures' | 'classification' | 'ledger' | 'history' | 'operators'>('structures');
 
   const handleDeleteCompany = () => {
     setShowDeleteConfirm(true);
@@ -82,6 +83,7 @@ export function CompanyDetailPage() {
       <TabList className="mb-6">
         {[
           { id: 'structures', label: 'Estructuras de Costos', icon: FileSpreadsheet },
+          { id: 'classification', label: 'Fijo / variable', icon: Tags },
           { id: 'ledger', label: 'Libro de Costos', icon: BookOpen },
           { id: 'history', label: 'Historial', icon: History },
           { id: 'operators', label: 'Personal Autorizado', icon: Users },
@@ -104,6 +106,7 @@ export function CompanyDetailPage() {
         {activeTab === 'structures' && (
           <CompanyStructuresList companyId={id} periodicity={company?.periodicity} structures={structures ?? []} />
         )}
+        {activeTab === 'classification' && <CostBehaviorClassificationTab companyId={id} />}
         {activeTab === 'ledger' && (
           <CompanyLedgerTab companyId={id} companyName={company?.name ?? 'Cliente'} />
         )}

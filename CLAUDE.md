@@ -110,7 +110,7 @@ Se abren con `/costear-pr`.
 |**PR-02**|Antes de pedir review: tests, lint y typecheck en verde localmente.|
 |**PR-03**|Si no lo describís en 3 bullets, es más de un PR.|
 |**PR-04**|**Todo PR nace en DRAFT.** GitHub **impide mergear un borrador**: mientras el trabajo crece, nadie lo mergea por error. Se marca `gh pr ready` cuando está listo de verdad — y se dice **«terminé de pushear»**. Entre el 20 y el 22-08 se perdieron 4 PRs de trabajo por mergear PRs que todavía estaban creciendo; en un caso, 12 minutos antes del commit que faltaba.|
-|**PR-05**|**Para mergear se usa `gh pr merge --auto --squash`**, no el botón a mano. GitHub mergea solo cuando el CI pasa: nadie espera mirando la pantalla y nadie mergea en el medio. *(En `CosteAR-admin` no está disponible: es privado y el plan Free no lo incluye.)*|
+|**PR-05**|**Nadie mergea a mano, y el agente no mergea nunca — tampoco con `gh pr merge --auto`.** Desde el 30-08-2026 un PR entra solo cuando pasan dos cosas: todos sus checks en verde (cero checks no cuenta como verde) **y** alguien le puso la etiqueta `auto-merge`. La etiqueta la pone Santiago y es el juicio humano que **reemplaza al review**. Mergea `.github/workflows/auto-merge.yml`: squash contra `dev`, merge commit contra `staging`, y `main` a mano. El agente llega hasta `gh pr ready` y avisa. Canónico: `CosteAR-os/ORQUESTACION.md`.|
 |**PR-06**|**Después de mergear, verificar que el trabajo LLEGÓ** (`git log origin/dev`), no que el PR figura en verde. Un PR apilado mergeado contra su rama de abajo aparece como `MERGED` y el trabajo no llega. Pasó 3 veces entre el 20 y el 21-08.|
 
 ---
@@ -210,7 +210,8 @@ que el frontend no recalcula los números que ya vienen del backend. **Viven en
 |---|---|---|
 |**REV-05**|**Leer los ADR, no el código.** `docs/adr/` es el lugar pensado para revisar sin ser programador: ahí está la decisión, las alternativas descartadas y el costo de cada una. **Discutirlos es la forma de revisar.**|Un PR de 800 líneas no se revisa. Un ADR de una página, sí.|
 |**REV-06**|**Cuando alguien diga "verificado", preguntar cómo.** Es una pregunta de diez segundos y caza la mayoría de los errores.|Esa pregunta habría encontrado el bug de las migraciones antes que el CI.|
-|**REV-07**|**No mergear el mismo día que se abre el PR.** Mínimo 24 horas, salvo que haya algo roto en producción.|La mitad de los problemas del 18-08 salieron de mergear rápido y en cadena.|
+|**REV-07** ⛔ SUPERADA (30-08-2026)|~~No mergear el mismo día que se abre el PR. Mínimo 24 horas.~~ **Ya no aplica.** Reemplazada por REV-09.|Se escribió el 18-08, cuando la única verificación era `npm test` y el review dependía de que alguien se acordara. Las 24 horas compraban tiempo de mirada humana porque no había otra cosa. Hoy la reemplazan mecanismos: CI obligatorio en las tres ramas con `enforce_admins`, E2E en cuatro viewports, `strict`, y el merge automático que verifica todo antes de tocar nada. **Y el costo pasó a ser mayor que el beneficio:** con varios agentes en paralelo, una cola de PRs esperando 24 horas se desactualiza sola y genera los conflictos que la espera venía a evitar.|
+|**REV-09**|**Un PR entra apenas está verde, al día con su base y sin conflictos.** No se espera. Lo que antes compraban las 24 horas ahora lo compra el CI, y lo que la espera costaba —PRs acumulados que se pisan entre sí— ya no se paga.|Santiago, 30-08-2026|
 |**REV-08**|**Los PRs apilados se mergean en orden, de abajo hacia arriba.** Y después se verifica que el trabajo llegó a `dev`, no solo que el PR figura como *merged*.|Dos PRs se mergearon contra su rama base. GitHub los marcó en verde y el trabajo quedó en ramas que ya nadie miraba.|
 
 ### Sobre el conocimiento
