@@ -54,3 +54,8 @@ pr,issue,autor,base,abierto,mergeado,horas,archivos,agregadas,borradas,corridas_
 107,,SantiagoBriz,dev,2026-09-02T15:59:49Z,2026-09-02T16:10:34Z,0.2,2,62,2,5,0,,,
 108,,SantiagoBriz,dev,2026-09-02T17:07:05Z,2026-09-02T17:29:56Z,0.4,1,108,9,5,0,,,
 110,95,g-lautiialtamiranda,dev,2026-09-02T21:54:13Z,2026-09-02T22:35:11Z,0.7,6,643,2,10,0,,,docs/sesiones/2026-09-02-95-clasificacion-guiada.md
+109,90,g-lautiialtamiranda,dev,2026-09-02T19:15:01Z,2026-09-03T02:43:41Z,7.5,5,405,45,15,0,,,docs/sesiones/2026-09-02-90-seis-numeros-tablero.md
+111,,SantiagoBriz,staging,2026-09-03T02:07:03Z,2026-09-03T02:12:54Z,0.1,35,2874,156,5,0,,35,docs/sesiones/2026-08-31-68-fixture-sesion-e2e.md
+112,90,SantiagoBriz,staging,2026-09-03T02:44:46Z,2026-09-03T02:48:23Z,0.1,5,405,45,5,0,,,docs/sesiones/2026-09-02-90-seis-numeros-tablero.md
+113,,SantiagoBriz,dev,2026-09-03T03:31:44Z,2026-09-03T03:35:23Z,0.1,1,21,3,5,0,,,
+114,,SantiagoBriz,staging,2026-09-03T03:36:00Z,2026-09-03T03:40:25Z,0.1,1,21,3,5,0,,,
