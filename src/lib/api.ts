@@ -10,11 +10,29 @@ import { useAuthStore } from '@/stores/auth-store';
  * Base del backend.
  * - Si está seteada VITE_API_URL, se usa esa (config explícita del deploy).
  * - En local (localhost) queda vacía y Vite proxea /api → :3000.
- * - En producción (cualquier otro dominio) sin VITE_API_URL, se cae al backend
- *   de Railway por defecto, para no romper si falta la env var en Vercel.
+ * - En cualquier otro dominio sin VITE_API_URL, se cae al backend por defecto
+ *   de acá abajo, para no romper si falta la env var en Vercel.
+ *
+ * EL DEFAULT APUNTA A STAGING, Y ES UNA DECISIÓN CON FECHA.
+ * ---------------------------------------------------------
+ * Hasta el 03-09-2026 apuntaba a `costear-backend-production`. El problema no
+ * era la dirección: era que un default silencioso manda TODOS los dominios que
+ * no son localhost al mismo lugar. Una preview de staging y el sitio público
+ * recibían el mismo trato, así que el frontend nuevo terminaba pidiéndole a la
+ * API vieja un endpoint que no existe — `/periods/:id/tablero-dueno` devuelve
+ * 404 en producción y 401 en staging, comprobado.
+ *
+ * Se invierte porque hoy NO hay ningún cliente usando producción, y lo que sí
+ * hay es un producto que se muestra desde `staging`. Con ese dato, el default
+ * seguro es el ambiente donde vive el código nuevo.
+ *
+ * CÓMO SE REVIERTE, el día que haya alguien del otro lado: se setea
+ * `VITE_API_URL` en Vercel para el ambiente Production con la URL de
+ * producción. La variable explícita siempre gana sobre este default, así que
+ * no hace falta tocar este archivo.
  */
 const ENV_API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
-const RAILWAY_API_URL = 'https://costear-backend-production.up.railway.app';
+const RAILWAY_API_URL = 'https://costear-backend-staging-staging.up.railway.app';
 const isLocalhost =
   typeof window !== 'undefined' &&
   /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
