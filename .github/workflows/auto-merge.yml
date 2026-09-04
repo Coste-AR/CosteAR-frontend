@@ -33,6 +33,25 @@ on:
   # Cubre el caso de etiquetar un PR que YA estaba en verde.
   pull_request:
     types: [opened, synchronize, reopened, labeled, ready_for_review]
+  # HAY DOS APIS DE ESTADO Y ESTE WORKFLOW ESCUCHABA UNA SOLA.
+  #
+  # `check_suite` cubre lo que reporta la Checks API: el CI propio, e2e,
+  # Playwright. Pero Vercel NO usa esa API — publica por la Status API, que
+  # emite el evento `status` y nada mas. Los dos aparecen juntos en el rollup
+  # del PR, asi que desde afuera se ven iguales y la diferencia no se nota.
+  #
+  # El efecto, medido el 04-09-2026 sobre el PR #117 del frontend: los checks
+  # propios terminan, `check_suite` dispara, y en ese momento Vercel todavia
+  # esta en `pending` — el workflow saltea y dice por que. Despues Vercel pasa a
+  # `success`, emite un evento `status`, Y NO LO ESCUCHABA NADIE. El PR se
+  # quedaba esperando al cron.
+  #
+  # Y el cron no es la red que parecia: declara cada 15 minutos, pero GitHub no
+  # honra crons frecuentes y los agrupa. Las corridas reales de ese dia fueron a
+  # las 13:51, 17:19, 19:57, 22:04, 00:01, 04:23, 08:55 y 12:57 — entre 2 y 4
+  # horas y media de separacion. Un PR verde y etiquetado podia quedarse media
+  # tarde parado sin que nada estuviera fallando.
+  status:
   # Red de seguridad. `check_suite` se pierde de vez en cuando, y un PR
   # etiquetado y en verde que nadie mergea es peor que uno que falla: no avisa.
   schedule:
