@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   AlertCircle,
   AlertTriangle,
   BarChart3,
   CalendarClock,
+  Calculator,
   ClipboardList,
   PackageCheck,
   Scale,
@@ -13,6 +15,7 @@ import {
 import { useSearch } from '@tanstack/react-router';
 import { AppShell, PageHeader } from '@/components/layout/AppShell';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
 import { apiErrorMessage } from '@/lib/api';
 import { formatDate, formatMoney } from '@/lib/utils';
 import {
@@ -129,6 +132,78 @@ function EmptyBlock({ title, icon: Icon }: { title: string; icon: LucideIcon }) 
           <p className="mt-1 text-[11px] text-ink-soft">
             Este bloque se completará cuando haya información disponible.
           </p>
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+function MoneyToCratesConverter({
+  precio,
+  periodo,
+}: {
+  precio: OwnerDashboardNumber | undefined;
+  periodo: string | undefined;
+}) {
+  const [importe, setImporte] = useState('');
+  const importeNumero = importe === '' ? null : Number(importe);
+  const importeValido = importeNumero !== null && Number.isFinite(importeNumero) && importeNumero >= 0;
+  const precioDisponible = numeroSeguro(precio) && precio.valor > 0;
+  const cajones = precioDisponible && importeValido ? importeNumero / precio.valor : null;
+
+  return (
+    <Card data-testid="money-to-crates-converter">
+      <CardHeader
+        title="Conversor de pesos a cajones"
+        description="Traducí un importe al equivalente de venta del período. No se guarda ningún dato."
+        action={(
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-granate/10 bg-granate-tenue text-granate">
+            <Calculator className="size-4.5" aria-hidden="true" />
+          </span>
+        )}
+      />
+      <CardBody className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] md:items-end">
+        <Input
+          label="Importe en pesos"
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="0.01"
+          numeric
+          suffix="$"
+          placeholder="0,00"
+          value={importe}
+          onChange={(event) => setImporte(event.target.value)}
+          disabled={!precioDisponible}
+          hint={precioDisponible ? 'Escribí el gasto o importe que querés comparar.' : undefined}
+        />
+
+        <div className="rounded-xl border border-line bg-surface-alt px-4 py-4" aria-live="polite">
+          {precioDisponible ? (
+            <>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink-soft">
+                Equivale a
+              </p>
+              <p className="mt-1 font-mono-jb text-2xl font-bold text-granate-deep">
+                {cajones === null ? '—' : `${cajonesFormatter.format(cajones)} cajones`}
+              </p>
+              <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+                Precio usado: <strong>{formatMoney(precio.valor)} por cajón</strong>
+                {periodo ? <> · Período <strong>{periodo}</strong></> : null}
+              </p>
+            </>
+          ) : (
+            <div data-testid="converter-missing-price">
+              <p className="flex items-center gap-2 text-sm font-bold text-warning">
+                <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+                Falta el precio promedio del período
+              </p>
+              <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+                No se puede convertir el importe a cajones hasta que haya ventas para calcularlo.
+              </p>
+              <MissingReasons motivos={precio?.motivos ?? []} />
+            </div>
+          )}
         </div>
       </CardBody>
     </Card>
@@ -273,6 +348,13 @@ export function OwnerDashboardPage() {
               <MetricValue numero={data?.resultadoPeriodo} kind="money" detail="Resultado total" />
             </MetricCard>
           </div>
+        </section>
+
+        <section aria-label="Conversor del período">
+          <MoneyToCratesConverter
+            precio={data?.precioPromedioVenta}
+            periodo={data?.periodo.codigo}
+          />
         </section>
 
         <section aria-label="Estado del período" className="grid grid-cols-1 gap-5 lg:grid-cols-2">

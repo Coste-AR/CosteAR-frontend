@@ -103,6 +103,12 @@ testConSesion('muestra los seis números reales del período en el orden definid
   await expect(barra).toHaveAttribute('aria-valuetext', /50 de 40 cajones/);
   await expect(page.getByTestId('incomplete-metric')).toHaveCount(0);
 
+  const conversor = page.getByTestId('money-to-crates-converter');
+  await conversor.getByLabel('Importe en pesos').fill('75');
+  await expect(conversor.getByText('2,5 cajones')).toBeVisible();
+  await expect(conversor.getByText(/Precio usado:.*30,00 por cajón/)).toBeVisible();
+  await expect(conversor.getByText(/Período.*2099-01/)).toBeVisible();
+
   await expandirParaCaptura(page);
   await testInfo.attach(`tablero-empresa-${testInfo.project.name}`, {
     body: await page.screenshot({ fullPage: true }),
@@ -112,7 +118,7 @@ testConSesion('muestra los seis números reales del período en el orden definid
   expect(consola.mensajes, 'errores en /owner-dashboard').toEqual([]);
 });
 
-testConSesion('no presenta como válido un número que el backend marca incompleto', async ({ page, consola }) => {
+testConSesion('no presenta como válido un número que el backend marca incompleto', async ({ page, consola }, testInfo) => {
   const tableroIncompleto = {
     data: {
       ...TABLERO_COMPLETO.data,
@@ -133,6 +139,18 @@ testConSesion('no presenta como válido un número que el backend marca incomple
   await expect(precio.getByText('Incompleto', { exact: true })).toBeVisible();
   await expect(precio.getByText('Falta cargar ventas del período para obtener este indicador.')).toBeVisible();
   await expect(precio.getByText(/999[.\s]?999/)).toHaveCount(0);
+
+  const conversor = page.getByTestId('money-to-crates-converter');
+  await expect(conversor.getByLabel('Importe en pesos')).toBeDisabled();
+  await expect(conversor.getByText('Falta el precio promedio del período')).toBeVisible();
+  await expect(conversor.getByText('No se puede convertir el importe a cajones hasta que haya ventas para calcularlo.')).toBeVisible();
+  await expect(conversor.getByText(/999[.\s]?999/)).toHaveCount(0);
+
+  await expandirParaCaptura(page);
+  await testInfo.attach(`conversor-sin-precio-${testInfo.project.name}`, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  });
 
   expect(consola.mensajes, 'errores en el caso incompleto').toEqual([]);
 });
