@@ -41,13 +41,28 @@
 # etiqueta. Si no bajan, el PR puede borrar, renombrar y reescribir tests con
 # total libertad: demostro que no recorto nada.
 #
-# LO QUE ESTA MEDICION NO ATRAPA — Y CONVIENE DECIRLO
+# Y NO SE MIDE SOLO CUANTOS: SE MIDE CUALES
 #
-# Un PR que borra un test bueno y agrega uno trivial mantiene la cuenta y pasa.
-# La guarda vieja tampoco lo atrapaba (podia agregar un test malo sin borrar
-# nada), pero es una perdida real respecto de "cero lineas borradas" y se acepta
-# a sabiendas. Lo que lo respalda: va a `dev`, es revertible, y el costo de la
-# alternativa —una cola de PR parados esperando a alguien— ya se pago y fue peor.
+# Contar sola dejaba un agujero: un PR que borra un test bueno y agrega uno
+# trivial mantiene la cuenta y pasa. Quedo escrito como perdida aceptada cuando
+# se reemplazaron las guardas viejas, y duro medio dia. Se cierra comparando los
+# TITULOS de los tests de la base contra los del PR: si alguno desaparece, no se
+# etiqueta.
+#
+# LA BAJA DE UN TEST NO ESTA PROHIBIDA, ESTA OBLIGADA A SER EXPLICITA. Borrar un
+# test es trabajo legitimo —cubre algo que ya no existe, quedo duplicado, era
+# malo—. Lo que no puede pasar es que se borre EN SILENCIO, que es como se
+# pierde cobertura sin que nadie lo haya decidido. El PR lo declara en su cuerpo
+# con una linea y entra:
+#
+#     Baja de test: <el titulo exacto> — <por que>
+#
+# LO QUE SIGUE SIN ATRAPAR, Y CONVIENE DECIRLO
+#
+# Un titulo armado con template (`it(`caso ${n}`)`) no es literal y no se puede
+# seguir entre versiones: esos casos quedan cubiertos solo por el conteo. Y un
+# test al que le cambian el titulo cuenta como una baja mas un alta, asi que hay
+# que declararlo — es ruido, pero del lado seguro.
 # ─────────────────────────────────────────────────────────────────────────────
 #
 # LAS GUARDAS, Y POR QUE CADA UNA
@@ -69,8 +84,16 @@
 #     entra. Un cambio declarado y anunciado no necesita que alguien lo frene:
 #     necesita que se sepa. Si no declara la fila, sigue quedando a mano.
 #
-# G3. EL PR CIERRA UN ISSUE (solo en modo tanda, ver abajo). Sin alcance
-#     declarado no hay contra que juzgar lo que hizo.
+# G3. EL PR QUE TRAE CODIGO CIERRA UN ISSUE. Sin alcance declarado no hay contra
+#     que juzgar lo que hizo: el CI verifica que el codigo anda, no que hace lo
+#     que se pidio.
+#
+#     APLICA AL PR QUE TRAE CODIGO, NO AL QUE CORRE CON EL MODO TANDA PRENDIDO.
+#     La primera version confundia las dos cosas y el efecto fue que NINGUNA
+#     BITACORA se auto-etiquetaba: un PR de puros `.md` no cierra ningun issue
+#     —no tiene por que— y quedaba frenado por una guarda pensada para codigo.
+#     Las bitacoras las venia etiquetando Santiago a mano una por una, que es
+#     exactamente el trabajo que este workflow existe para sacarle.
 #
 # G4. CONTRA `staging`, SOLO PROMOCIONES SIN TRABAJO NUEVO. Un PR dev -> staging
 #     que no trae NI UN COMMIT que no este ya en `dev` no es trabajo: es mover
@@ -169,6 +192,45 @@ jobs:
               while ((p=index(l,"/*"))>0) { r=substr(l,p+2); q=index(r,"*/"); if(q==0){ l=substr(l,1,p-1); inb=1; break } else { l=substr(l,1,p-1) substr(r,q+2) } }
               p=index(l,"//"); if(p>0) l=substr(l,1,p-1)
               print l }'
+          }
+
+          # ── Los titulos de los tests de un arbol ─────────────────────────────
+          #
+          # CONTAR NO ALCANZA, Y ESE ERA EL AGUJERO CONOCIDO.
+          #
+          # El balance de abajo mide CUANTOS tests hay. Un PR que borra un test
+          # bueno y agrega uno trivial mantiene la cuenta y pasa — quedo escrito
+          # como perdida aceptada cuando se reemplazaron las guardas viejas.
+          # Esto lo cierra: no se mira cuantos, se mira CUALES.
+          #
+          # Se comparan los titulos de la base contra los del PR. Si alguno
+          # desaparece, no se etiqueta — a menos que el PR lo declare (ver la
+          # guarda de abajo). Renombrar un archivo, moverlo o partirlo en dos no
+          # rompe nada, porque los titulos se juntan de TODO el arbol y no por
+          # archivo: lo que importa es que el caso siga existiendo en algun lado.
+          #
+          # LO QUE ESTA MEDICION NO VE, Y HAY QUE DECIRLO:
+          #
+          #   - Un titulo armado con template (`it(`caso ${n}`)`) no es literal y
+          #     no se puede seguir entre versiones. Se ignora. Esos casos quedan
+          #     cubiertos solo por el conteo.
+          #   - Un test que conserva el titulo y le vacian el cuerpo NO lo atrapa
+          #     esta guarda: lo atrapa el conteo de afirmaciones, que baja.
+          #
+          # Las dos se complementan a proposito. Una mira identidad, la otra
+          # volumen; hay que pasar las dos.
+          titulos() {
+            local ref="$1" archivo contenido
+            while IFS= read -r archivo; do
+              [ -z "$archivo" ] && continue
+              contenido=$(git show "$ref:$archivo" 2>/dev/null | sin_comentarios || true)
+              # Una pasada por tipo de comilla: `grep -oE` no tiene
+              # retrorreferencias, asi que no se puede exigir que la comilla de
+              # cierre sea la misma con un solo patron. Las backticks quedan
+              # afuera aposta: son las que suelen llevar interpolacion.
+              printf '%s' "$contenido" | grep -oE "(^|[^A-Za-z0-9_.])(it|test)(\.(only|skip|concurrent|sequential))?[[:space:]]*\([[:space:]]*'[^']+'" | sed "s/.*'\\([^']*\\)'\$/\\1/" || true
+              printf '%s' "$contenido" | grep -oE "(^|[^A-Za-z0-9_.])(it|test)(\.(only|skip|concurrent|sequential))?[[:space:]]*\([[:space:]]*\"[^\"]+\"" | sed 's/.*"\([^"]*\)"$/\1/' || true
+            done < <(git ls-tree -r --name-only "$ref" | grep -E '\.(test|spec)\.[cm]?[jt]sx?$' || true)
           }
 
           # ── El balance de verificacion de un arbol ───────────────────────────
@@ -283,6 +345,43 @@ jobs:
               apto=no
             fi
 
+            # ── GUARDA 1b: ningun test existente desaparece sin declararlo ────
+            #
+            # Cierra el agujero que dejaba el conteo: borrar un test bueno y
+            # agregar uno trivial mantiene el balance. Acá se mira identidad.
+            #
+            # LA BAJA NO ESTA PROHIBIDA, ESTA OBLIGADA A SER EXPLICITA. Un test
+            # se puede borrar —cubre algo que ya no existe, quedo duplicado, era
+            # malo— y eso es trabajo legitimo. Lo que no puede pasar es que se
+            # borre EN SILENCIO, que es como se pierde cobertura sin que nadie
+            # lo decida. El PR lo declara en su cuerpo:
+            #
+            #     Baja de test: <el titulo exacto> — <por que>
+            #
+            # y con eso entra. El costo de declararlo es una linea; el de no
+            # pedirlo es no enterarse nunca.
+            titulos "$base_sha" | sort -u > titulos-base.txt || true
+            titulos "$head_sha" | sort -u > titulos-head.txt || true
+            faltantes=$(comm -23 titulos-base.txt titulos-head.txt || true)
+            if [ -n "$faltantes" ]; then
+              cuerpo_pr=$(jq -r '.body // ""' <<<"$info")
+              sin_declarar=0
+              while IFS= read -r t; do
+                [ -z "$t" ] && continue
+                # Se busca el titulo literal en el cuerpo. `grep -F` para que un
+                # titulo con parentesis o acentos no se lea como regex.
+                if grep -qF "$t" <<<"$cuerpo_pr"; then
+                  echo "  baja declarada: $t"
+                else
+                  echo "NO APTO: desaparece el test \"$t\" y el PR no lo declara. Agregá al cuerpo: Baja de test: $t — <por que>"
+                  sin_declarar=$((sin_declarar + 1))
+                fi
+              done <<<"$faltantes"
+              if [ "$sin_declarar" -gt 0 ]; then
+                apto=no
+              fi
+            fi
+
             # ── GUARDA 4: contra staging, solo promociones sin trabajo nuevo ──
             if [ "$base" = "staging" ] && [ "$apto" = "si" ]; then
               git fetch -q origin dev 2>/dev/null || true
@@ -315,6 +414,10 @@ jobs:
             echo "Archivos tocados:"; sed 's/^/  /' archivos.txt
 
             normativo_tocado=no
+            # Se reinicia por PR: en workflow_dispatch el loop recorre
+            # varios y una marca pegada del anterior decidiria por el
+            # siguiente.
+            codigo=no
             while IFS= read -r ruta; do
               [ -z "$ruta" ] && continue
               nombre=$(basename "$ruta")
@@ -341,6 +444,10 @@ jobs:
                   ;;
                 *)
                   if [ "$tanda" = "si" ]; then
+                    # Marca que este PR necesito el modo tanda para pasar, o
+                    # sea que trae al menos un archivo que NO es documentacion
+                    # ni test. Es lo que decide si se le exige cerrar un issue.
+                    codigo=si
                     echo "  (modo tanda) $ruta"
                   else
                     echo "NO APTO: $ruta no es documentacion ni un test."
@@ -365,8 +472,26 @@ jobs:
               fi
             fi
 
-            # GUARDA 3, SOLO EN MODO TANDA: el PR tiene que cerrar un issue.
-            if [ "$tanda" = "si" ] && [ "$apto" = "si" ]; then
+            # GUARDA 3: el PR que trae CODIGO tiene que cerrar un issue.
+            #
+            # OJO CON LA CONDICION: es `codigo`, no `tanda`.
+            #
+            # La primera version pedia el issue a todo PR cuando el modo tanda
+            # estaba prendido, mirara lo que mirara. El efecto real fue que
+            # NINGUNA BITACORA se auto-etiquetaba: un PR de puros `.md` no
+            # cierra ningun issue —no tiene por que— y quedaba frenado por una
+            # guarda pensada para codigo. Las bitacoras de CosteAR-os venia
+            # etiquetandolas Santiago a mano una por una, que es justo el
+            # trabajo que este workflow existe para sacarle; y la del 03-09
+            # (os #29) quedo abierta cuatro dias porque no llego.
+            #
+            # Se vio en el log de admin #78, un PR que solo tocaba dos archivos
+            # de bitacora: "NO APTO: no cierra ningun issue".
+            #
+            # El issue existe para tener contra que juzgar CODIGO que el CI dice
+            # que anda pero que puede estar haciendo otra cosa. Una bitacora no
+            # tiene ese modo de falla: lo que dice es lo que es.
+            if [ "${codigo:-no}" = "si" ] && [ "$apto" = "si" ]; then
               cuerpo_pr=$(jq -r '.body // ""' <<<"$info")
               if ! grep -qiE '(closes|fixes|resolves) #[0-9]+' <<<"$cuerpo_pr"; then
                 echo "NO APTO: no cierra ningun issue. Sin alcance declarado no hay contra que verificar."
@@ -393,7 +518,7 @@ jobs:
             if [ "$normativo_tocado" = "si" ]; then
               echo "APTO: normativo con su cambio declarado."
               cuerpo=$(printf 'Etiquetado `auto-merge` automaticamente — **documento normativo con su cambio declarado**.\n\n**@SantiagoBriz: esto cambia una regla del equipo.** No rompe produccion, pero cambia lo que hace todo el mundo despues. Entro solo porque el PR declara su propio cambio en la tabla del documento, que es lo que hace que la regla no cambie en silencio. Si la fila no dice lo que el PR hizo, revertilo en `dev`.\n\n%s\n\nVer `.github/workflows/auto-etiquetar.yml`.\n' "$verif")
-            elif [ "$tanda" = "si" ]; then
+            elif [ "$codigo" = "si" ]; then
               echo "APTO (modo tanda)."
               cuerpo=$(printf 'Etiquetado `auto-merge` automaticamente — **modo tanda**.\n\n**Por que sin revision humana:** el equipo esta trabajando en volumen y sin disponibilidad para mirar cada PR. Este va contra `dev`, que es una rama de integracion: `staging` solo entra sola cuando la promocion no trae trabajo nuevo y `main` no entra sola nunca, asi que el radio de un merge malo es una rama interna y no el cliente.\n\n**Que se verifico:** el CI corrio entero sobre el codigo ya integrado, el PR cierra un issue —o sea que hay un alcance declarado contra el cual mirarlo despues— y **no baja el balance de verificacion**. %s\n\n**Que NO se verifico:** que el codigo haga lo que el issue pedia. Eso lo mira una persona cuando vuelva, antes de promover. Si algo de este PR no cierra, se revierte en `dev` sin tocar produccion.\n\nSe apaga con `gh variable set AUTO_ETIQUETAR_CODIGO --body "no"`. Ver `.github/workflows/auto-etiquetar.yml`.\n' "$verif")
             else
