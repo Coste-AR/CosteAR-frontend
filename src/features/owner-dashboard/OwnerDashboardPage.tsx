@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   AlertCircle,
@@ -7,6 +7,7 @@ import {
   CalendarClock,
   Calculator,
   ClipboardList,
+  Info,
   PackageCheck,
   Scale,
   TrendingUp,
@@ -55,6 +56,58 @@ function MissingReasons({ motivos }: { motivos: string[] }) {
   );
 }
 
+function parametrosUnicos(...numeros: Array<OwnerDashboardNumber | undefined>) {
+  const parametros = numeros.flatMap((numero) => numero?.parametrosSinConfirmarDetalle ?? []);
+  return [...new Map(parametros.map((parametro) => [parametro.id, parametro])).values()];
+}
+
+function AssumptionMark({ parametros }: { parametros: OwnerDashboardNumber['parametrosSinConfirmarDetalle'] }) {
+  const [abierto, setAbierto] = useState(false);
+  const tooltipId = useId();
+
+  if (parametros.length === 0) return null;
+
+  const cantidad = parametros.length;
+  const resumen = `${cantidad} parámetro${cantidad === 1 ? '' : 's'} sin confirmar`;
+
+  return (
+    <span
+      className="relative inline-flex"
+      onMouseEnter={() => setAbierto(true)}
+      onMouseLeave={() => setAbierto(false)}
+    >
+      <button
+        type="button"
+        aria-expanded={abierto}
+        aria-controls={tooltipId}
+        aria-label={`Supuesto: ${resumen}. Ver cuáles parámetros sostienen este número.`}
+        className="inline-flex items-center gap-1 rounded-full border border-granate/20 bg-granate-tenue px-2 py-0.5 text-[10px] font-bold text-granate transition-colors hover:bg-granate/10"
+        onClick={() => setAbierto(true)}
+        onFocus={() => setAbierto(true)}
+        onBlur={() => setAbierto(false)}
+      >
+        <Info className="size-3" aria-hidden="true" />
+        Supuesto
+      </button>
+
+      {abierto && (
+        <span
+          id={tooltipId}
+          role="tooltip"
+          className="absolute bottom-full left-0 z-10 mb-2 w-64 rounded-xl border border-line-strong bg-surface p-3 text-left shadow-lg"
+        >
+          <span className="block text-[11px] font-bold text-ink">
+            Este número se apoya en {resumen}.
+          </span>
+          <span className="mt-2 block text-[11px] leading-relaxed text-ink-soft">
+            {parametros.map((parametro) => parametro.nombre).join(', ')}
+          </span>
+        </span>
+      )}
+    </span>
+  );
+}
+
 function MetricValue({
   numero,
   kind,
@@ -76,7 +129,10 @@ function MetricValue({
   if (!numeroSeguro(numero)) {
     return (
       <div data-testid="incomplete-metric">
-        <p className="font-mono-jb text-base font-bold text-warning">{INCOMPLETO}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-mono-jb text-base font-bold text-warning">{INCOMPLETO}</p>
+          {numero && <AssumptionMark parametros={numero.parametrosSinConfirmarDetalle} />}
+        </div>
         <p className="mt-1 text-[11px] font-semibold text-ink-soft/70">{detail}</p>
         <MissingReasons motivos={numero.motivos} />
       </div>
@@ -85,9 +141,12 @@ function MetricValue({
 
   return (
     <div>
-      <p className="font-mono-jb text-xl font-bold text-ink">
-        {kind === 'money' ? formatMoney(numero.valor) : cajonesFormatter.format(numero.valor)}
-      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-mono-jb text-xl font-bold text-ink">
+          {kind === 'money' ? formatMoney(numero.valor) : cajonesFormatter.format(numero.valor)}
+        </p>
+        <AssumptionMark parametros={numero.parametrosSinConfirmarDetalle} />
+      </div>
       <p className="mt-1 text-[11px] font-semibold text-ink-soft/70">{detail}</p>
     </div>
   );
@@ -191,6 +250,9 @@ function MoneyToCratesConverter({
                 Precio usado: <strong>{formatMoney(precio.valor)} por cajón</strong>
                 {periodo ? <> · Período <strong>{periodo}</strong></> : null}
               </p>
+              <div className="mt-2">
+                <AssumptionMark parametros={precio.parametrosSinConfirmarDetalle} />
+              </div>
             </>
           ) : (
             <div data-testid="converter-missing-price">
@@ -237,10 +299,14 @@ function ProducedProgress({
   const porcentaje = Math.max(0, producido.valor / equilibrio.valor * 100);
   const ancho = Math.min(porcentaje, 100);
   const descripcion = `${cajonesFormatter.format(producido.valor)} de ${cajonesFormatter.format(equilibrio.valor)} cajones`;
+  const parametros = parametrosUnicos(producido, equilibrio);
 
   return (
     <div>
-      <p className="mb-3 font-mono-jb text-xl font-bold text-ink">{descripcion}</p>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <p className="font-mono-jb text-xl font-bold text-ink">{descripcion}</p>
+        <AssumptionMark parametros={parametros} />
+      </div>
       <div
         role="progressbar"
         aria-label="Producido contra equilibrio"
