@@ -18,6 +18,7 @@ const numero = (valor: number) => ({
   valor,
   completo: true,
   parametrosSinConfirmar: false,
+  parametrosSinConfirmarDetalle: [],
   motivos: [],
 });
 
@@ -126,6 +127,7 @@ testConSesion('no presenta como válido un número que el backend marca incomple
         valor: 999_999,
         completo: false,
         parametrosSinConfirmar: false,
+        parametrosSinConfirmarDetalle: [],
         motivos: ['Falta cargar ventas del período para obtener este indicador.'],
       },
     },
@@ -153,6 +155,43 @@ testConSesion('no presenta como válido un número que el backend marca incomple
   });
 
   expect(consola.mensajes, 'errores en el caso incompleto').toEqual([]);
+});
+
+testConSesion('marca los números apoyados en supuestos y nombra el parámetro sin marcar baseUnidades', async ({ page, consola }, testInfo) => {
+  const tableroConSupuesto = {
+    data: {
+      ...TABLERO_COMPLETO.data,
+      costoPorCajon: {
+        ...TABLERO_COMPLETO.data.costoPorCajon,
+        variable: {
+          ...TABLERO_COMPLETO.data.costoPorCajon.variable,
+          parametrosSinConfirmar: true,
+          parametrosSinConfirmarDetalle: [{ id: 'parametro-sintetico', nombre: 'Rendimiento operativo' }],
+        },
+      },
+    },
+  };
+
+  await responderTablero(page, tableroConSupuesto);
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+
+  await laAppPinto(page);
+  const costoVariable = page.getByTestId('owner-metric').nth(0).getByText('Variable').locator('..');
+  const marca = costoVariable.getByRole('button', { name: /Supuesto: 1 parámetro sin confirmar/ });
+  await expect(marca).toBeVisible();
+  await marca.click();
+  await expect(page.getByRole('tooltip')).toContainText('Rendimiento operativo');
+
+  const producido = page.getByTestId('owner-metric').nth(4);
+  await expect(producido.getByRole('button', { name: /Supuesto/ })).toHaveCount(0);
+
+  await expandirParaCaptura(page);
+  await testInfo.attach(`tablero-supuesto-${testInfo.project.name}`, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  });
+
+  expect(consola.mensajes, 'errores al marcar supuestos').toEqual([]);
 });
 
 test('el tablero de la empresa no se abre sin sesión', async ({ page, consola }) => {

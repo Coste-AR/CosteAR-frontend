@@ -5,6 +5,10 @@ export interface OwnerDashboardNumber {
   valor: number | null;
   completo: boolean;
   parametrosSinConfirmar: boolean;
+  parametrosSinConfirmarDetalle: Array<{
+    id: string;
+    nombre: string;
+  }>;
   motivos: string[];
 }
 
