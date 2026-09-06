@@ -8,6 +8,7 @@ import { useLogin } from './auth-hooks';
 import { apiErrorMessage } from '@/lib/api';
 import { CosteARLogo } from '@/components/layout/CosteARLogo';
 import { InteractiveDotGrid } from '@/components/layout/InteractiveDotGrid';
+import { authDestination } from './auth-destination';
 
 interface LoginForm {
   identifier: string;
@@ -51,14 +52,11 @@ export function LoginPage() {
     setError(null);
     try {
       const result = await login.mutateAsync(values);
-      if (result?.user?.mustChangePassword) {
-        await navigate({ to: '/change-password' });
-      } else if (result?.user?.needsTermsAcceptance) {
-        await navigate({ to: '/accept-terms' });
-      } else if (result?.user?.role === 'ADMIN') {
+      const destination = authDestination(result?.user);
+      if (result?.user?.role === 'ADMIN' && destination === '/dashboard') {
         window.location.href = 'http://localhost:5176';
       } else {
-        await navigate({ to: '/dashboard' });
+        await navigate({ to: destination });
       }
     } catch (e) {
       const msg = apiErrorMessage(e);
