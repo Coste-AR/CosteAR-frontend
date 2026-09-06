@@ -6,10 +6,14 @@ import {
   BarChart3,
   CalendarClock,
   Calculator,
+  CheckCircle2,
   ClipboardList,
+  Factory,
   Info,
   PackageCheck,
   Scale,
+  Settings2,
+  ShoppingCart,
   TrendingUp,
   WalletCards,
 } from 'lucide-react';
@@ -22,6 +26,8 @@ import { formatDate, formatMoney } from '@/lib/utils';
 import {
   useOwnerDashboard,
   type OwnerDashboardNumber,
+  type OwnerDashboardPending,
+  type OwnerDashboardPendingArea,
 } from './owner-dashboard-hooks';
 
 const SIN_DATOS = 'Sin datos';
@@ -192,6 +198,111 @@ function EmptyBlock({ title, icon: Icon }: { title: string; icon: LucideIcon }) 
             Este bloque se completará cuando haya información disponible.
           </p>
         </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+const pendingAreaConfig: Record<
+  OwnerDashboardPendingArea,
+  { label: string; icon: LucideIcon }
+> = {
+  calculo: { label: 'Cálculo', icon: Calculator },
+  imputacion: { label: 'Imputación', icon: ClipboardList },
+  configuracion: { label: 'Configuración', icon: Settings2 },
+  produccion: { label: 'Producción', icon: Factory },
+  ventas: { label: 'Ventas', icon: ShoppingCart },
+  costeo: { label: 'Costeo', icon: Scale },
+};
+
+// El backend decide a qué área pertenece cada dato. Acá sólo fijamos un orden
+// visual estable para que la lista no cambie de lugar entre dos respuestas.
+const pendingAreaOrder = Object.keys(pendingAreaConfig) as OwnerDashboardPendingArea[];
+
+function ClosingPendingBlock({ pendientes }: { pendientes: OwnerDashboardPending[] | undefined }) {
+  const grupos = pendingAreaOrder.flatMap((area) => {
+    const items = pendientes?.filter((pendiente) => pendiente.area === area) ?? [];
+    return items.length > 0 ? [{ area, items }] : [];
+  });
+
+  return (
+    <Card data-testid="closing-pending">
+      <CardHeader
+        title="Qué falta cargar para cerrar el período"
+        description="Datos pendientes informados por el cierre del período."
+        action={(
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-granate/10 bg-granate-tenue text-granate">
+            <ClipboardList className="size-4.5" aria-hidden="true" />
+          </span>
+        )}
+      />
+      <CardBody>
+        {!pendientes ? (
+          <div className="flex min-h-24 items-center gap-4">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface-alt text-ink-soft">
+              <ClipboardList className="size-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-[13px] font-bold text-ink">{SIN_DATOS}</p>
+              <p className="mt-1 text-[11px] text-ink-soft">
+                Los pendientes aparecerán cuando se cargue el tablero del período.
+              </p>
+            </div>
+          </div>
+        ) : pendientes.length === 0 ? (
+          <div className="flex min-h-24 items-start gap-4" role="status">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-ok/20 bg-ok/10 text-ok">
+              <CheckCircle2 className="size-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-[13px] font-bold text-ink">
+                No falta nada para cerrar este período
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">
+                El backend no informó datos pendientes para el cierre.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {grupos.map(({ area, items }) => {
+              const { label, icon: Icon } = pendingAreaConfig[area];
+              return (
+                <section
+                  key={area}
+                  aria-labelledby={`closing-pending-${area}`}
+                  data-testid={`closing-pending-group-${area}`}
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <Icon className="size-4 text-granate" aria-hidden="true" />
+                    <h4
+                      id={`closing-pending-${area}`}
+                      className="text-[11px] font-extrabold uppercase tracking-wider text-granate-deep"
+                    >
+                      {label}
+                    </h4>
+                  </div>
+                  <ul className="space-y-2">
+                    {items.map((pendiente) => (
+                      <li
+                        key={`${pendiente.periodo.id}:${pendiente.area}:${pendiente.dato}`}
+                        data-testid="closing-pending-item"
+                        className="rounded-xl border border-line bg-surface-alt px-3 py-3"
+                      >
+                        <p className="text-[12px] font-semibold leading-relaxed text-ink">
+                          {pendiente.dato}
+                        </p>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-ink-soft">
+                          Período {pendiente.periodo.codigo}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+        )}
       </CardBody>
     </Card>
   );
@@ -425,7 +536,7 @@ export function OwnerDashboardPage() {
 
         <section aria-label="Estado del período" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <EmptyBlock title="Alertas activas" icon={AlertTriangle} />
-          <EmptyBlock title="Qué falta cargar para cerrar el período" icon={ClipboardList} />
+          <ClosingPendingBlock pendientes={data?.pendientes} />
         </section>
       </div>
     </AppShell>
