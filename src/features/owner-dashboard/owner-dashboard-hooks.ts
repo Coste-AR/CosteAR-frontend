@@ -12,6 +12,23 @@ export interface OwnerDashboardNumber {
   motivos: string[];
 }
 
+export type OwnerDashboardPendingArea =
+  | 'calculo'
+  | 'imputacion'
+  | 'configuracion'
+  | 'produccion'
+  | 'ventas'
+  | 'costeo';
+
+export interface OwnerDashboardPending {
+  area: OwnerDashboardPendingArea;
+  dato: string;
+  periodo: {
+    id: string;
+    codigo: string;
+  };
+}
+
 export interface OwnerDashboardData {
   periodo: {
     id: string;
@@ -22,6 +39,7 @@ export interface OwnerDashboardData {
     validada: boolean;
     ejecutadaEn: string;
   } | null;
+  pendientes: OwnerDashboardPending[];
   costoPorCajon: {
     variable: OwnerDashboardNumber;
     fijo: OwnerDashboardNumber;

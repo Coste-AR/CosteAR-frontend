@@ -31,6 +31,7 @@ const TABLERO_COMPLETO = {
       validada: true,
       ejecutadaEn: '2099-01-15T12:00:00.000Z',
     },
+    pendientes: [],
     costoPorCajon: {
       variable: numero(11),
       fijo: numero(7),
@@ -110,6 +111,10 @@ testConSesion('muestra los seis números reales del período en el orden definid
   await expect(conversor.getByText(/Precio usado:.*30,00 por cajón/)).toBeVisible();
   await expect(conversor.getByText(/Período.*2099-01/)).toBeVisible();
 
+  const pendientes = page.getByTestId('closing-pending');
+  await expect(pendientes.getByText('No falta nada para cerrar este período')).toBeVisible();
+  await expect(pendientes.getByTestId('closing-pending-item')).toHaveCount(0);
+
   await expandirParaCaptura(page);
   await testInfo.attach(`tablero-empresa-${testInfo.project.name}`, {
     body: await page.screenshot({ fullPage: true }),
@@ -117,6 +122,64 @@ testConSesion('muestra los seis números reales del período en el orden definid
   });
 
   expect(consola.mensajes, 'errores en /owner-dashboard').toEqual([]);
+});
+
+testConSesion('agrupa por área qué falta cargar y muestra el período de cada pendiente', async ({ page, consola }, testInfo) => {
+  const tableroConPendientes = {
+    data: {
+      ...TABLERO_COMPLETO.data,
+      pendientes: [
+        {
+          area: 'produccion',
+          dato: 'cantidad producida mayor a cero',
+          periodo: { id: PERIOD_ID, codigo: '2099-01' },
+        },
+        {
+          area: 'ventas',
+          dato: 'ventas del período',
+          periodo: { id: PERIOD_ID, codigo: '2099-01' },
+        },
+        {
+          area: 'produccion',
+          dato: 'producción diaria de la variante de prueba',
+          periodo: { id: PERIOD_ID, codigo: '2099-01' },
+        },
+        {
+          area: 'configuracion',
+          dato: 'unidad de venta con factor de conversión',
+          periodo: { id: PERIOD_ID, codigo: '2099-01' },
+        },
+      ],
+    },
+  };
+
+  await responderTablero(page, tableroConPendientes);
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+
+  await laAppPinto(page);
+  const pendientes = page.getByTestId('closing-pending');
+  const produccion = pendientes.getByTestId('closing-pending-group-produccion');
+  const ventas = pendientes.getByTestId('closing-pending-group-ventas');
+  const configuracion = pendientes.getByTestId('closing-pending-group-configuracion');
+
+  await expect(produccion.getByRole('heading', { name: 'Producción' })).toBeVisible();
+  await expect(produccion.getByTestId('closing-pending-item')).toHaveCount(2);
+  await expect(produccion.getByText('cantidad producida mayor a cero')).toBeVisible();
+  await expect(produccion.getByText('producción diaria de la variante de prueba')).toBeVisible();
+  await expect(ventas.getByRole('heading', { name: 'Ventas' })).toBeVisible();
+  await expect(ventas.getByText('ventas del período')).toBeVisible();
+  await expect(configuracion.getByRole('heading', { name: 'Configuración' })).toBeVisible();
+  await expect(configuracion.getByText('unidad de venta con factor de conversión')).toBeVisible();
+  await expect(pendientes.getByText('Período 2099-01')).toHaveCount(4);
+  await expect(pendientes.getByText('No falta nada para cerrar este período')).toHaveCount(0);
+
+  await expandirParaCaptura(page);
+  await testInfo.attach(`pendientes-cierre-${testInfo.project.name}`, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  });
+
+  expect(consola.mensajes, 'errores al mostrar los pendientes de cierre').toEqual([]);
 });
 
 testConSesion('no presenta como válido un número que el backend marca incompleto', async ({ page, consola }, testInfo) => {
