@@ -30,6 +30,7 @@ import { AcceptTermsPage } from '@/features/auth/AcceptTermsPage';
 import { LandingPage } from '@/features/landing/LandingPage';
 import { TrazabilidadDatoPage, TrazabilidadCalculoPage } from '@/features/trazabilidad/TrazabilidadPages';
 import { OwnerDashboardPage } from '@/features/owner-dashboard/OwnerDashboardPage';
+import { authDestination } from '@/features/auth/auth-destination';
 
 
 const rootRoute = createRootRoute({
@@ -65,15 +66,22 @@ const indexRoute = createRoute({
   beforeLoad: () => {
     const { accessToken, user } = useAuthStore.getState();
     if (accessToken) {
-      if (user?.role === 'EMPRESA_OPERATOR') throw redirect({ to: '/portal' });
-      throw redirect({ to: '/dashboard' });
+      throw redirect({ to: authDestination(user) });
     }
   },
   component: LandingPage,
 });
 
 
-const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: '/login', component: LoginPage });
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/login',
+  beforeLoad: () => {
+    const { accessToken, user } = useAuthStore.getState();
+    if (accessToken) throw redirect({ to: authDestination(user) });
+  },
+  component: LoginPage,
+});
 const registerRoute = createRoute({ getParentRoute: () => rootRoute, path: '/register', component: RegisterPage });
 const forgotRoute = createRoute({ getParentRoute: () => rootRoute, path: '/forgot-password', component: ForgotPasswordPage });
 const resetRoute = createRoute({ getParentRoute: () => rootRoute, path: '/reset-password', component: ResetPasswordPage });
