@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, ImageIcon, Bot, PenLine, FileText, FileDown, Plus, Pencil, Trash2, Table, Boxes, Users, Layers, TrendingUp, Megaphone, Briefcase, Landmark } from 'lucide-react';
+import { BookOpen, ImageIcon, Bot, PenLine, FileText, FileDown, Plus, Pencil, Trash2, Table, Boxes, Users, Layers, TrendingUp, Megaphone, Briefcase, Landmark, X } from 'lucide-react';
 import { AppShell, PageHeader } from '@/components/layout/AppShell';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { StatCard } from '@/components/ui/StatCard';
@@ -259,9 +259,10 @@ export function LibroCostosPage() {
 
       {lightbox && (
         <PortalOverlay>
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setLightbox(null)}>
-          <img src={lightbox} alt="Comprobante" className="max-h-full max-w-full rounded-2xl object-contain shadow-2xl" onClick={(ev) => ev.stopPropagation()} />
-          <button type="button" onClick={() => setLightbox(null)} className="absolute right-4 top-4 flex size-9 items-center justify-center rounded-full bg-black/50 text-lg text-white shadow-lg transition-colors hover:bg-black/70">✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button type="button" aria-label="Cerrar comprobante" className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setLightbox(null)} />
+          <img src={lightbox} alt="Comprobante" className="relative max-h-full max-w-full rounded-2xl object-contain shadow-2xl" />
+          <button type="button" aria-label="Cerrar comprobante" onClick={() => setLightbox(null)} className="absolute right-4 top-4 flex size-9 items-center justify-center rounded-full bg-black/50 text-white shadow-lg transition-colors hover:bg-black/70"><X className="size-5" /></button>
         </div>
         </PortalOverlay>
       )}

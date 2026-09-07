@@ -156,9 +156,9 @@ export function CompanyOperatorsTab({ companyId }: { companyId: string }) {
               />
               {generatedAccess.tempPassword ? (
                 <div>
-                  <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-soft mb-1">
+                  <p className="block text-[11px] font-medium uppercase tracking-wide text-ink-soft mb-1">
                     Contraseña temporal
-                  </label>
+                  </p>
                   <div className="flex items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
                     <span className="flex-1 font-mono text-sm text-ink">
                       {showPassword ? generatedAccess.tempPassword : '••••••••••••'}
@@ -177,9 +177,9 @@ export function CompanyOperatorsTab({ companyId }: { companyId: string }) {
                 </div>
               ) : (
                 <div>
-                  <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-soft mb-1">
+                  <p className="block text-[11px] font-medium uppercase tracking-wide text-ink-soft mb-1">
                     Código de invitación
-                  </label>
+                  </p>
                   <div className="flex items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
                     <span className="flex-1 font-mono text-sm text-ink">{generatedAccess.inviteCode ?? '—'}</span>
                     <button
@@ -218,9 +218,9 @@ export function CompanyOperatorsTab({ companyId }: { companyId: string }) {
                 onCopy={() => copyText(resetResult.email, 'reset-email')}
               />
               <div>
-                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-soft mb-1">
+                <p className="block text-[11px] font-medium uppercase tracking-wide text-ink-soft mb-1">
                   Nueva contraseña temporal
-                </label>
+                </p>
                 <div className="flex items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
                   <span className="flex-1 font-mono text-sm text-ink">
                     {showPassword ? resetResult.tempPassword : '••••••••••••'}
@@ -360,7 +360,7 @@ export function CompanyOperatorsTab({ companyId }: { companyId: string }) {
 function CredField({ label, value, copied, onCopy }: { label: string; value: string; copied: boolean; onCopy: () => void }) {
   return (
     <div>
-      <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-soft mb-1">{label}</label>
+      <p className="block text-[11px] font-medium uppercase tracking-wide text-ink-soft mb-1">{label}</p>
       <div className="flex items-center gap-2 rounded-sm border border-line bg-surface px-3 py-2">
         <span className="flex-1 font-mono text-sm text-ink">{value}</span>
         <button

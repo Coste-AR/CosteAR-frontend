@@ -80,7 +80,9 @@ export function AiSuggesterSection({
 
       {/* Overlay (solo en mobile, donde el panel ocupa toda la pantalla) */}
       {open && (
-        <div
+        <button
+          type="button"
+          aria-label="Cerrar asistente de configuracion"
           className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px] lg:hidden"
           onClick={() => setOpen(false)}
         />

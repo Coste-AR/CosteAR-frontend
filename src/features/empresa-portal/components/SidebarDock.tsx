@@ -107,12 +107,9 @@ export function SidebarDock({ activeTab, setActiveTab }: SidebarDockProps) {
               key={item.id}
               className="relative w-full h-12 flex items-center justify-center overflow-visible"
             >
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveTab(item.id);
-                }}
+              <button
+                type="button"
+                onClick={() => setActiveTab(item.id)}
                 className={cn(
                   'w-full h-12 relative flex items-center justify-center pl-2.5 rounded-l-[24px] z-25 group transition-colors duration-155',
                   active ? 'text-granate' : 'text-white/70 hover:text-white'
@@ -129,7 +126,7 @@ export function SidebarDock({ activeTab, setActiveTab }: SidebarDockProps) {
                 <span className="absolute left-18 bg-granate-deep border border-white/10 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap shadow-xl pointer-events-none z-50">
                   {label}
                 </span>
-              </a>
+              </button>
             </div>
           );
         })}
