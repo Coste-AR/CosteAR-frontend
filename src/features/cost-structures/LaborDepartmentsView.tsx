@@ -284,7 +284,22 @@ export function LaborDepartmentsView({ config, directLabor, onEdit, onLoadExampl
               const data = directLabor?.departments?.[i];
               const idleLine = idle.departments[i];
               return (
-                <tr key={i} className="cursor-pointer hover:bg-surface-alt/40" onClick={() => setSelected(i)}>
+                <tr
+                  key={i}
+                  role="button"
+                  tabIndex={0}
+                  className="cursor-pointer hover:bg-surface-alt/40"
+                  onClick={(event) => {
+                    if (!(event.target as HTMLElement).closest('button, a')) setSelected(i);
+                  }}
+                  onKeyDown={(event) => {
+                    if ((event.target as HTMLElement).closest('button, a')) return;
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setSelected(i);
+                    }
+                  }}
+                >
                   <td className="px-3 py-2 font-medium text-ink">{d.name || `Departamento ${i + 1}`}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-ink"><Money value={d.basicRemuneration} /></td>
                   <td className="px-3 py-2 text-right tabular-nums text-ink">
@@ -299,7 +314,7 @@ export function LaborDepartmentsView({ config, directLabor, onEdit, onLoadExampl
                     {data ? (
                       // La fila entera navega a la ficha del departamento: el click
                       // sobre el valor abre SU cuenta y no arrastra la navegación.
-                      <span onClick={(e) => e.stopPropagation()}>
+                      <span>
                         <TraceableValue
                           title={`Tarifa horaria integral · ${data.name}`}
                           derivation={derivacionTarifaHoraria(

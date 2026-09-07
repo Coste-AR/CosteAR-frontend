@@ -127,7 +127,12 @@ export function TopBar() {
 
           {menuOpen && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+              <button
+                type="button"
+                aria-label="Cerrar menu de usuario"
+                className="fixed inset-0 z-40 cursor-default"
+                onClick={() => setMenuOpen(false)}
+              />
               <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-2xl border border-line bg-white p-1.5 shadow-[0_20px_50px_rgba(74,21,27,0.12)]">
                 <Link
                   to="/profile"

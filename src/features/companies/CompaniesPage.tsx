@@ -410,26 +410,28 @@ export function NewCompanyForm({ onDone }: { onDone: () => void }) {
           </h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
+              <label htmlFor="company-name" className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
                 Nombre de la Empresa *
               </label>
               <Input
+                id="company-name"
                 placeholder="Ej: ABC Metalúrgica"
                 {...register("name", { required: true })}
               />
             </div>
             <div>
-              <label className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
+              <label htmlFor="company-cuit" className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
                 CUIT
               </label>
-              <Input placeholder="20-12345678-6" {...register("cuit")} />
+              <Input id="company-cuit" placeholder="20-12345678-6" {...register("cuit")} />
             </div>
           </div>
           <div>
-            <label className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
+            <label htmlFor="company-industry" className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
               Rubro / Sector Industrial *
             </label>
             <Select
+              id="company-industry"
               {...register("industry", { required: true })}
               placeholder="Seleccioná un rubro"
               options={PREDEFINED_INDUSTRIES.map((ind) => ({ value: ind, label: ind }))}
@@ -443,10 +445,11 @@ export function NewCompanyForm({ onDone }: { onDone: () => void }) {
             )}
           </div>
           <div>
-            <label className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
+            <label htmlFor="company-periodicity" className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
               Ritmo de Costeo *
             </label>
             <Select
+              id="company-periodicity"
               {...register("periodicity", { required: true })}
               placeholder="Seleccioná un ritmo"
               options={PERIODICITY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
@@ -461,10 +464,11 @@ export function NewCompanyForm({ onDone }: { onDone: () => void }) {
             </p>
           </div>
           <div>
-            <label className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
+            <label htmlFor="company-vat-condition" className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
               Condición frente al IVA *
             </label>
             <Select
+              id="company-vat-condition"
               {...register("condicionIva", { required: true })}
               placeholder="Seleccioná la condición"
               options={CONDICION_IVA_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}

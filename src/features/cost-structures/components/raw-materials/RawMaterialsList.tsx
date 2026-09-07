@@ -45,11 +45,9 @@ function ValorDeLista({
 }) {
   if (!dataPointId) return <>{children}</>;
   return (
-    <span onClick={(e) => e.stopPropagation()}>
-      <TraceableValue dataPointId={dataPointId} title={title} className="!px-1.5 !py-0.5">
-        {children}
-      </TraceableValue>
-    </span>
+    <TraceableValue dataPointId={dataPointId} title={title} className="!px-1.5 !py-0.5">
+      {children}
+    </TraceableValue>
   );
 }
 
@@ -102,7 +100,22 @@ export function RawMaterialsList({ structureId, materials, saving, toDelete, set
                 const hasContent = (m.wilson?.unitCost ?? 0) > 0 && (m.movements?.length ?? 0) > 0;
                 const complete = identified && hasContent;
                 return (
-                  <tr key={m.id ?? i} className="cursor-pointer hover:bg-surface-alt/40" onClick={() => setSelected(i)}>
+                  <tr
+                    key={m.id ?? i}
+                    role="button"
+                    tabIndex={0}
+                    className="cursor-pointer hover:bg-surface-alt/40"
+                    onClick={(event) => {
+                      if (!(event.target as HTMLElement).closest('button, a')) setSelected(i);
+                    }}
+                    onKeyDown={(event) => {
+                      if ((event.target as HTMLElement).closest('button, a')) return;
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setSelected(i);
+                      }
+                    }}
+                  >
                     <td className="px-3 py-2 font-mono text-[12px] text-ink-soft">{m.code || '—'}</td>
                     <td className="px-3 py-2 font-medium text-ink">{m.name || <span className="text-ink-soft italic">Sin nombre</span>}</td>
                     <td className="px-3 py-2 text-ink-soft">{m.unit || '—'}</td>

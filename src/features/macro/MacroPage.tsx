@@ -204,8 +204,9 @@ function ManualEntryForm({ onDone }: { onDone: () => void }) {
             ]}
           />
           <div>
-            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-ink-soft">Código indicador</label>
+            <label htmlFor="macro-indicator-code" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-ink-soft">Código indicador</label>
             <input
+              id="macro-indicator-code"
               className="h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink transition-colors focus:border-granate focus:outline-none"
               placeholder="Ej: UATRE_PARITARIA"
               value={indicatorCode}
@@ -213,8 +214,9 @@ function ManualEntryForm({ onDone }: { onDone: () => void }) {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-ink-soft">Valor / Factor</label>
+            <label htmlFor="macro-indicator-value" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-ink-soft">Valor / Factor</label>
             <input
+              id="macro-indicator-value"
               type="number"
               step="0.01"
               className="h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink transition-colors focus:border-granate focus:outline-none"
@@ -224,8 +226,9 @@ function ManualEntryForm({ onDone }: { onDone: () => void }) {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-ink-soft">Fecha efectiva</label>
+            <label htmlFor="macro-effective-date" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-ink-soft">Fecha efectiva</label>
             <input
+              id="macro-effective-date"
               type="date"
               className="h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink transition-colors focus:border-granate focus:outline-none"
               value={effectiveDate}

@@ -63,6 +63,7 @@ export function LateDataPolicySelector({ structureId }: { structureId: string })
               actual === op.value ? 'border-granate bg-granate-tenue' : 'border-line'
             } ${update.isPending ? 'cursor-wait opacity-60' : ''}`}
           >
+            <span className="sr-only">Seleccionar politica para datos tardios</span>
             <input
               type="radio"
               name={`late-data-policy-${structureId}`}

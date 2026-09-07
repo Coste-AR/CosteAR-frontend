@@ -310,14 +310,14 @@ export function RegisterPage() {
 
 function TermsModal({ terms, onClose }: { terms: { version: number; content: string }; onClose: () => void }) {
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl bg-surface shadow-2xl animate-rise"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Cerrar terminos y condiciones"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl bg-surface shadow-2xl animate-rise">
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <h3 className="flex items-center gap-2 text-[15px] font-bold text-ink">
             <FileText className="size-4 text-granate" /> Términos y Condiciones (v{terms.version})
@@ -508,9 +508,9 @@ function StepProfessional({ draft, set }: { draft: Draft; set: SetFn }) {
     <>
       <h2 className="text-xl font-bold text-ink">Datos profesionales</h2>
       <div className="space-y-1.5">
-        <label className="block text-[11px] font-semibold uppercase tracking-widest text-ink-soft">
+        <p className="block text-[11px] font-semibold uppercase tracking-widest text-ink-soft">
           Tipo de profesional
-        </label>
+        </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {PROFESSIONAL_TYPES.map((t) => (
             <button
