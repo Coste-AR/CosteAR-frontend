@@ -311,6 +311,7 @@ function PasoCoproductos({
             value === op.v ? 'border-granate bg-granate-tenue' : 'border-line'
           }`}
         >
+          <span className="sr-only">Seleccionar tratamiento de coproductos</span>
           <input
             type="radio"
             className="mt-1"
@@ -353,10 +354,11 @@ function PasoRecuento({
           qué grado de avance. Ese dato <strong>sale de la planta</strong>, no del sistema:
           lo informa la oficina técnica, y el área de costos lo recibe y lo aplica.
         </p>
-        <label className="block text-[12.5px] font-medium text-ink">
+        <label htmlFor="wip-report-frequency" className="block text-[12.5px] font-medium text-ink">
           ¿Cada cuántos días puede tu planta informarlo?
         </label>
         <input
+          id="wip-report-frequency"
           type="number"
           min={1}
           max={366}

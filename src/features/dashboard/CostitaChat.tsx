@@ -284,7 +284,9 @@ export function CostitaChat({ companies = [] }: { companies?: Company[] }) {
 
       {/* ── Overlay ───────────────────────────────────────────────────────── */}
       {open && (
-        <div
+        <button
+          type="button"
+          aria-label="Cerrar asistente CosteAR"
           className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
           onClick={() => setOpen(false)}
         />
@@ -395,7 +397,7 @@ export function CostitaChat({ companies = [] }: { companies?: Company[] }) {
                       {!msg.aiResponse?.actionType || msg.aiResponse.actionType === 'INFO_ONLY' ? (
                         <div className="flex items-center gap-1.5 mt-1 px-1">
                           <button
-                            onClick={() => toast.success('¡Gracias por tu feedback!', { icon: '🤖' })}
+                            onClick={() => toast.success('¡Gracias por tu feedback!')}
                             className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                             title="Respuesta útil"
                           >
@@ -416,7 +418,6 @@ export function CostitaChat({ companies = [] }: { companies?: Company[] }) {
                         <div className="mt-2 rounded-xl border border-red-100 bg-red-50/50 p-3 shadow-sm">
                           <p className="text-[11px] font-semibold text-red-800 mb-2">¿En qué se equivocó Costita?</p>
                           <textarea
-                            autoFocus
                             value={feedbackText}
                             onChange={(e) => setFeedbackText(e.target.value)}
                             placeholder="Ej: El concepto no es Materia Prima, es Mano de Obra..."
@@ -531,5 +532,3 @@ export function CostitaChat({ companies = [] }: { companies?: Company[] }) {
     </PortalOverlay>
   );
 }
-
-

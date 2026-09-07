@@ -241,9 +241,16 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
                 <div
                   data-index={i}
                   role="option"
+                  tabIndex={-1}
                   aria-selected={o.value === current}
                   onMouseEnter={() => setActiveIndex(i)}
                   onClick={() => !o.disabled && commit(o.value)}
+                  onKeyDown={(event) => {
+                    if (!o.disabled && (event.key === 'Enter' || event.key === ' ')) {
+                      event.preventDefault();
+                      commit(o.value);
+                    }
+                  }}
                   className={cn(
                     'rounded-md px-3 py-2 text-sm transition-colors',
                     o.disabled

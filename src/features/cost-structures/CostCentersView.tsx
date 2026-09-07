@@ -288,7 +288,22 @@ export function CostCentersView({ config, perDepartment, onEdit, structureId, co
               // F09-2 — un servicio "cierra en 0" (verde) solo si repartió algo.
               const svcClosed = !isProd && serviceDistributes(config, c.id);
               return (
-                <tr key={c.id} className="cursor-pointer hover:bg-surface-alt/40" onClick={() => setSelected(c.id)}>
+                <tr
+                  key={c.id}
+                  role="button"
+                  tabIndex={0}
+                  className="cursor-pointer hover:bg-surface-alt/40"
+                  onClick={(event) => {
+                    if (!(event.target as HTMLElement).closest('button, a')) setSelected(c.id);
+                  }}
+                  onKeyDown={(event) => {
+                    if ((event.target as HTMLElement).closest('button, a')) return;
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setSelected(c.id);
+                    }
+                  }}
+                >
                   <td className="px-3 py-2 font-medium text-ink">{centerLabel(c)}</td>
                   <td className="px-3 py-2">
                     <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase',
@@ -302,7 +317,7 @@ export function CostCentersView({ config, perDepartment, onEdit, structureId, co
                       ? d
                         // La fila navega a la ficha del centro: el click sobre el
                         // valor abre SU cuenta y no arrastra la navegación.
-                        ? <span onClick={(e) => e.stopPropagation()}>
+                        ? <span>
                             <TraceableValue title={`Presupuesto fijo · ${centerLabel(c)}`} derivation={derivacionPresupuesto(centerLabel(c), d)}>
                               {fmt(d.budgetFixed)}
                             </TraceableValue>
@@ -314,7 +329,7 @@ export function CostCentersView({ config, perDepartment, onEdit, structureId, co
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-ink">
                     {isProd && d
-                      ? <span onClick={(e) => e.stopPropagation()}>
+                      ? <span>
                           <TraceableValue title={`Presupuesto variable · ${centerLabel(c)}`} derivation={derivacionPresupuesto(centerLabel(c), d)}>
                             {fmt(d.budgetVariable)}
                           </TraceableValue>
@@ -323,7 +338,7 @@ export function CostCentersView({ config, perDepartment, onEdit, structureId, co
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-ink">
                     {isProd && d
-                      ? <span onClick={(e) => e.stopPropagation()}>
+                      ? <span>
                           <TraceableValue title={`Cuota total · ${centerLabel(c)}`} derivation={derivacionCuotaTotal(centerLabel(c), d)}>
                             {fmt(d.quota)}
                           </TraceableValue>

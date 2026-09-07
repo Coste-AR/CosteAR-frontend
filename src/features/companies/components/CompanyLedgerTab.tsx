@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Table, BookOpen, FileDown, ImageIcon, PenLine, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Table, BookOpen, FileDown, ImageIcon, PenLine, Pencil, Trash2, X } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -145,9 +145,10 @@ export function CompanyLedgerTab({ companyId, companyName }: { companyId: string
 
       {lightbox && (
         <PortalOverlay>
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4" onClick={() => setLightbox(null)}>
-          <img src={lightbox} alt="Comprobante" className="max-h-full max-w-full rounded-lg object-contain shadow-2xl" onClick={(ev) => ev.stopPropagation()} />
-          <button type="button" onClick={() => setLightbox(null)} className="absolute right-4 top-4 size-9 rounded-full bg-black/50 text-lg text-white hover:bg-black/70">✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button type="button" aria-label="Cerrar comprobante" className="absolute inset-0 bg-black/80 backdrop-blur-xs" onClick={() => setLightbox(null)} />
+          <img src={lightbox} alt="Comprobante" className="relative max-h-full max-w-full rounded-lg object-contain shadow-2xl" />
+          <button type="button" aria-label="Cerrar comprobante" onClick={() => setLightbox(null)} className="absolute right-4 top-4 flex size-9 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70"><X className="size-5" /></button>
         </div>
         </PortalOverlay>
       )}

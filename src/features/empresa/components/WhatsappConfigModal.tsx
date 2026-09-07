@@ -49,8 +49,9 @@ export function WhatsappConfigModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-ink">Número de WhatsApp de la empresa</label>
+            <label htmlFor="company-whatsapp-number" className="mb-1.5 block text-sm font-semibold text-ink">Número de WhatsApp de la empresa</label>
             <input
+              id="company-whatsapp-number"
               type="text"
               required
               placeholder="Ej: 5493815551234"

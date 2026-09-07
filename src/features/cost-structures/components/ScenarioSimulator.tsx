@@ -302,10 +302,11 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-4 mb-6">
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                <label htmlFor="scenario-raw-material" className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
                   Materia Prima (%)
                 </label>
                 <input
+                  id="scenario-raw-material"
                   type="number"
                   step="0.1"
                   className="w-full rounded border border-line bg-surface px-3 py-2 text-sm focus:border-action focus:outline-none"
@@ -316,10 +317,11 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                <label htmlFor="scenario-direct-labor" className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
                   Mano de Obra (%)
                 </label>
                 <input
+                  id="scenario-direct-labor"
                   type="number"
                   step="0.1"
                   className="w-full rounded border border-line bg-surface px-3 py-2 text-sm focus:border-action focus:outline-none"
@@ -330,10 +332,11 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                <label htmlFor="scenario-indirect-costs" className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
                   Costos Indirectos (%)
                 </label>
                 <input
+                  id="scenario-indirect-costs"
                   type="number"
                   step="0.1"
                   className="w-full rounded border border-line bg-surface px-3 py-2 text-sm focus:border-action focus:outline-none"
@@ -344,10 +347,11 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                <label htmlFor="scenario-sale-price" className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
                   Precio de Venta (%)
                 </label>
                 <input
+                  id="scenario-sale-price"
                   type="number"
                   step="0.1"
                   className="w-full rounded border border-line bg-surface px-3 py-2 text-sm focus:border-action focus:outline-none"

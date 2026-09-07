@@ -10,6 +10,7 @@ import {
   FileText,
   TrendingUp,
   BookOpen,
+  X,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -355,22 +356,25 @@ export function ValidacionesPage() {
       )}
 
       {lightboxSrc && createPortal(
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
-          onClick={() => setLightboxSrc(null)}
-        >
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Cerrar vista ampliada"
+            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+            onClick={() => setLightboxSrc(null)}
+          />
           <img
             src={lightboxSrc}
             alt="Vista ampliada"
-            className="max-w-full max-h-full rounded-2xl shadow-2xl object-contain max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-full max-h-full rounded-2xl shadow-2xl object-contain max-h-[90vh]"
           />
           <button
             type="button"
             onClick={() => setLightboxSrc(null)}
-            className="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full size-9 text-lg transition-colors flex items-center justify-center"
+            aria-label="Cerrar vista ampliada"
+            className="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full size-9 transition-colors flex items-center justify-center"
           >
-            ✕
+            <X className="size-5" />
           </button>
         </div>,
         document.body

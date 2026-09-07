@@ -36,10 +36,13 @@ export function AccessGateModal({ onClose, onSuccess }: Props) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-md animate-fade-in"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 animate-fade-in">
+      <button
+        type="button"
+        aria-label="Cerrar acceso al equipo"
+        className="absolute inset-0 bg-slate-950/30 backdrop-blur-md"
+        onClick={onClose}
+      />
       <style>{`
         @keyframes gateShake {
           0%, 100% { transform: translateX(0); }
@@ -50,7 +53,6 @@ export function AccessGateModal({ onClose, onSuccess }: Props) {
       <div
         className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-line/80 bg-surface/90 p-8 text-ink shadow-[0_30px_70px_rgba(74,21,27,0.12)] backdrop-blur-xl"
         style={{ animation: shake ? 'gateShake .4s' : undefined }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
@@ -77,14 +79,14 @@ export function AccessGateModal({ onClose, onSuccess }: Props) {
 
         {/* Form Input */}
         <div className="space-y-2">
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft/75">
+          <label htmlFor="team-access-password" className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft/75">
             Contraseña del Equipo
           </label>
           <div className="relative">
             <input
+              id="team-access-password"
               type="password"
               value={password}
-              autoFocus
               onChange={(e) => { setPassword(e.target.value); setError(null); }}
               onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
               placeholder="Ingresá la clave del equipo"
