@@ -22,7 +22,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.62.11",
     "@tanstack/react-router": "^1.95.1",
-    "axios": "^1.7.9",
+    "axios": "^1.18.0",
     "clsx": "^2.1.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
