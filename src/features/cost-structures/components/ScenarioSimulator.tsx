@@ -1,11 +1,27 @@
 import { useState } from 'react';
-import { Activity, ArrowRight, TrendingDown, TrendingUp, Plus, Trash2, Bird, Building2 } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  TrendingDown,
+  TrendingUp,
+  Plus,
+  Trash2,
+  Bird,
+  Building2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Money } from '@/components/ui/Money';
 import { TabList, Tab } from '@/components/ui/Tabs';
 import { useSimulate } from '../cost-structure-hooks';
-import type { CalculationResult } from '@/lib/types';
+import { apiErrorMessage } from '@/lib/api';
+import type {
+  CalculationResult,
+  ComponenteContribucionMarginal,
+  PuntoEquilibrio,
+  SimulationResult,
+} from '@/lib/types';
 
 // ── Tipos del simulador de escala de aves ────────────────────────────────────
 
@@ -18,7 +34,13 @@ export interface EscalonCostoFijo {
   descripcion: string;
 }
 
-export interface ProyeccionAvicola {
+interface ResultadoIncompleto {
+  incompleta: true;
+  motivos: string[];
+}
+
+export interface ProyeccionAvicolaCompleta {
+  incompleta: false;
   cajones: number;
   rawMaterial: number;
   directLabor: number;
@@ -26,26 +48,70 @@ export interface ProyeccionAvicola {
   productionCost: number;
   revenue: number;
   resultado: number;
-  peEnCajones: number;
-  peEnAves: number;
+  puntoEquilibrio: PuntoEquilibrio;
+}
+
+export type ProyeccionAvicola = ProyeccionAvicolaCompleta | ResultadoIncompleto;
+
+const CLAVES_COMPONENTES = {
+  rawMaterial: 'comportamiento_materia_prima',
+  directLabor: 'comportamiento_mano_obra_directa',
+  indirectCosts: 'comportamiento_costos_indirectos',
+} as const;
+
+type ComponentesPorSeccion = Record<keyof typeof CLAVES_COMPONENTES, ComponenteContribucionMarginal>;
+
+function resolverComponentes(result: SimulationResult): ComponentesPorSeccion | ResultadoIncompleto {
+  if (result.contribucionMarginal.incompleta) {
+    return { incompleta: true, motivos: result.contribucionMarginal.motivos };
+  }
+
+  const entries = Object.entries(CLAVES_COMPONENTES).map(([section, clave]) => [
+    section,
+    result.contribucionMarginal.componentes.find((component) => component.clave === clave),
+  ] as const);
+  const faltantes = entries.filter(([, component]) => !component);
+  if (faltantes.length > 0) {
+    return {
+      incompleta: true,
+      motivos: faltantes.map(
+        ([section]) => `El backend no informó la clasificación de ${section}.`,
+      ),
+    };
+  }
+
+  const noEscalables = entries.filter(([, component]) =>
+    component?.comportamientoVolumen === null || component?.comportamientoVolumen === 'SEMIFIJO',
+  );
+  if (noEscalables.length > 0) {
+    return {
+      incompleta: true,
+      motivos: noEscalables.map(([, component]) =>
+        component?.comportamientoVolumen === 'SEMIFIJO'
+          ? `El rubro ${component.etiqueta} es semifijo y no tiene separado su tramo variable.`
+          : `Falta clasificar frente al volumen el rubro ${component?.etiqueta ?? 'desconocido'}.`,
+      ),
+    };
+  }
+
+  return Object.fromEntries(entries) as unknown as ComponentesPorSeccion;
+}
+
+function escalarPorComportamiento(component: ComponenteContribucionMarginal, scale: number) {
+  return component.comportamientoVolumen === 'VARIABLE'
+    ? component.importeAbsorcion * scale
+    : component.importeAbsorcion;
 }
 
 /**
  * Proyecta costos e ingresos cuando se cambia la escala de aves.
  *
- * Supuestos:
- * - La materia prima escala proporcionalmente con la producción (variable).
- * - La mano de obra directa es fija en el corto plazo (no contrata galponero extra
- *   por más gallinas en el mismo galpón).
- * - Los costos indirectos son fijos más los escalones que se activen.
- * - El ingreso por cajón es constante (precio de venta no cambia con escala).
- *
- * Se calculan dos proyecciones: una con postura de lote y otra con postura de
- * plantel. El PE se deriva siempre de los inputs del escenario, nunca de un
- * valor guardado.
+ * La escala de cada rubro sale de `contribucionMarginal.componentes`, que es la
+ * clasificación resuelta por el backend. La función no contiene defaults: si
+ * el dominio no puede clasificar un rubro, devuelve un escenario incompleto.
  */
 export function calcularProyeccionAvicola(
-  currentResult: CalculationResult,
+  currentResult: SimulationResult,
   avesBase: number,
   avesObjetivo: number,
   posturaFraccion: number,
@@ -62,6 +128,8 @@ export function calcularProyeccionAvicola(
   const cajones = cajonesBase * (avesObjetivo / avesBase) * posturaFactor;
 
   const scale = cajones / cajonesBase;
+  const componentes = resolverComponentes(currentResult);
+  if ('incompleta' in componentes) return componentes;
 
   // Ingresos actuales → ingreso por cajón
   const revenueActual =
@@ -69,37 +137,38 @@ export function calcularProyeccionAvicola(
   const revenuePorCajon = revenueActual / cajonesBase;
 
   // Costos escalados
-  const rawMaterial = Number(currentResult.rawMaterialConsumed) * scale;
-  const directLabor = Number(currentResult.directLaborTotal); // fijo
+  const rawMaterial = escalarPorComportamiento(componentes.rawMaterial, scale);
+  const directLabor = escalarPorComportamiento(componentes.directLabor, scale);
 
   // Escalones activos: todos los que inician antes de las aves objetivo
   const escaloneActivos = escalones.filter(
     (e) => e.aves_desde > 0 && avesObjetivo >= e.aves_desde,
   );
   const costoEscalones = escaloneActivos.reduce((sum, e) => sum + e.costo_fijo, 0);
-  const indirectCosts = Number(currentResult.indirectCostsApplied) + costoEscalones;
+  const indirectCosts =
+    escalarPorComportamiento(componentes.indirectCosts, scale) + costoEscalones;
 
   const productionCost = rawMaterial + directLabor + indirectCosts;
   const revenue = revenuePorCajon * cajones;
   const resultado = revenue - productionCost;
 
-  // Punto de equilibrio: costos fijos / (precio por cajón - costo variable por cajón)
-  const costosFijos = directLabor + indirectCosts;
-  const variablePorCajon = cajones > 0 ? rawMaterial / cajones : 0;
-  const margenPorCajon = revenuePorCajon - variablePorCajon;
-  const peEnCajones = margenPorCajon > 0 ? costosFijos / margenPorCajon : Infinity;
-  // Invertir la formula de cajones para obtener aves en la postura proyectada
-  const peEnAves =
-    posturaFraccion > 0 && cajonesBase > 0 && avesBase > 0
-      ? peEnCajones * (avesBase / cajonesBase) * (1 / posturaFactor)
-      : Infinity;
-
-  return { cajones, rawMaterial, directLabor, indirectCosts, productionCost, revenue, resultado, peEnCajones, peEnAves };
+  return {
+    incompleta: false,
+    cajones,
+    rawMaterial,
+    directLabor,
+    indirectCosts,
+    productionCost,
+    revenue,
+    resultado,
+    puntoEquilibrio: currentResult.puntoEquilibrio,
+  };
 }
 
 // ── Capacidad ociosa del galpón ───────────────────────────────────────────────
 
-export interface CapacidadOciosaResult {
+export interface CapacidadOciosaCompleta {
+  incompleta: false;
   utilizacionPct: number;
   avesOciosas: number;
   costoFijoTotal: number;
@@ -109,18 +178,19 @@ export interface CapacidadOciosaResult {
   costoUnitarioPlenaCapacidad: number;
 }
 
+export type CapacidadOciosaResult = CapacidadOciosaCompleta | ResultadoIncompleto;
+
 /**
  * Calcula la capacidad ociosa del galpón para el período actual.
  *
- * Los costos fijos (MOD + CIP) son los del resultado calculado — el galpón ya
- * incurrió en ellos. Si no está lleno, una fracción de esos costos no tiene
- * producción que los absorba: eso es el costo ocioso.
+ * Los costos fijos son los componentes que el dominio clasificó como `FIJO`.
+ * Si la clasificación está incompleta, el análisis también lo está.
  *
  * El costo unitario a plena capacidad muestra qué unitario tendría si el galpón
  * funcionara al 100%: es el piso al que puede llegar escalando.
  */
 export function calcularCapacidadOciosa(
-  currentResult: CalculationResult,
+  currentResult: SimulationResult,
   capacidadNormalAves: number,
   avesActuales: number,
 ): CapacidadOciosaResult | null {
@@ -130,11 +200,19 @@ export function calcularCapacidadOciosa(
   const cajonesActuales = currentResult.detail.unitCost?.unitsProduced;
   if (!cajonesActuales || cajonesActuales === 0) return null;
 
+  const componentes = resolverComponentes(currentResult);
+  if ('incompleta' in componentes) return componentes;
+
   const utilizacionPct = (avesActuales / capacidadNormalAves) * 100;
   const avesOciosas = capacidadNormalAves - avesActuales;
 
-  // Los costos fijos son MOD + CIP — variables (MP) escalan con producción y no tienen ociosidad
-  const costoFijoTotal = Number(currentResult.directLaborTotal) + Number(currentResult.indirectCostsApplied);
+  const todosLosComponentes = Object.values(componentes);
+  const costoFijoTotal = todosLosComponentes
+    .filter((component) => component.comportamientoVolumen === 'FIJO')
+    .reduce((sum, component) => sum + component.importeAbsorcion, 0);
+  const costoVariableTotal = todosLosComponentes
+    .filter((component) => component.comportamientoVolumen === 'VARIABLE')
+    .reduce((sum, component) => sum + component.importeAbsorcion, 0);
   const fraccionOciosa = 1 - avesActuales / capacidadNormalAves;
   const costoOcioso = costoFijoTotal * fraccionOciosa;
   const costoCubierto = costoFijoTotal - costoOcioso;
@@ -145,10 +223,11 @@ export function calcularCapacidadOciosa(
   // A plena capacidad los cajones escalan proporcionalmente con las aves
   const cajonesPlenaCapacidad = cajonesActuales * (capacidadNormalAves / avesActuales);
   const costoUnitarioPlenaCapacidad =
-    (Number(currentResult.rawMaterialConsumed) * (capacidadNormalAves / avesActuales) + costoFijoTotal) /
+    (costoVariableTotal * (capacidadNormalAves / avesActuales) + costoFijoTotal) /
     cajonesPlenaCapacidad;
 
   return {
+    incompleta: false,
     utilizacionPct,
     avesOciosas,
     costoFijoTotal,
@@ -177,7 +256,8 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
     sales: 0,
   });
   const simulate = useSimulate(structureId);
-  const [projected, setProjected] = useState<CalculationResult | null>(null);
+  const [projected, setProjected] = useState<SimulationResult | null>(null);
+  const [simulationError, setSimulationError] = useState<string | null>(null);
 
   const handleRun = async () => {
     const payload = {
@@ -186,8 +266,13 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
       indirectCosts: shocks.indirectCosts / 100,
       sales: shocks.sales / 100,
     };
-    const res = await simulate.mutateAsync(payload);
-    setProjected(res);
+    setSimulationError(null);
+    try {
+      const res = await simulate.mutateAsync(payload);
+      setProjected(res);
+    } catch (error) {
+      setSimulationError(apiErrorMessage(error));
+    }
   };
 
   // ── Bird scale tab (nuevo) ────────────────────────────────────────────────
@@ -200,6 +285,7 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
   const [proyLote, setProyLote] = useState<ProyeccionAvicola | null>(null);
   const [proyPlanteil, setProyPlanteil] = useState<ProyeccionAvicola | null>(null);
   const [capacidadNormalGalpon, setCapacidadNormalGalpon] = useState(0);
+  const [birdSource, setBirdSource] = useState<SimulationResult | null>(null);
 
   const addEscalon = () => {
     setEscalones((prev) => [
@@ -221,20 +307,30 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
       prev.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
     );
 
-  const handleRunBirdScale = () => {
-    if (!currentResult) return;
-    const base = posturaLote / 100;
-    setProyLote(calcularProyeccionAvicola(currentResult, avesBase, avesObjetivo, base, base, escalones));
-    setProyPlanteil(
-      calcularProyeccionAvicola(
-        currentResult,
-        avesBase,
-        avesObjetivo,
-        posturaPlanteil / 100,
-        base,
-        escalones,
-      ),
-    );
+  const handleRunBirdScale = async () => {
+    setSimulationError(null);
+    try {
+      // La simulación vacía refresca la clasificación efectiva del dominio. No
+      // usamos el último cálculo legado porque no persiste este contrato aditivo.
+      const baseResult = await simulate.mutateAsync({});
+      setBirdSource(baseResult);
+      const base = posturaLote / 100;
+      setProyLote(
+        calcularProyeccionAvicola(baseResult, avesBase, avesObjetivo, base, base, escalones),
+      );
+      setProyPlanteil(
+        calcularProyeccionAvicola(
+          baseResult,
+          avesBase,
+          avesObjetivo,
+          posturaPlanteil / 100,
+          base,
+          escalones,
+        ),
+      );
+    } catch (error) {
+      setSimulationError(apiErrorMessage(error));
+    }
   };
 
   // ── Helpers de render ─────────────────────────────────────────────────────
@@ -260,9 +356,15 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
   };
 
   const hasCajonesBase = Boolean(currentResult?.detail.unitCost?.unitsProduced);
+  const hasActiveEscalones = escalones.some(
+    (escalon) => escalon.aves_desde > 0 && avesObjetivo >= escalon.aves_desde,
+  );
 
   return (
-    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+    <div
+      data-testid="scenario-simulator"
+      className="space-y-6 animate-in fade-in zoom-in-95 duration-300"
+    >
       {/* ── Selector de pestaña ──────────────────────────────────────────── */}
       <TabList>
         {(
@@ -282,6 +384,13 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
           </Tab>
         ))}
       </TabList>
+
+      {simulationError && (
+        <div role="alert" className="flex items-start gap-2 rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>{simulationError}</span>
+        </div>
+      )}
 
       {/* ── Shock de costos (existente) ───────────────────────────────────── */}
       {activeTab === 'shock' && (
@@ -370,8 +479,22 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
             </div>
           </div>
 
+          {projected?.contribucionMarginal.incompleta && (
+            <div role="alert" className="rounded-xl border border-warn/40 bg-warn/10 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-warn">
+                <AlertTriangle className="size-4" aria-hidden />
+                Escenario incompleto
+              </div>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink">
+                {projected.contribucionMarginal.motivos.map((motivo) => (
+                  <li key={motivo}>{motivo}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {projected && currentResult && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 animate-in slide-in-from-bottom-4 duration-500">
               <div className="rounded-xl border border-line bg-surface p-5">
                 <h4 className="text-sm font-bold text-ink mb-4">Costo de Producción</h4>
                 <div className="flex items-center justify-between text-2xl font-mono">
@@ -410,6 +533,38 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                     Number(projected.grossMarginPct),
                   )}
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-line bg-surface p-5">
+                <h4 className="text-sm font-bold text-ink mb-4">Contribución marginal</h4>
+                {projected.contribucionMarginal.incompleta ? (
+                  <p className="text-sm font-semibold text-warn">Incompleta</p>
+                ) : (
+                  <div>
+                    <p className="text-2xl font-mono text-ink">
+                      <Money value={projected.contribucionMarginal.contribucionMarginalUnitaria} />
+                    </p>
+                    <p className="mt-1 text-xs text-ink-soft">por cajón vendido</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-line bg-surface p-5">
+                <h4 className="text-sm font-bold text-ink mb-4">Punto de equilibrio</h4>
+                {projected.puntoEquilibrio.incompleta ? (
+                  <p className="text-sm font-semibold text-warn">Incompleto</p>
+                ) : projected.puntoEquilibrio.unidadesEquilibrio === null ? (
+                  <p className="text-sm text-danger">
+                    {projected.puntoEquilibrio.motivoSinEquilibrio ?? 'No alcanzable.'}
+                  </p>
+                ) : (
+                  <div>
+                    <p className="text-2xl font-mono text-ink">
+                      {Math.ceil(projected.puntoEquilibrio.unidadesEquilibrio).toLocaleString('es-AR')}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-soft">cajones</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -613,12 +768,20 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                     />
                   </div>
                   {(() => {
-                    if (!currentResult || avesBase <= 0 || capacidadNormalGalpon <= 0) return null;
-                    const oc = calcularCapacidadOciosa(currentResult, capacidadNormalGalpon, avesBase);
+                    if (!birdSource || avesBase <= 0 || capacidadNormalGalpon <= 0) return null;
+                    const oc = calcularCapacidadOciosa(birdSource, capacidadNormalGalpon, avesBase);
                     if (!oc) return (
                       <p className="mt-2 text-xs text-danger">
                         Las aves actuales no pueden superar la capacidad del galpón.
                       </p>
+                    );
+                    if (oc.incompleta) return (
+                      <div role="alert" className="mt-4 rounded-xl border border-warn/40 bg-warn/10 p-4">
+                        <p className="text-sm font-semibold text-warn">Análisis incompleto</p>
+                        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-ink">
+                          {oc.motivos.map((motivo) => <li key={motivo}>{motivo}</li>)}
+                        </ul>
+                      </div>
                     );
                     return (
                       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 animate-in fade-in duration-300">
@@ -632,7 +795,7 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                         <div className="rounded-xl border border-line bg-surface-alt p-3">
                           <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">Costo fijo total</p>
                           <p className="text-sm font-mono font-bold text-ink"><Money value={oc.costoFijoTotal} /></p>
-                          <p className="text-[10px] text-ink-soft mt-1">MOD + CIP del período</p>
+                          <p className="text-[10px] text-ink-soft mt-1">Según la clasificación del dominio</p>
                         </div>
                         <div className="rounded-xl border border-line bg-surface-alt p-3">
                           <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">Costo ocioso</p>
@@ -655,6 +818,7 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                   <Button
                     variant="primary"
                     onClick={handleRunBirdScale}
+                    loading={simulate.isPending}
                     disabled={avesBase === 0 || avesObjetivo === 0}
                   >
                     Proyectar escenario
@@ -688,7 +852,16 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                           </p>
                         )}
 
-                        {proy && (
+                        {proy?.incompleta && (
+                          <div role="alert" className="rounded-lg border border-warn/40 bg-warn/10 p-3">
+                            <p className="text-sm font-semibold text-warn">Escenario incompleto</p>
+                            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-ink">
+                              {proy.motivos.map((motivo) => <li key={motivo}>{motivo}</li>)}
+                            </ul>
+                          </div>
+                        )}
+
+                        {proy && !proy.incompleta && (
                           <div className="space-y-3">
                             <div className="flex justify-between items-baseline text-sm">
                               <span className="text-ink-soft">Cajones proyectados</span>
@@ -740,26 +913,28 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                               <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft mb-2">
                                 Punto de equilibrio
                               </p>
-                              {isFinite(proy.peEnCajones) ? (
-                                <div className="space-y-1 text-sm">
-                                  <div className="flex justify-between">
-                                    <span className="text-ink-soft">En cajones</span>
-                                    <span className="font-mono tabular font-semibold text-ink">
-                                      {Math.ceil(proy.peEnCajones).toLocaleString('es-AR')} caj.
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-ink-soft">En aves</span>
-                                    <span className="font-mono tabular font-semibold text-ink">
-                                      {Math.ceil(proy.peEnAves).toLocaleString('es-AR')} aves
-                                    </span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <p className="text-xs text-danger">
-                                  El margen por cajón es negativo — el PE no es alcanzable con
-                                  este precio de venta.
+                              {hasActiveEscalones ? (
+                                <p className="text-xs text-warn">
+                                  No disponible: los escalones locales no forman parte del contrato
+                                  de simulación del backend.
                                 </p>
+                              ) : proy.puntoEquilibrio.incompleta ? (
+                                <ul className="list-disc space-y-1 pl-4 text-xs text-warn">
+                                  {proy.puntoEquilibrio.motivos.map((motivo) => (
+                                    <li key={motivo}>{motivo}</li>
+                                  ))}
+                                </ul>
+                              ) : proy.puntoEquilibrio.unidadesEquilibrio === null ? (
+                                <p className="text-xs text-danger">
+                                  {proy.puntoEquilibrio.motivoSinEquilibrio ?? 'No alcanzable.'}
+                                </p>
+                              ) : (
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-ink-soft">En cajones</span>
+                                  <span className="font-mono tabular font-semibold text-ink">
+                                    {Math.ceil(proy.puntoEquilibrio.unidadesEquilibrio).toLocaleString('es-AR')} caj.
+                                  </span>
+                                </div>
                               )}
                             </div>
                           </div>

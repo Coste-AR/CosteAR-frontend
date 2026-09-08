@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { CostStructure, CalculationResult, CostCalculation, LateDataPolicy } from '@/lib/types';
+import type {
+  CostStructure,
+  CalculationResult,
+  CostCalculation,
+  LateDataPolicy,
+  SimulationResult,
+} from '@/lib/types';
 import type { RawMaterialConfig, DirectLaborConfig, IndirectCostConfig } from './cost-structure-types';
 
 /**
@@ -213,7 +219,7 @@ export function useImportExcel(id: string) {
 export function useSimulate(id: string) {
   return useMutation({
     mutationFn: async (shocks: { rawMaterial?: number; directLabor?: number; indirectCosts?: number; sales?: number }) => {
-      const res = await api.post<{ data: { result: CalculationResult; simulated: boolean } }>(
+      const res = await api.post<{ data: { result: SimulationResult; simulated: boolean } }>(
         `/cost-structures/${id}/simulate`,
         shocks,
       );
@@ -245,4 +251,3 @@ export function useLatestCalculation(id: string) {
     enabled: !!id,
   });
 }
-
