@@ -3,7 +3,7 @@
 - **Issue:** #126
 - **Repo:** CosteAR-frontend
 - **Rama:** `feat/issue-126-guarda-tests`
-- **PR:** pendiente al redactar la bitácora
+- **PR:** [#150](https://github.com/Coste-AR/CosteAR-frontend/pull/150)
 - **Agente:** Codex · GPT-5
 
 ## Contrato verificado
