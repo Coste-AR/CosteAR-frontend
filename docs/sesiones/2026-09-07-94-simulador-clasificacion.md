@@ -3,7 +3,7 @@
 - **Issue:** #94
 - **Repo:** CosteAR-frontend
 - **Rama:** `feat/issue-94-simulador-clasificacion`
-- **PR:** pendiente al redactar la bitácora
+- **PR:** [#148](https://github.com/Coste-AR/CosteAR-frontend/pull/148)
 - **Agente:** Codex · GPT-5
 - **Tanda:** B1 · L-07
 
@@ -89,7 +89,7 @@ npm.cmd test
 28 archivos aprobados, 181 tests aprobados
 
 npm.cmd run test:e2e -- tests/e2e/simulador-clasificacion.spec.ts
-4 tests aprobados en Chromium, WebKit, Mobile Chrome y Mobile Safari (1.1 min)
+4 tests aprobados en Chromium, WebKit, Mobile Chrome y Mobile Safari (1.4 min)
 ```
 
 La primera corrida completa de E2E saturó cuatro workers y agotó el timeout en specs no
