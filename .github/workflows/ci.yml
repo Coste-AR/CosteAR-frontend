@@ -36,6 +36,9 @@ jobs:
     - name: Los workflows tienen que ser YAML valido
       run: python3 scripts/chequear-workflows.py .github/workflows/*.yml
 
+    - name: Todas las features tienen un test o deuda trazada
+      run: npm run check:feature-tests
+
     - name: Run Linter
       run: npm run lint
 
