@@ -85,10 +85,11 @@ function DecisionCard({ decision }: { decision: LateDataDecision }) {
 
       {choice && (
         <div className="mt-3 space-y-2">
-          <label className="block text-[12px] font-medium text-ink">
+          <label htmlFor={`late-data-reason-${decision.id}`} className="block text-[12px] font-medium text-ink">
             ¿Por qué tomás esta decisión? Queda registrado.
           </label>
           <textarea
+            id={`late-data-reason-${decision.id}`}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={2}

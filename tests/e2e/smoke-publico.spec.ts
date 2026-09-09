@@ -53,6 +53,42 @@ test('el login no deja enviar el formulario vacio', async ({ page, consola }) =>
   expect(consola.mensajes).toEqual([]);
 });
 
+test('recuperar la contrasena se completa usando solo Tab, escritura y Enter', async ({ page, consola }, testInfo) => {
+  let emailRecibido: string | undefined;
+  await page.route('**/api/v1/auth/forgot-password', async (route) => {
+    emailRecibido = (await route.request().postDataJSON() as { email: string }).email;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { message: 'ok' } }),
+    });
+  });
+
+  await page.goto('/forgot-password');
+  await laAppPinto(page);
+
+  // El recorrido reproduce el uso sin mouse: el foco entra al campo, avanza
+  // al envio y Enter dispara el submit nativo del formulario.
+  const email = page.getByRole('textbox', { name: 'Email' });
+  await page.keyboard.press('Tab');
+  await expect(email).toBeFocused();
+  await page.keyboard.type('persona@ejemplo.com');
+
+  const submit = page.getByRole('button', { name: 'Enviar enlace' });
+  await page.keyboard.press('Tab');
+  await expect(submit).toBeFocused();
+  await page.keyboard.press('Enter');
+
+  await expect(page.getByText(/Si el email existe/i)).toBeVisible();
+  expect(emailRecibido).toBe('persona@ejemplo.com');
+  expect(consola.mensajes).toEqual([]);
+
+  await testInfo.attach(`recuperacion-teclado-${testInfo.project.name}`, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  });
+});
+
 test('no hay scroll horizontal en mobile', async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith('Mobile'), 'solo aplica a viewports mobile');
 

@@ -140,7 +140,6 @@ export function DepartmentsTab({ structureId, readOnly }: { structureId: string;
               {editando === dept.id ? (
                 <>
                   <input
-                    autoFocus
                     value={nombreEdit}
                     onChange={(e) => setNombreEdit(e.target.value)}
                     onKeyDown={(e) => {

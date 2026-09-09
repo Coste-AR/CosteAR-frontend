@@ -152,8 +152,10 @@ nada: la rama, si `origin/dev` avanzó, los PRs abiertos, los issues asignados y
 
 **Cuándo algo está "terminado", no solo "andando en mi máquina".** Resumen operativo (Nivel 1):
 probado en `staging` —no alcanza tu máquina—, PR con la plantilla completa, `lint` + `typecheck` +
-`test` en verde, sin `console.log` de debug, commits atómicos. **Si tocó UI o un flujo: se abrió
-en el navegador y se probó de punta a punta** — los tests unitarios no alcanzan.
+`test` en verde, sin `console.log` de debug, commits atómicos. **Si tocó UI o un flujo: hay un
+test de Playwright que lo recorre** (`npm run test:e2e`, cuatro viewports, con captura adjunta) —
+los tests unitarios no alcanzan. *Desde el 30-08-2026 la DoD ya no pide abrir el navegador a mano:
+lo reemplaza esa suite.*
 
 Los tres niveles completos —por tarea, por tanda de trabajo (cada promoción a `staging`) y por
 entrega al cliente— viven en
@@ -182,7 +184,8 @@ que el frontend no recalcula los números que ya vienen del backend. **Viven en
 |**GR-05**|Razonar hacia el permiso|**La ausencia de evidencia no es evidencia de permiso**|
 |**GR-06**|Resolver una ambigüedad del ticket en silencio|Marcala como pregunta abierta|
 |**GR-07**|Pisar el scope de otro issue|Andamio mínimo + `TODO`, y avisá|
-|**GR-08**|Confiar en tests unitarios para validar un flujo|**Caso real: 98 tests verdes y el flujo roto en dos lugares.** Ningún cambio de UI o de flujo se pushea sin abrirlo en el navegador|
+|**GR-08**|Confiar en tests unitarios para validar un flujo|**Caso real: 98 tests verdes y el flujo roto en dos lugares.** Ningún cambio de UI o de flujo se pushea sin un test E2E que lo recorra (`npm run test:e2e`)|
+|**GR-09**|Decir "arreglado" verificándolo con algo que escribí yo en la misma sesión|**Hereda mis puntos ciegos: no es una segunda opinión, es la misma opinión con otra sintaxis.** El 30-08 un workflow se reportó arreglado tres veces sin haber funcionado nunca. Mirá el **artefacto final**, no el diff, y preferí una guarda en CI antes que prometer más cuidado|
 
 ---
 
@@ -228,6 +231,7 @@ Por eso `/costear-bitacora` al cerrar una sesión (DOC-03) y el ADR en el mismo 
 
 |Fecha|Qué cambió|Fuente|
 |---|---|---|
+|2026-08-31|**Dos cosas que el archivo decía y ya no eran ciertas.** La DoD del 4.bis seguía pidiendo abrir el navegador a mano: lo reemplazó Playwright el 30-08, y `GR-08` va con ella. Se suma `GR-09` sobre verificar con herramientas propias, que salió de reportar tres veces como arreglado un workflow que nunca corrió. *La tercera —`PR-05`— la reescribió #81 mientras este PR esperaba; quedó esa redacción.*|Santiago|
 |2026-08-22|**0.bis sale de acá.** La filosofía (diagnosticar/planificar/implementar) cargaba en TODAS las sesiones sin importar la tarea. El resumen operativo queda inline; la versión completa vive en `CosteAR-admin/docs/2026-08-22-filosofia-diagnosticar-planificar-implementar.md` (espejo del Second Brain de Santiago, que es la fuente canónica). Se evaluó y descartó ponerla en `costear-knowledge-base`: ese repo alimenta el RAG del clasificador y mete cualquier `.md` al índice — se habría mezclado con la doctrina de costeo.|Santiago|
 |2026-08-22|**Pieza 1 — FE-01..07 se mudan a `.claude/rules/frontend-ui.md`**, scoped a `src/**`. Antes cargaban en todas las sesiones; ahora solo cuando el trabajo toca código de la app.|Santiago|
 |2026-08-22|**PR-04/05/06**: el PR nace en draft, se mergea con `--auto`, y después se verifica que el trabajo llegó. Reemplazan por mecanismo lo que REV-08 pedía recordar. La skill `/costear-pr` ya crea los PRs en borrador.|Santiago|

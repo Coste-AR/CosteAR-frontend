@@ -298,8 +298,9 @@ export function JointCostsTab({
         </p>
 
         <div className="mt-4 flex items-center gap-3">
-          <label className="text-[13px] text-ink">Costo conjunto total del período</label>
+          <label htmlFor="joint-cost-total" className="text-[13px] text-ink">Costo conjunto total del período</label>
           <input
+            id="joint-cost-total"
             inputMode="decimal"
             value={total}
             disabled={readOnly}
@@ -326,8 +327,9 @@ export function JointCostsTab({
           {filas.map((fila, i) => (
             <div key={i} className="grid items-end gap-2 border-b border-line pb-3 last:border-b-0 sm:grid-cols-12">
               <div className="sm:col-span-3">
-                <label className="text-[11px] text-ink-soft">Producto</label>
+                <label htmlFor={`joint-product-${i}`} className="text-[11px] text-ink-soft">Producto</label>
                 <input
+                  id={`joint-product-${i}`}
                   value={fila.productName}
                   disabled={readOnly}
                   onChange={(e) => setFila(i, 'productName', e.target.value)}
@@ -335,8 +337,9 @@ export function JointCostsTab({
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="text-[11px] text-ink-soft">Tipo</label>
+                <label htmlFor={`joint-kind-${i}`} className="text-[11px] text-ink-soft">Tipo</label>
                 <Select
+                  id={`joint-kind-${i}`}
                   ariaLabel="Tipo"
                   value={fila.kind}
                   disabled={readOnly}
@@ -346,8 +349,9 @@ export function JointCostsTab({
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="text-[11px] text-ink-soft">Unidades</label>
+                <label htmlFor={`joint-units-${i}`} className="text-[11px] text-ink-soft">Unidades</label>
                 <input
+                  id={`joint-units-${i}`}
                   inputMode="decimal"
                   value={fila.unitsObtained}
                   disabled={readOnly}
@@ -357,8 +361,9 @@ export function JointCostsTab({
               </div>
               {pideRendimiento && (
                 <div className="sm:col-span-2">
-                  <label className="text-[11px] text-ink-soft">Rendimiento</label>
+                  <label htmlFor={`joint-yield-${i}`} className="text-[11px] text-ink-soft">Rendimiento</label>
                   <input
+                    id={`joint-yield-${i}`}
                     inputMode="decimal"
                     value={fila.yieldPct}
                     disabled={readOnly}
@@ -369,8 +374,9 @@ export function JointCostsTab({
               )}
               {pidePrecio && (
                 <div className="sm:col-span-2">
-                  <label className="text-[11px] text-ink-soft">Precio mercado</label>
+                  <label htmlFor={`joint-price-${i}`} className="text-[11px] text-ink-soft">Precio mercado</label>
                   <input
+                    id={`joint-price-${i}`}
                     inputMode="decimal"
                     value={fila.marketPrice}
                     disabled={readOnly}
@@ -382,8 +388,9 @@ export function JointCostsTab({
               {pideGastos && (
                 <>
                   <div className="sm:col-span-1">
-                    <label className="text-[11px] text-ink-soft">Gto. var. %</label>
+                    <label htmlFor={`joint-variable-cost-${i}`} className="text-[11px] text-ink-soft">Gto. var. %</label>
                     <input
+                      id={`joint-variable-cost-${i}`}
                       inputMode="decimal"
                       value={fila.sellingCostVarPct}
                       disabled={readOnly}
@@ -392,8 +399,9 @@ export function JointCostsTab({
                     />
                   </div>
                   <div className="sm:col-span-1">
-                    <label className="text-[11px] text-ink-soft">Gto. fijo/u</label>
+                    <label htmlFor={`joint-fixed-cost-${i}`} className="text-[11px] text-ink-soft">Gto. fijo/u</label>
                     <input
+                      id={`joint-fixed-cost-${i}`}
                       inputMode="decimal"
                       value={fila.sellingCostFixedPerUnit}
                       disabled={readOnly}

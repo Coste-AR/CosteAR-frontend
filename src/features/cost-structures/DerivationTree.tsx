@@ -233,10 +233,7 @@ export function TraceCard({ dataPointId, period, onClose }: { dataPointId: strin
   const [adjuntarOpen, setAdjuntarOpen] = useState(false);
 
   return (
-    <div
-      className="animate-rise rounded-xl border border-line border-l-4 border-l-granate bg-surface-alt/40 p-4"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div className="animate-rise rounded-xl border border-line border-l-4 border-l-granate bg-surface-alt/40 p-4">
       {isLoading && <p className="text-[13px] text-ink-soft">Cargando ficha del dato…</p>}
       {error && <p className="text-[13px] text-danger">{apiErrorMessage(error)}</p>}
 

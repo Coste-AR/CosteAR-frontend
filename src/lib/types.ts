@@ -188,6 +188,74 @@ export interface CalculationResult {
   };
 }
 
+export type ComportamientoVolumen = 'VARIABLE' | 'FIJO' | 'SEMIFIJO';
+
+export interface ComponenteContribucionMarginal {
+  clave: string;
+  etiqueta: string;
+  importeAbsorcion: number;
+  comportamientoVolumen: ComportamientoVolumen | null;
+  origen: 'periodo' | 'estructura' | 'empresa' | null;
+  parametroId: string | null;
+  clasificadoPorUserId: string | null;
+  clasificadoEn: string | null;
+}
+
+interface ContribucionMarginalBase {
+  precioUnitario: number;
+  unidadesVendidas: number;
+  totalAbsorcion: number;
+  componentes: ComponenteContribucionMarginal[];
+}
+
+export type ContribucionMarginal =
+  | (ContribucionMarginalBase & {
+      incompleta: false;
+      costoVariableTotal: number;
+      costoVariableUnitario: number;
+      contribucionMarginalUnitaria: number;
+    })
+  | (ContribucionMarginalBase & {
+      incompleta: true;
+      costoVariableTotal: null;
+      costoVariableUnitario: null;
+      contribucionMarginalUnitaria: null;
+      motivos: string[];
+    });
+
+export type PuntoEquilibrio =
+  | {
+      incompleta: true;
+      unidadesEquilibrio: null;
+      fechaUltimoRecalculo: string;
+      motivos: string[];
+    }
+  | {
+      incompleta: false;
+      unidadesEquilibrio: number | null;
+      fechaUltimoRecalculo: string;
+      motivoSinEquilibrio?: string;
+    };
+
+export interface IncompletitudCalculo {
+  incompleto: boolean;
+  motivos: string[];
+  datosPendientes: Array<{ id: string; nombre: string }>;
+}
+
+/**
+ * Contrato aditivo de `POST /cost-structures/:id/simulate`.
+ *
+ * Los cálculos históricos guardados antes de este contrato siguen usando
+ * `CalculationResult`; una simulación nueva siempre trae estas tres vistas del
+ * dominio y por eso no se modelan como opcionales en este borde.
+ */
+export type SimulationResult = CalculationResult & {
+  incompletitud: IncompletitudCalculo;
+  contribucionMarginal: ContribucionMarginal;
+  puntoEquilibrio: PuntoEquilibrio;
+};
+
 /**
  * El resultado de un cálculo, sea cual sea el sistema de costeo (U03).
  *

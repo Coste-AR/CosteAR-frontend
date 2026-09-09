@@ -84,13 +84,15 @@ export function ReviewValidationModal({
 
   return (
     <PortalOverlay>
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-      onClick={onCancel}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <button
+        type="button"
+        aria-label="Cerrar revision"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onCancel}
+      />
       <div
-        className="w-full max-w-2xl rounded-2xl border border-line bg-surface p-5 shadow-[0_25px_60px_rgba(74,21,27,0.15)] animate-rise max-h-[92vh] overflow-y-auto sm:p-7"
-        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-2xl rounded-2xl border border-line bg-surface p-5 shadow-[0_25px_60px_rgba(74,21,27,0.15)] animate-rise max-h-[92vh] overflow-y-auto sm:p-7"
       >
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-[17px] font-extrabold text-granate-deep">
@@ -213,10 +215,11 @@ export function ReviewValidationModal({
         )}
 
         <div className="mb-5">
-          <label className="block text-[12px] font-medium uppercase tracking-wide text-ink-soft mb-1.5">
+          <label htmlFor="validation-review-note" className="block text-[12px] font-medium uppercase tracking-wide text-ink-soft mb-1.5">
             Nota (opcional)
           </label>
           <input
+            id="validation-review-note"
             type="text"
             className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-ink transition-colors focus:border-granate focus:outline-none"
             placeholder="Ej: actualizado en estructura de costos de Oct 2025"

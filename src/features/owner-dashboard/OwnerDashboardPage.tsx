@@ -1,23 +1,33 @@
+import { useId, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   AlertCircle,
   AlertTriangle,
   BarChart3,
   CalendarClock,
+  Calculator,
+  CheckCircle2,
   ClipboardList,
+  Factory,
+  Info,
   PackageCheck,
   Scale,
+  Settings2,
+  ShoppingCart,
   TrendingUp,
   WalletCards,
 } from 'lucide-react';
 import { useSearch } from '@tanstack/react-router';
 import { AppShell, PageHeader } from '@/components/layout/AppShell';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
 import { apiErrorMessage } from '@/lib/api';
 import { formatDate, formatMoney } from '@/lib/utils';
 import {
   useOwnerDashboard,
   type OwnerDashboardNumber,
+  type OwnerDashboardPending,
+  type OwnerDashboardPendingArea,
 } from './owner-dashboard-hooks';
 
 const SIN_DATOS = 'Sin datos';
@@ -52,6 +62,58 @@ function MissingReasons({ motivos }: { motivos: string[] }) {
   );
 }
 
+function parametrosUnicos(...numeros: Array<OwnerDashboardNumber | undefined>) {
+  const parametros = numeros.flatMap((numero) => numero?.parametrosSinConfirmarDetalle ?? []);
+  return [...new Map(parametros.map((parametro) => [parametro.id, parametro])).values()];
+}
+
+function AssumptionMark({ parametros }: { parametros: OwnerDashboardNumber['parametrosSinConfirmarDetalle'] }) {
+  const [abierto, setAbierto] = useState(false);
+  const tooltipId = useId();
+
+  if (parametros.length === 0) return null;
+
+  const cantidad = parametros.length;
+  const resumen = `${cantidad} parámetro${cantidad === 1 ? '' : 's'} sin confirmar`;
+
+  return (
+    <span
+      className="relative inline-flex"
+      onMouseEnter={() => setAbierto(true)}
+      onMouseLeave={() => setAbierto(false)}
+    >
+      <button
+        type="button"
+        aria-expanded={abierto}
+        aria-controls={tooltipId}
+        aria-label={`Supuesto: ${resumen}. Ver cuáles parámetros sostienen este número.`}
+        className="inline-flex items-center gap-1 rounded-full border border-granate/20 bg-granate-tenue px-2 py-0.5 text-[10px] font-bold text-granate transition-colors hover:bg-granate/10"
+        onClick={() => setAbierto(true)}
+        onFocus={() => setAbierto(true)}
+        onBlur={() => setAbierto(false)}
+      >
+        <Info className="size-3" aria-hidden="true" />
+        Supuesto
+      </button>
+
+      {abierto && (
+        <span
+          id={tooltipId}
+          role="tooltip"
+          className="absolute bottom-full left-0 z-10 mb-2 w-64 rounded-xl border border-line-strong bg-surface p-3 text-left shadow-lg"
+        >
+          <span className="block text-[11px] font-bold text-ink">
+            Este número se apoya en {resumen}.
+          </span>
+          <span className="mt-2 block text-[11px] leading-relaxed text-ink-soft">
+            {parametros.map((parametro) => parametro.nombre).join(', ')}
+          </span>
+        </span>
+      )}
+    </span>
+  );
+}
+
 function MetricValue({
   numero,
   kind,
@@ -73,7 +135,10 @@ function MetricValue({
   if (!numeroSeguro(numero)) {
     return (
       <div data-testid="incomplete-metric">
-        <p className="font-mono-jb text-base font-bold text-warning">{INCOMPLETO}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-mono-jb text-base font-bold text-warning">{INCOMPLETO}</p>
+          {numero && <AssumptionMark parametros={numero.parametrosSinConfirmarDetalle} />}
+        </div>
         <p className="mt-1 text-[11px] font-semibold text-ink-soft/70">{detail}</p>
         <MissingReasons motivos={numero.motivos} />
       </div>
@@ -82,9 +147,12 @@ function MetricValue({
 
   return (
     <div>
-      <p className="font-mono-jb text-xl font-bold text-ink">
-        {kind === 'money' ? formatMoney(numero.valor) : cajonesFormatter.format(numero.valor)}
-      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-mono-jb text-xl font-bold text-ink">
+          {kind === 'money' ? formatMoney(numero.valor) : cajonesFormatter.format(numero.valor)}
+        </p>
+        <AssumptionMark parametros={numero.parametrosSinConfirmarDetalle} />
+      </div>
       <p className="mt-1 text-[11px] font-semibold text-ink-soft/70">{detail}</p>
     </div>
   );
@@ -135,6 +203,186 @@ function EmptyBlock({ title, icon: Icon }: { title: string; icon: LucideIcon }) 
   );
 }
 
+const pendingAreaConfig: Record<
+  OwnerDashboardPendingArea,
+  { label: string; icon: LucideIcon }
+> = {
+  calculo: { label: 'Cálculo', icon: Calculator },
+  imputacion: { label: 'Imputación', icon: ClipboardList },
+  configuracion: { label: 'Configuración', icon: Settings2 },
+  produccion: { label: 'Producción', icon: Factory },
+  ventas: { label: 'Ventas', icon: ShoppingCart },
+  costeo: { label: 'Costeo', icon: Scale },
+};
+
+// El backend decide a qué área pertenece cada dato. Acá sólo fijamos un orden
+// visual estable para que la lista no cambie de lugar entre dos respuestas.
+const pendingAreaOrder = Object.keys(pendingAreaConfig) as OwnerDashboardPendingArea[];
+
+function ClosingPendingBlock({ pendientes }: { pendientes: OwnerDashboardPending[] | undefined }) {
+  const grupos = pendingAreaOrder.flatMap((area) => {
+    const items = pendientes?.filter((pendiente) => pendiente.area === area) ?? [];
+    return items.length > 0 ? [{ area, items }] : [];
+  });
+
+  return (
+    <Card data-testid="closing-pending">
+      <CardHeader
+        title="Qué falta cargar para cerrar el período"
+        description="Datos pendientes informados por el cierre del período."
+        action={(
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-granate/10 bg-granate-tenue text-granate">
+            <ClipboardList className="size-4.5" aria-hidden="true" />
+          </span>
+        )}
+      />
+      <CardBody>
+        {!pendientes ? (
+          <div className="flex min-h-24 items-center gap-4">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface-alt text-ink-soft">
+              <ClipboardList className="size-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-[13px] font-bold text-ink">{SIN_DATOS}</p>
+              <p className="mt-1 text-[11px] text-ink-soft">
+                Los pendientes aparecerán cuando se cargue el tablero del período.
+              </p>
+            </div>
+          </div>
+        ) : pendientes.length === 0 ? (
+          <div className="flex min-h-24 items-start gap-4" role="status">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-ok/20 bg-ok/10 text-ok">
+              <CheckCircle2 className="size-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-[13px] font-bold text-ink">
+                No falta nada para cerrar este período
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">
+                El backend no informó datos pendientes para el cierre.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {grupos.map(({ area, items }) => {
+              const { label, icon: Icon } = pendingAreaConfig[area];
+              return (
+                <section
+                  key={area}
+                  aria-labelledby={`closing-pending-${area}`}
+                  data-testid={`closing-pending-group-${area}`}
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <Icon className="size-4 text-granate" aria-hidden="true" />
+                    <h4
+                      id={`closing-pending-${area}`}
+                      className="text-[11px] font-extrabold uppercase tracking-wider text-granate-deep"
+                    >
+                      {label}
+                    </h4>
+                  </div>
+                  <ul className="space-y-2">
+                    {items.map((pendiente) => (
+                      <li
+                        key={`${pendiente.periodo.id}:${pendiente.area}:${pendiente.dato}`}
+                        data-testid="closing-pending-item"
+                        className="rounded-xl border border-line bg-surface-alt px-3 py-3"
+                      >
+                        <p className="text-[12px] font-semibold leading-relaxed text-ink">
+                          {pendiente.dato}
+                        </p>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-ink-soft">
+                          Período {pendiente.periodo.codigo}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
+function MoneyToCratesConverter({
+  precio,
+  periodo,
+}: {
+  precio: OwnerDashboardNumber | undefined;
+  periodo: string | undefined;
+}) {
+  const [importe, setImporte] = useState('');
+  const importeNumero = importe === '' ? null : Number(importe);
+  const importeValido = importeNumero !== null && Number.isFinite(importeNumero) && importeNumero >= 0;
+  const precioDisponible = numeroSeguro(precio) && precio.valor > 0;
+  const cajones = precioDisponible && importeValido ? importeNumero / precio.valor : null;
+
+  return (
+    <Card data-testid="money-to-crates-converter">
+      <CardHeader
+        title="Conversor de pesos a cajones"
+        description="Traducí un importe al equivalente de venta del período. No se guarda ningún dato."
+        action={(
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-granate/10 bg-granate-tenue text-granate">
+            <Calculator className="size-4.5" aria-hidden="true" />
+          </span>
+        )}
+      />
+      <CardBody className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] md:items-end">
+        <Input
+          label="Importe en pesos"
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="0.01"
+          numeric
+          suffix="$"
+          placeholder="0,00"
+          value={importe}
+          onChange={(event) => setImporte(event.target.value)}
+          disabled={!precioDisponible}
+          hint={precioDisponible ? 'Escribí el gasto o importe que querés comparar.' : undefined}
+        />
+
+        <div className="rounded-xl border border-line bg-surface-alt px-4 py-4" aria-live="polite">
+          {precioDisponible ? (
+            <>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink-soft">
+                Equivale a
+              </p>
+              <p className="mt-1 font-mono-jb text-2xl font-bold text-granate-deep">
+                {cajones === null ? '—' : `${cajonesFormatter.format(cajones)} cajones`}
+              </p>
+              <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+                Precio usado: <strong>{formatMoney(precio.valor)} por cajón</strong>
+                {periodo ? <> · Período <strong>{periodo}</strong></> : null}
+              </p>
+              <div className="mt-2">
+                <AssumptionMark parametros={precio.parametrosSinConfirmarDetalle} />
+              </div>
+            </>
+          ) : (
+            <div data-testid="converter-missing-price">
+              <p className="flex items-center gap-2 text-sm font-bold text-warning">
+                <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+                Falta el precio promedio del período
+              </p>
+              <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+                No se puede convertir el importe a cajones hasta que haya ventas para calcularlo.
+              </p>
+              <MissingReasons motivos={precio?.motivos ?? []} />
+            </div>
+          )}
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
 function ProducedProgress({
   producido,
   equilibrio,
@@ -162,10 +410,14 @@ function ProducedProgress({
   const porcentaje = Math.max(0, producido.valor / equilibrio.valor * 100);
   const ancho = Math.min(porcentaje, 100);
   const descripcion = `${cajonesFormatter.format(producido.valor)} de ${cajonesFormatter.format(equilibrio.valor)} cajones`;
+  const parametros = parametrosUnicos(producido, equilibrio);
 
   return (
     <div>
-      <p className="mb-3 font-mono-jb text-xl font-bold text-ink">{descripcion}</p>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <p className="font-mono-jb text-xl font-bold text-ink">{descripcion}</p>
+        <AssumptionMark parametros={parametros} />
+      </div>
       <div
         role="progressbar"
         aria-label="Producido contra equilibrio"
@@ -275,9 +527,16 @@ export function OwnerDashboardPage() {
           </div>
         </section>
 
+        <section aria-label="Conversor del período">
+          <MoneyToCratesConverter
+            precio={data?.precioPromedioVenta}
+            periodo={data?.periodo.codigo}
+          />
+        </section>
+
         <section aria-label="Estado del período" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <EmptyBlock title="Alertas activas" icon={AlertTriangle} />
-          <EmptyBlock title="Qué falta cargar para cerrar el período" icon={ClipboardList} />
+          <ClosingPendingBlock pendientes={data?.pendientes} />
         </section>
       </div>
     </AppShell>
