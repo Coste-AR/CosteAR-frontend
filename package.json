@@ -8,6 +8,7 @@
     "briefing": "node .claude/hooks/briefing.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "check:feature-tests": "node scripts/check-feature-tests.mjs",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
