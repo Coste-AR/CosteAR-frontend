@@ -115,14 +115,28 @@ function conComportamientoCip(comportamiento: ComportamientoVolumen): Simulation
 }
 
 describe('calcularProyeccionAvicola', () => {
-  it('devuelve null si faltan las unidades producidas o la escala', () => {
-    const sinUnidades: SimulationResult = {
-      ...BASE_RESULT,
-      detail: { ...BASE_RESULT.detail, unitCost: undefined },
-    };
-    expect(calcularProyeccionAvicola(sinUnidades, 6300, 10000, 0.94, 0.94, [])).toBeNull();
-    expect(calcularProyeccionAvicola(BASE_RESULT, 0, 10000, 0.94, 0.94, [])).toBeNull();
-    expect(calcularProyeccionAvicola(BASE_RESULT, 6300, 0, 0.94, 0.94, [])).toBeNull();
+  const sinUnidades: SimulationResult = {
+    ...BASE_RESULT,
+    detail: { ...BASE_RESULT.detail, unitCost: undefined },
+  };
+
+  const casosSinUnidadesOEscala: Array<[string, ProyeccionAvicola | null]> = [
+    [
+      'devuelve null si no hay unitsProduced en el resultado base',
+      calcularProyeccionAvicola(sinUnidades, 6300, 10000, 0.94, 0.94, []),
+    ],
+    [
+      'devuelve null si avesBase es 0',
+      calcularProyeccionAvicola(BASE_RESULT, 0, 10000, 0.94, 0.94, []),
+    ],
+    [
+      'devuelve null si avesObjetivo es 0',
+      calcularProyeccionAvicola(BASE_RESULT, 6300, 0, 0.94, 0.94, []),
+    ],
+  ];
+
+  it.each(casosSinUnidadesOEscala)('%s', (_titulo, resultado) => {
+    expect(resultado).toBeNull();
   });
 
   it('con la misma escala reproduce los importes del backend', () => {
@@ -133,6 +147,15 @@ describe('calcularProyeccionAvicola', () => {
     expect(proy.rawMaterial).toBeCloseTo(2_500_000, 0);
     expect(proy.directLabor).toBeCloseTo(800_000, 0);
     expect(proy.indirectCosts).toBeCloseTo(1_400_000, 0);
+  });
+
+  it('escala materia prima y cajones proporcionalmente y conserva la mano de obra fija', () => {
+    const proy = proyeccionCompleta(
+      calcularProyeccionAvicola(BASE_RESULT, 6300, 12600, 0.94, 0.94, []),
+    );
+    expect(proy.cajones).toBeCloseTo(944, 0);
+    expect(proy.rawMaterial).toBeCloseTo(5_000_000, 0);
+    expect(proy.directLabor).toBeCloseTo(800_000, 0);
   });
 
   it('cambiar sólo la clasificación del dominio cambia la proyección', () => {
@@ -211,13 +234,41 @@ describe('calcularProyeccionAvicola', () => {
     const escala = 10000 / 6300;
     expect(proy.indirectCosts).toBeCloseTo(1_400_000 * escala + 500_000, 0);
   });
+
+  it('acumula el costo de todos los escalones activos', () => {
+    const escalones = [
+      { id: 1, aves_desde: 5000, aves_hasta: 8000, costo_fijo: 300_000, inversion_requerida: 0, descripcion: 'Personal extra' },
+      { id: 2, aves_desde: 8000, aves_hasta: 12000, costo_fijo: 700_000, inversion_requerida: 0, descripcion: 'Segundo galpón' },
+    ];
+    const proy = proyeccionCompleta(
+      calcularProyeccionAvicola(
+        conComportamientoCip('FIJO'),
+        6300,
+        10000,
+        0.94,
+        0.94,
+        escalones,
+      ),
+    );
+    expect(proy.indirectCosts).toBeCloseTo(1_400_000 + 300_000 + 700_000, 0);
+  });
 });
 
 describe('calcularCapacidadOciosa', () => {
-  it('devuelve null ante una capacidad inválida', () => {
-    expect(calcularCapacidadOciosa(BASE_RESULT, 0, 6300)).toBeNull();
-    expect(calcularCapacidadOciosa(BASE_RESULT, 10000, 0)).toBeNull();
-    expect(calcularCapacidadOciosa(BASE_RESULT, 5000, 8000)).toBeNull();
+  const casosCapacidadInvalida: Array<[string, CapacidadOciosaResult | null]> = [
+    [
+      'devuelve null si capacidadNormal es 0',
+      calcularCapacidadOciosa(BASE_RESULT, 0, 6300),
+    ],
+    ['devuelve null si avesActuales es 0', calcularCapacidadOciosa(BASE_RESULT, 10000, 0)],
+    [
+      'devuelve null si avesActuales supera la capacidad normal',
+      calcularCapacidadOciosa(BASE_RESULT, 5000, 8000),
+    ],
+  ];
+
+  it.each(casosCapacidadInvalida)('%s', (_titulo, resultado) => {
+    expect(resultado).toBeNull();
   });
 
   it('a plena capacidad la utilización es 100% y el costo ocioso es 0', () => {

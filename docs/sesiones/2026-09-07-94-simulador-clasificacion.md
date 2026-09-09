@@ -23,8 +23,8 @@
 | --- | --- |
 | Tiempo de la sesión | no informado por la herramienta |
 | Tokens consumidos | no informado |
-| Intentos hasta el verde | unidad focalizada: una mutación roja deliberada y restauración verde; E2E nuevo: cuatro ajustes de fixture/espera hasta cubrir las cuatro matrices |
-| Comandos de verificación | `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd test`, `npm.cmd run test:e2e -- tests/e2e/simulador-clasificacion.spec.ts` |
+| Intentos hasta el verde | implementación original: una mutación roja deliberada y restauración verde; E2E nuevo: cuatro ajustes de fixture/espera hasta cubrir las cuatro matrices; revisión del 08-09: verde en la primera corrida focalizada y completa |
+| Comandos de verificación | `npm.cmd ci`, `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd test`, `npm.cmd test -- src/features/cost-structures/simulador-avicola.test.ts`, `npm.cmd run test:e2e -- tests/e2e/simulador-clasificacion.spec.ts` |
 
 ## Qué se hizo
 
@@ -86,7 +86,10 @@ npm.cmd run typecheck
 sin errores
 
 npm.cmd test
-28 archivos aprobados, 181 tests aprobados
+28 archivos aprobados, 187 tests aprobados
+
+npm.cmd test -- src/features/cost-structures/simulador-avicola.test.ts
+1 archivo aprobado, 17 tests aprobados
 
 npm.cmd run test:e2e -- tests/e2e/simulador-clasificacion.spec.ts
 4 tests aprobados en Chromium, WebKit, Mobile Chrome y Mobile Safari (1.4 min)
@@ -122,6 +125,26 @@ Se restauró la implementación y el mismo comando volvió a verde:
 npm.cmd test -- src/features/cost-structures/simulador-avicola.test.ts
 1 archivo aprobado, 11 tests aprobados
 ```
+
+## Revisión de orquestación del 08-09-2026
+
+El comentario del PR detectó correctamente que seis entradas inválidas habían quedado agrupadas en
+dos títulos poco diagnósticos. Se reescribieron como dos tablas `it.each`: Vitest informa ahora un
+título distinto para cada entrada inválida y la suite focalizada pasó de 11 a 17 casos ejecutados.
+
+La revisión externa decía que toda la cobertura anterior seguía presente, pero el diff mostró dos
+excepciones. Ya no había una afirmación que demostrara que duplicar las aves duplica materia prima y
+cajones sin cambiar la mano de obra fija, ni otra que sumara dos escalones activos al mismo tiempo.
+Ambos comportamientos se restauraron con casos separados antes de declarar las bajas de títulos.
+
+La guarda G1 sigue informando `194 → 191` casos y `480 → 470` afirmaciones porque cuenta llamadas y
+líneas de `expect` en el código fuente. No expande las filas de `it.each` ni multiplica las
+afirmaciones que el callback ejecuta por cada fila. El diagnóstico de Vitest mejoró y no quedó una
+baja funcional conocida, pero esa métrica estática requiere igualmente revisión humana.
+
+La revisión no modificó `ScenarioSimulator.tsx`, `cost-structure-hooks.ts`, los tipos de producción
+ni el E2E. `npm.cmd ci`, typecheck, lint, la unidad focalizada y los 28 archivos unitarios completos
+quedaron en verde; lint conservó las 108 advertencias preexistentes y cero errores.
 
 ## Privacidad
 
