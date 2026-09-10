@@ -174,6 +174,33 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
     })),
   };
 
+  // R5 llega calculada desde el backend. La pantalla no vuelve a hacer la
+  // cuenta: únicamente abre los importes que el motor separó para que se vea
+  // qué quedó absorbido, qué redujo el costo y qué salió al resultado del mes.
+  const desperdicio = result.desperdicio;
+  const ajustesDesperdicio = desperdicio
+    ? [
+        desperdicio.recuperoAplicado > 0
+          ? {
+              label: 'Recupero de desperdicio',
+              formula: 'reducción del costo de materiales informada por el motor',
+              value: -desperdicio.recuperoAplicado,
+              unit: '$',
+              children: [],
+            }
+          : null,
+        desperdicio.alResultado > 0
+          ? {
+              label: 'Merma extraordinaria',
+              formula: 'pérdida del período retirada del costo por el motor',
+              value: -desperdicio.alResultado,
+              unit: '$',
+              children: [],
+            }
+          : null,
+      ].filter((item): item is NonNullable<typeof item> => item !== null)
+    : [];
+
   const margenBruto = {
     label: 'Margen bruto',
     formula: 'ingreso por ventas − costo de los productos vendidos',
@@ -192,7 +219,7 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
         formula: 'costo de producción ajustado por la variación de existencias de producto terminado',
         value: result.costOfGoodsSold,
         unit: '$',
-        children: [costoDeProduccion],
+        children: [costoDeProduccion, ...ajustesDesperdicio],
       },
     ],
   };
@@ -349,6 +376,38 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
                   </td>
                   <td className="px-6 py-3.5 text-right text-ink-soft">100%</td>
                 </tr>
+                {desperdicio && desperdicio.alCosto > 0 && (
+                  <tr className="border-t-4 border-line">
+                    <td className="px-6 py-3.5 text-ink">
+                      Merma normal absorbida
+                      <span className="ml-2 text-[11px] font-normal text-ink-soft">
+                        informativa — ya está dentro del costo consumido
+                      </span>
+                    </td>
+                    <td className="px-6 py-3.5 text-right text-ink"><Money value={desperdicio.alCosto} /></td>
+                    <td className="px-6 py-3.5" />
+                  </tr>
+                )}
+                {desperdicio && desperdicio.recuperoAplicado > 0 && (
+                  <tr>
+                    <td className="px-6 py-3.5 text-ink">
+                      Recupero de desperdicio
+                      <span className="ml-2 text-[11px] font-normal text-ink-soft">reduce el costo de materiales</span>
+                    </td>
+                    <td className="px-6 py-3.5 text-right font-semibold text-ok">− <Money value={desperdicio.recuperoAplicado} /></td>
+                    <td className="px-6 py-3.5" />
+                  </tr>
+                )}
+                {desperdicio && desperdicio.alResultado > 0 && (
+                  <tr>
+                    <td className="px-6 py-3.5 text-ink">
+                      Merma extraordinaria
+                      <span className="ml-2 text-[11px] font-normal text-ink-soft">fuera del costo — pérdida del período</span>
+                    </td>
+                    <td className="px-6 py-3.5 text-right font-semibold text-danger">− <Money value={desperdicio.alResultado} /></td>
+                    <td className="px-6 py-3.5" />
+                  </tr>
+                )}
                 <tr className="bg-granate-tenue font-bold">
                   <td className="px-6 py-3.5 text-granate">Costo de productos vendidos (COGS)</td>
                   <td className="px-6 py-3.5 text-right">
@@ -388,6 +447,17 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
             </table>
           </CardBody>
         </Card>
+
+        {desperdicio && desperdicio.pendientes.length > 0 && (
+          <div role="alert" className="rounded-xl border border-warn/30 bg-warn/10 px-4 py-3">
+            <p className="text-[13px] font-semibold text-warn">
+              {desperdicio.pendientes.length} {desperdicio.pendientes.length === 1 ? 'desperdicio quedó' : 'desperdicios quedaron'} fuera del cálculo
+            </p>
+            <p className="mt-1 text-[12px] text-ink">
+              Todavía no tienen naturaleza declarada: {desperdicio.pendientes.map((item) => item.concepto).join(', ')}.
+            </p>
+          </div>
+        )}
 
         {Object.keys(result.detail.indirectCosts.perDepartment).length > 0 && (
           <Card>

@@ -99,6 +99,20 @@ export interface CalculationResult {
   directLaborTotal: number;
   indirectCostsApplied: number;
   productionCost: number;
+  /**
+   * Imputación del desperdicio del período. Es opcional porque las corridas
+   * guardadas antes de que existiera R5 no lo traen.
+   */
+  desperdicio?: {
+    /** Merma normal neta de recupero: ya está absorbida por las unidades buenas. */
+    alCosto: number;
+    /** Merma extraordinaria retirada del costo y llevada a pérdida del período. */
+    alResultado: number;
+    /** Recupero que reduce el costo de materiales. */
+    recuperoAplicado: number;
+    /** Registros todavía sin naturaleza, excluidos del cálculo. */
+    pendientes: Array<{ concepto: string; valor: number; motivo: string }>;
+  };
   costOfGoodsSold: number;
   grossMargin: number;
   grossMarginPct: number;

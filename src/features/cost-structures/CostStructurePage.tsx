@@ -50,6 +50,7 @@ import { UnitMovementTab } from './components/process/UnitMovementTab';
 import { EquivalentProductionTab } from './components/process/EquivalentProductionTab';
 import { JointCostsTab } from './components/process/JointCostsTab';
 import { ProductionCostReportView } from './components/process/ProductionCostReportView';
+import { WasteTab } from './components/tabs/WasteTab';
 import { useProcessDepartments, useProcessSetup, useProcessCalculate } from './process-costing-hooks';
 import {
   tabsFor,
@@ -169,6 +170,10 @@ export function CostStructurePage() {
     }
   }, [costingSystem, activeTab]);
   const [result,    setResult]    = useState<{ result: CalculationResult; calculationId: string } | null>(null);
+  // Guardar un desperdicio cambia la próxima corrida, no la que ya existe.
+  // Mientras no se vuelva a calcular, el resultado visible queda marcado como
+  // anterior para no presentar un número viejo como si ya incluyera el cambio.
+  const [wasteChangedPeriodId, setWasteChangedPeriodId] = useState<string | null>(null);
   const [error,     setError]     = useState<string | null>(null);
   const [importedDefaults, setImportedDefaults] = useState<ImportedExcelData | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
@@ -298,6 +303,7 @@ export function CostStructurePage() {
     try {
       const traced = await calculateTraced.mutateAsync();
       setResult({ result: traced.results, calculationId: traced.calculationId });
+      setWasteChangedPeriodId(null);
       setTracedRunId(traced.runId);
       setIncompletitud(traced.incompleto ?? null);
       setActiveTab('result');
@@ -591,6 +597,15 @@ export function CostStructurePage() {
         </SectionShell>
       </div>
 
+      {shownTab === 'waste' && (
+        <WasteTab
+          periodId={periodId}
+          periodLabel={selectedPeriod?.label}
+          readOnly={readOnly}
+          onChanged={() => setWasteChangedPeriodId(periodId)}
+        />
+      )}
+
       <div className={cn(activeTab !== 'direct-labor' && 'hidden')}>
         <SectionShell
           title="Mano de Obra Directa"
@@ -680,6 +695,12 @@ export function CostStructurePage() {
 
       {shownTab === 'result' && !isProcesses && (
         <div className="space-y-4">
+          {wasteChangedPeriodId === periodId && (
+            <div role="alert" className="rounded-xl border border-warn/30 bg-warn/10 px-4 py-3">
+              <p className="text-[13px] font-semibold text-warn">El resultado todavía no incluye el último cambio de desperdicios.</p>
+              <p className="mt-1 text-[12px] text-ink">Apretá Calcular para actualizar el costo y el margen del período.</p>
+            </div>
+          )}
           {/* T-08 — El aviso va ARRIBA, pegado a los números.
               Antes, si la corrida trazable fallaba, el error quedaba solo dentro
               de la caja del árbol y el costista se quedaba mirando el costo
@@ -797,6 +818,17 @@ function latestToResult(latest: any): CalculationResult {
     directLaborTotal:     Number(latest.directLaborTotal),
     indirectCostsApplied: Number(latest.indirectCostsApplied),
     productionCost:       Number(latest.productionCost),
+    desperdicio: latest.desperdicio
+      ? {
+          alCosto: Number(latest.desperdicio.alCosto),
+          alResultado: Number(latest.desperdicio.alResultado),
+          recuperoAplicado: Number(latest.desperdicio.recuperoAplicado),
+          pendientes: (latest.desperdicio.pendientes ?? []).map((pending: any) => ({
+            ...pending,
+            valor: Number(pending.valor),
+          })),
+        }
+      : undefined,
     costOfGoodsSold:      Number(latest.costOfGoodsSold),
     grossMargin:          Number(latest.grossMargin),
     grossMarginPct:       Number(latest.grossMarginPct),
