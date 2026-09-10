@@ -3,7 +3,7 @@
 - **Issue:** #58
 - **Repo:** CosteAR-frontend
 - **Rama:** `feat/issue-58-desperdicios`
-- **PR:** pendiente al escribir esta primera versión de la bitácora
+- **PR:** #153
 - **Agente:** Codex · GPT-5
 - **Tanda:** cola de frontend 58 → 59 → 149
 
