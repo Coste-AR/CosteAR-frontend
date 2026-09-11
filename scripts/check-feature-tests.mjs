@@ -20,23 +20,7 @@ const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR_FEATURES = join(RAIZ, 'src', 'features');
 const ES_TEST = /\.(?:test|spec)\.tsx?$/;
 
-const EXCEPCIONES_INICIALES = [
-  { nombre: 'advisor', issue: 149 },
-  { nombre: 'alerts', issue: 149 },
-  { nombre: 'automatizacion', issue: 149 },
-  { nombre: 'dashboard', issue: 149 },
-  { nombre: 'empresa', issue: 149 },
-  { nombre: 'empresa-portal', issue: 149 },
-  { nombre: 'landing', issue: 149 },
-  { nombre: 'libro', issue: 149 },
-  { nombre: 'macro', issue: 149 },
-  { nombre: 'not-found', issue: 149 },
-  { nombre: 'owner-dashboard', issue: 149 },
-  { nombre: 'profile', issue: 149 },
-  { nombre: 'propagacion', issue: 149 },
-  { nombre: 'trazabilidad', issue: 149 },
-  { nombre: 'validaciones', issue: 149 },
-];
+const EXCEPCIONES_INICIALES = [];
 
 function tieneTest(dir) {
   for (const entrada of readdirSync(dir, { withFileTypes: true })) {
