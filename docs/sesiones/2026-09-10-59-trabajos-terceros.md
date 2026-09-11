@@ -3,7 +3,7 @@
 - **Issue:** #59
 - **Repo:** CosteAR-frontend
 - **Rama:** `feat/issue-59-trabajos-terceros`
-- **PR:** pendiente
+- **PR:** #154
 - **Agente:** Codex · GPT-5
 - **Tanda:** cola de frontend 58 → 59 → 149
 
