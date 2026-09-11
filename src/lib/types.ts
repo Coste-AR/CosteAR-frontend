@@ -90,6 +90,8 @@ export interface CostStructure {
   salesQuantity: string | null;
   /** Unidades PRODUCIDAS (costo unitario). Si es null, se usan las vendidas. */
   productionQuantity: string | null;
+  /** Importe del período que va directo al costo real; no es un CIP. */
+  thirdPartyWork?: string | null;
   createdAt: string;
   deletedAt?: string | null;
 }
@@ -99,6 +101,14 @@ export interface CalculationResult {
   directLaborTotal: number;
   indirectCostsApplied: number;
   productionCost: number;
+  /**
+   * Renglones del estado de costos real. Son opcionales para poder abrir
+   * corridas históricas creadas antes de que el backend los expusiera.
+   */
+  thirdPartyWork?: number;
+  assetDepreciation?: number;
+  budgetVariance?: number;
+  realProductionCost?: number;
   /**
    * Imputación del desperdicio del período. Es opcional porque las corridas
    * guardadas antes de que existiera R5 no lo traen.
@@ -305,6 +315,10 @@ export interface CostCalculation {
   directLaborTotal: string;
   indirectCostsApplied: string;
   productionCost: string;
+  thirdPartyWork?: string;
+  assetDepreciation?: string;
+  budgetVariance?: string;
+  realProductionCost?: string;
   costOfGoodsSold: string;
   grossMargin: string;
   grossMarginPct: string;

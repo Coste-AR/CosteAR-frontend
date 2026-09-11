@@ -153,14 +153,18 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
     },
   ];
 
-  /**
-   * La cuenta del costo de producción, armada una sola vez y reusada por las
-   * filas que la contienen (costo de producción, COGS y el costo unitario). Los
-   * tres números salen de la MISMA suma: si se armara por separado en cada lado
-   * podrían llegar a contar historias distintas.
-   */
-  const costoDeProduccion = {
-    label: 'Costo de producción',
+  // Las corridas nuevas abren el puente entre costo normal y real. Las viejas
+  // no guardaban esos renglones; para ellas se conserva la presentación previa
+  // en vez de inventar un desglose que el snapshot no puede demostrar.
+  const hasRealCostBreakdown =
+    result.thirdPartyWork !== undefined ||
+    result.assetDepreciation !== undefined ||
+    result.budgetVariance !== undefined ||
+    result.realProductionCost !== undefined;
+  const totalProductionCost = result.realProductionCost ?? result.productionCost;
+
+  const costoNormalDeProduccion = {
+    label: hasRealCostBreakdown ? 'Costo normal de producción' : 'Costo de producción',
     formula: 'materia prima consumida + mano de obra directa + costos indirectos aplicados',
     value: result.productionCost,
     unit: '$',
@@ -173,6 +177,49 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
       dataPointId: r.derivation?.dataPointId ?? null,
     })),
   };
+
+  const ajustesCostoReal = hasRealCostBreakdown
+    ? [
+        result.thirdPartyWork !== undefined
+          ? {
+              label: 'Trabajos de terceros',
+              formula: 'importe del período sumado entero, sin prorrateo entre centros',
+              value: result.thirdPartyWork,
+              unit: '$',
+              children: [],
+            }
+          : null,
+        result.assetDepreciation
+          ? {
+              label: 'Amortización de activos',
+              formula: 'amortización del período informada por el motor',
+              value: result.assetDepreciation,
+              unit: '$',
+              children: [],
+            }
+          : null,
+        result.budgetVariance
+          ? {
+              label: 'Variación presupuesto',
+              formula: 'CIP real − presupuesto ajustado al nivel real de actividad',
+              value: result.budgetVariance,
+              unit: '$',
+              children: [],
+            }
+          : null,
+      ].filter((item): item is NonNullable<typeof item> => item !== null)
+    : [];
+
+  /** El total real sale del motor; la interfaz solo abre sus renglones. */
+  const costoDeProduccion = hasRealCostBreakdown
+    ? {
+        label: 'Costo real de producción',
+        formula: 'costo normal + trabajos de terceros + otros ajustes del período',
+        value: totalProductionCost,
+        unit: '$',
+        children: [costoNormalDeProduccion, ...ajustesCostoReal],
+      }
+    : costoNormalDeProduccion;
 
   // R5 llega calculada desde el backend. La pantalla no vuelve a hacer la
   // cuenta: únicamente abre los importes que el motor separó para que se vea
@@ -276,7 +323,7 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
             materiaPrima: result.rawMaterialConsumed,
             manoDeObra: result.directLaborTotal,
             costosIndirectos: result.indirectCostsApplied,
-            costoProduccion: result.productionCost,
+            costoProduccion: totalProductionCost,
             cogs: result.costOfGoodsSold,
             margenBruto: result.grossMargin,
             margenBrutoPct: result.grossMarginPct,
@@ -308,20 +355,7 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
                   value: result.detail.unitCost.unitProductionCost,
                   unit: '$',
                   children: [
-                    {
-                      label: 'Costo de producción',
-                      formula: 'materia prima + mano de obra + costos indirectos',
-                      value: result.productionCost,
-                      unit: '$',
-                      children: rows.map((r) => ({
-                        label: r.label,
-                        formula: r.derivation?.formula ?? null,
-                        value: r.value,
-                        unit: '$',
-                        children: r.derivation?.children ?? [],
-                        dataPointId: r.derivation?.dataPointId ?? null,
-                      })),
-                    },
+                    costoDeProduccion,
                     {
                       label: 'Unidades producidas',
                       formula: null,
@@ -363,15 +397,46 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
                       </TraceableValue>
                     </td>
                     <td className="px-6 py-3 text-right text-ink-soft">
-                      {result.productionCost > 0 ? `${((r.value / result.productionCost) * 100).toFixed(1)}%` : '—'}
+                      {totalProductionCost > 0 ? `${((r.value / totalProductionCost) * 100).toFixed(1)}%` : '—'}
+                    </td>
+                  </tr>
+                ))}
+                {hasRealCostBreakdown && (
+                  <tr className="bg-surface-alt/60 font-medium">
+                    <td className="px-6 py-3.5 text-ink">Costo normal de producción</td>
+                    <td className="px-6 py-3.5 text-right">
+                      <TraceableValue title="Costo normal de producción" derivation={costoNormalDeProduccion}>
+                        <Money value={result.productionCost} />
+                      </TraceableValue>
+                    </td>
+                    <td className="px-6 py-3.5 text-right text-ink-soft">
+                      {totalProductionCost > 0 ? `${((result.productionCost / totalProductionCost) * 100).toFixed(1)}%` : '—'}
+                    </td>
+                  </tr>
+                )}
+                {ajustesCostoReal.map((ajuste) => (
+                  <tr key={ajuste.label} className={ajuste.label === 'Trabajos de terceros' ? 'bg-action/5' : undefined}>
+                    <td className="px-6 py-3.5 text-ink">
+                      {ajuste.label}
+                      {ajuste.label === 'Trabajos de terceros' && (
+                        <span className="ml-2 text-[11px] font-normal text-ink-soft">fuera de CIP · sin prorrateo</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-3.5 text-right font-medium">
+                      <TraceableValue title={ajuste.label} derivation={ajuste}>
+                        <Money value={ajuste.value} />
+                      </TraceableValue>
+                    </td>
+                    <td className="px-6 py-3.5 text-right text-ink-soft">
+                      {totalProductionCost > 0 ? `${((ajuste.value / totalProductionCost) * 100).toFixed(1)}%` : '—'}
                     </td>
                   </tr>
                 ))}
                 <tr className="bg-surface-alt font-semibold">
-                  <td className="px-6 py-3.5 text-ink">Costo de producción</td>
+                  <td className="px-6 py-3.5 text-ink">{costoDeProduccion.label}</td>
                   <td className="px-6 py-3.5 text-right">
-                    <TraceableValue title="Costo de producción" derivation={costoDeProduccion}>
-                      <Money value={result.productionCost} />
+                    <TraceableValue title={costoDeProduccion.label} derivation={costoDeProduccion}>
+                      <Money value={totalProductionCost} />
                     </TraceableValue>
                   </td>
                   <td className="px-6 py-3.5 text-right text-ink-soft">100%</td>

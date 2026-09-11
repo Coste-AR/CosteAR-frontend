@@ -4,6 +4,7 @@ import {
   Factory,
   GitCompare,
   History,
+  Handshake,
   Inbox,
   Layers,
   Package,
@@ -34,6 +35,7 @@ export type OrdersTab =
   | 'waste'
   | 'direct-labor'
   | 'indirect-costs'
+  | 'third-party-work'
   | 'sales'
   | 'simulate';
 
@@ -62,6 +64,7 @@ const ORDERS_TABS: TabDefinition[] = [
   { id: 'waste', label: 'Desperdicios', icon: Recycle },
   { id: 'direct-labor', label: 'Mano de Obra', icon: Users, configKey: 'mod' },
   { id: 'indirect-costs', label: 'Costos Indirectos', icon: Factory, configKey: 'cip' },
+  { id: 'third-party-work', label: 'Trabajos de terceros', icon: Handshake },
   { id: 'sales', label: 'Venta', icon: TrendingUp, configKey: 'sales' },
   { id: 'result', label: 'Resultado', icon: BarChart2 },
   { id: 'simulate', label: 'Simulador', icon: Activity },
