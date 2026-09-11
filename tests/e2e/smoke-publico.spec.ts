@@ -21,15 +21,9 @@ const RUTAS_PUBLICAS = [
 ] as const;
 
 for (const ruta of RUTAS_PUBLICAS) {
-  test(`${ruta.nombre} carga sin errores de consola`, async ({ page, consola }, testInfo) => {
+  test(`${ruta.nombre} carga sin errores de consola`, async ({ page, consola }) => {
     await page.goto(ruta.path);
     await laAppPinto(page);
-
-    // La evidencia que mira el agente: captura completa, adjunta al reporte.
-    await testInfo.attach(`${ruta.nombre}-${testInfo.project.name}`, {
-      body: await page.screenshot({ fullPage: true }),
-      contentType: 'image/png',
-    });
 
     expect(consola.mensajes, `errores en ${ruta.path}`).toEqual([]);
   });
@@ -53,7 +47,7 @@ test('el login no deja enviar el formulario vacio', async ({ page, consola }) =>
   expect(consola.mensajes).toEqual([]);
 });
 
-test('recuperar la contrasena se completa usando solo Tab, escritura y Enter', async ({ page, consola }, testInfo) => {
+test('recuperar la contrasena se completa usando solo Tab, escritura y Enter', async ({ page, consola }) => {
   let emailRecibido: string | undefined;
   await page.route('**/api/v1/auth/forgot-password', async (route) => {
     emailRecibido = (await route.request().postDataJSON() as { email: string }).email;
@@ -83,10 +77,6 @@ test('recuperar la contrasena se completa usando solo Tab, escritura y Enter', a
   expect(emailRecibido).toBe('persona@ejemplo.com');
   expect(consola.mensajes).toEqual([]);
 
-  await testInfo.attach(`recuperacion-teclado-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
 });
 
 test('no hay scroll horizontal en mobile', async ({ page }, testInfo) => {

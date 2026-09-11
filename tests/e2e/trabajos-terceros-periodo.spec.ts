@@ -165,7 +165,7 @@ async function mockCostingScreen(page: Page, periodStatus: 'OPEN' | 'CLOSED') {
 test('carga trabajos de terceros por separado y muestra su impacto exacto en el costo real', async ({
   page,
   consola,
-}, testInfo) => {
+}) => {
   test.setTimeout(180_000);
   const apiState = await mockCostingScreen(page, 'OPEN');
 
@@ -208,17 +208,13 @@ test('carga trabajos de terceros por separado y muestra su impacto exacto en el 
   await expect(page.getByRole('row').filter({ hasText: 'Costo real de producción' })).toContainText('7.000');
   await expect(page.getByRole('row').filter({ hasText: 'Costo de productos vendidos' })).toContainText('6.500');
 
-  await testInfo.attach(`trabajos-terceros-periodo-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
   expect(consola.mensajes).toEqual([]);
 });
 
 test('un período cerrado permite consultar trabajos de terceros pero no modificarlos', async ({
   page,
   consola,
-}, testInfo) => {
+}) => {
   test.setTimeout(90_000);
   const apiState = await mockCostingScreen(page, 'CLOSED');
 
@@ -233,9 +229,5 @@ test('un período cerrado permite consultar trabajos de terceros pero no modific
   await expect(section.getByRole('button', { name: 'Guardar importe' })).toHaveCount(0);
   expect(apiState.writes).toEqual([]);
 
-  await testInfo.attach(`trabajos-terceros-periodo-cerrado-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
   expect(consola.mensajes).toEqual([]);
 });

@@ -254,7 +254,7 @@ async function mockCostingScreen(page: Page, periodStatus: 'OPEN' | 'CLOSED') {
 test('carga, declara, corrige y da de baja desperdicios; el resultado muestra su impacto', async ({
   page,
   consola,
-}, testInfo) => {
+}) => {
   test.setTimeout(180_000);
   const apiState = await mockCostingScreen(page, 'OPEN');
 
@@ -320,17 +320,13 @@ test('carga, declara, corrige y da de baja desperdicios; el resultado muestra su
   await expect(page.getByRole('row').filter({ hasText: 'Costo de productos vendidos' })).toContainText('5.500');
   expect(apiState.writes).toContain('POST calculate');
 
-  await testInfo.attach(`desperdicios-periodo-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
   expect(consola.mensajes).toEqual([]);
 });
 
 test('un período cerrado deja los desperdicios en consulta y explica cómo modificarlos', async ({
   page,
   consola,
-}, testInfo) => {
+}) => {
   test.setTimeout(90_000);
   await mockCostingScreen(page, 'CLOSED');
 
@@ -344,9 +340,5 @@ test('un período cerrado deja los desperdicios en consulta y explica cómo modi
   await expect(page.getByRole('button', { name: /Dar de baja / })).toHaveCount(0);
   await expect(page.getByText('Rotura sin revisar')).toBeVisible();
 
-  await testInfo.attach(`desperdicios-periodo-cerrado-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
   expect(consola.mensajes).toEqual([]);
 });
