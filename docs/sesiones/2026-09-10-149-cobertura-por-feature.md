@@ -3,7 +3,7 @@
 - **Issue:** #149
 - **Repo:** CosteAR-frontend
 - **Rama:** `test/issue-149-feature-coverage`
-- **PR:** pendiente
+- **PR:** #155
 - **Agente:** Codex · GPT-5
 - **Tanda:** cola de frontend 58 → 59 → 149
 
