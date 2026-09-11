@@ -51,6 +51,7 @@ import { EquivalentProductionTab } from './components/process/EquivalentProducti
 import { JointCostsTab } from './components/process/JointCostsTab';
 import { ProductionCostReportView } from './components/process/ProductionCostReportView';
 import { WasteTab } from './components/tabs/WasteTab';
+import { ThirdPartyWorkTab } from './components/tabs/ThirdPartyWorkTab';
 import { useProcessDepartments, useProcessSetup, useProcessCalculate } from './process-costing-hooks';
 import {
   tabsFor,
@@ -174,6 +175,7 @@ export function CostStructurePage() {
   // Mientras no se vuelva a calcular, el resultado visible queda marcado como
   // anterior para no presentar un número viejo como si ya incluyera el cambio.
   const [wasteChangedPeriodId, setWasteChangedPeriodId] = useState<string | null>(null);
+  const [thirdPartyWorkChangedPeriodId, setThirdPartyWorkChangedPeriodId] = useState<string | null>(null);
   const [error,     setError]     = useState<string | null>(null);
   const [importedDefaults, setImportedDefaults] = useState<ImportedExcelData | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
@@ -304,6 +306,7 @@ export function CostStructurePage() {
       const traced = await calculateTraced.mutateAsync();
       setResult({ result: traced.results, calculationId: traced.calculationId });
       setWasteChangedPeriodId(null);
+      setThirdPartyWorkChangedPeriodId(null);
       setTracedRunId(traced.runId);
       setIncompletitud(traced.incompleto ?? null);
       setActiveTab('result');
@@ -648,6 +651,19 @@ export function CostStructurePage() {
         </SectionShell>
       </div>
 
+      {shownTab === 'third-party-work' && (
+        <ThirdPartyWorkTab
+          structureId={id}
+          periodLabel={selectedPeriod?.label}
+          defaultValue={structure?.thirdPartyWork == null ? 0 : Number(structure.thirdPartyWork)}
+          readOnly={readOnly}
+          onChanged={() => setThirdPartyWorkChangedPeriodId(periodId)}
+          canCalculate={allReady}
+          onCalculate={() => void runCalculate()}
+          calculating={calculateTraced.isPending || processCalculate.isPending}
+        />
+      )}
+
       <div className={cn(activeTab !== 'sales' && 'hidden')}>
         <Frozen when={readOnly}>
           {importedDefaults?.sales && configured.sales && <ImportOverwriteWarning />}
@@ -699,6 +715,12 @@ export function CostStructurePage() {
             <div role="alert" className="rounded-xl border border-warn/30 bg-warn/10 px-4 py-3">
               <p className="text-[13px] font-semibold text-warn">El resultado todavía no incluye el último cambio de desperdicios.</p>
               <p className="mt-1 text-[12px] text-ink">Apretá Calcular para actualizar el costo y el margen del período.</p>
+            </div>
+          )}
+          {thirdPartyWorkChangedPeriodId === periodId && (
+            <div role="alert" className="rounded-xl border border-warn/30 bg-warn/10 px-4 py-3">
+              <p className="text-[13px] font-semibold text-warn">El resultado todavía no incluye el último importe de trabajos de terceros.</p>
+              <p className="mt-1 text-[12px] text-ink">Apretá Calcular para actualizar el costo real y el margen del período.</p>
             </div>
           )}
           {/* T-08 — El aviso va ARRIBA, pegado a los números.
@@ -818,6 +840,10 @@ function latestToResult(latest: any): CalculationResult {
     directLaborTotal:     Number(latest.directLaborTotal),
     indirectCostsApplied: Number(latest.indirectCostsApplied),
     productionCost:       Number(latest.productionCost),
+    thirdPartyWork: latest.thirdPartyWork == null ? undefined : Number(latest.thirdPartyWork),
+    assetDepreciation: latest.assetDepreciation == null ? undefined : Number(latest.assetDepreciation),
+    budgetVariance: latest.budgetVariance == null ? undefined : Number(latest.budgetVariance),
+    realProductionCost: latest.realProductionCost == null ? undefined : Number(latest.realProductionCost),
     desperdicio: latest.desperdicio
       ? {
           alCosto: Number(latest.desperdicio.alCosto),
