@@ -79,7 +79,7 @@ async function expandirParaCaptura(page: Page) {
   });
 }
 
-testConSesion('muestra los seis números reales del período en el orden definido', async ({ page, consola }, testInfo) => {
+testConSesion('muestra los seis números reales del período en el orden definido', async ({ page, consola }) => {
   await responderTablero(page, TABLERO_COMPLETO);
   await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
 
@@ -116,15 +116,10 @@ testConSesion('muestra los seis números reales del período en el orden definid
   await expect(pendientes.getByTestId('closing-pending-item')).toHaveCount(0);
 
   await expandirParaCaptura(page);
-  await testInfo.attach(`tablero-empresa-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
-
   expect(consola.mensajes, 'errores en /owner-dashboard').toEqual([]);
 });
 
-testConSesion('agrupa por área qué falta cargar y muestra el período de cada pendiente', async ({ page, consola }, testInfo) => {
+testConSesion('agrupa por área qué falta cargar y muestra el período de cada pendiente', async ({ page, consola }) => {
   const tableroConPendientes = {
     data: {
       ...TABLERO_COMPLETO.data,
@@ -174,15 +169,10 @@ testConSesion('agrupa por área qué falta cargar y muestra el período de cada 
   await expect(pendientes.getByText('No falta nada para cerrar este período')).toHaveCount(0);
 
   await expandirParaCaptura(page);
-  await testInfo.attach(`pendientes-cierre-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
-
   expect(consola.mensajes, 'errores al mostrar los pendientes de cierre').toEqual([]);
 });
 
-testConSesion('no presenta como válido un número que el backend marca incompleto', async ({ page, consola }, testInfo) => {
+testConSesion('no presenta como válido un número que el backend marca incompleto', async ({ page, consola }) => {
   const tableroIncompleto = {
     data: {
       ...TABLERO_COMPLETO.data,
@@ -212,15 +202,10 @@ testConSesion('no presenta como válido un número que el backend marca incomple
   await expect(conversor.getByText(/999[.\s]?999/)).toHaveCount(0);
 
   await expandirParaCaptura(page);
-  await testInfo.attach(`conversor-sin-precio-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
-
   expect(consola.mensajes, 'errores en el caso incompleto').toEqual([]);
 });
 
-testConSesion('marca los números apoyados en supuestos y nombra el parámetro sin marcar baseUnidades', async ({ page, consola }, testInfo) => {
+testConSesion('marca los números apoyados en supuestos y nombra el parámetro sin marcar baseUnidades', async ({ page, consola }) => {
   const tableroConSupuesto = {
     data: {
       ...TABLERO_COMPLETO.data,
@@ -249,11 +234,6 @@ testConSesion('marca los números apoyados en supuestos y nombra el parámetro s
   await expect(producido.getByRole('button', { name: /Supuesto/ })).toHaveCount(0);
 
   await expandirParaCaptura(page);
-  await testInfo.attach(`tablero-supuesto-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
-
   expect(consola.mensajes, 'errores al marcar supuestos').toEqual([]);
 });
 
