@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ShieldCheck, ShieldOff, Camera, User, Settings, Bell, Palette, Lock, PaletteIcon } from 'lucide-react';
 import { AppShell, PageHeader } from '@/components/layout/AppShell';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
@@ -8,6 +8,9 @@ import { useAuthStore } from '@/stores/auth-store';
 import { api, apiErrorMessage } from '@/lib/api';
 import { TabList, Tab } from '@/components/ui/Tabs';
 import { AvatarCropModal } from './AvatarCropModal';
+import { useCompanies } from '@/features/companies/company-hooks';
+import { CompanyRubroConfiguration } from '@/features/companies/components/CompanyRubroConfiguration';
+import { Select } from '@/components/ui/Select';
 
 const MAX_AVATAR_BYTES = 6 * 1024 * 1024;
 
@@ -24,6 +27,14 @@ export function ProfilePage() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const companies = useCompanies();
+  const [configurationCompanyId, setConfigurationCompanyId] = useState('');
+
+  useEffect(() => {
+    if (!configurationCompanyId && companies.data?.[0]) {
+      setConfigurationCompanyId(companies.data[0].id);
+    }
+  }, [companies.data, configurationCompanyId]);
 
   const handlePickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -72,7 +83,7 @@ export function ProfilePage() {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'cuenta' | 'seguridad' | 'preferencias' | 'personalizacion'>('cuenta');
+  const [activeTab, setActiveTab] = useState<'cuenta' | 'configuracion' | 'seguridad' | 'preferencias' | 'personalizacion'>('cuenta');
 
   return (
     <AppShell>
@@ -81,6 +92,7 @@ export function ProfilePage() {
       <TabList className="mb-6">
         {[
           { id: 'cuenta', label: 'Cuenta', icon: User },
+          { id: 'configuracion', label: 'Configuración', icon: Settings },
           { id: 'seguridad', label: 'Seguridad', icon: Lock },
           { id: 'preferencias', label: 'Preferencias', icon: Bell },
           { id: 'personalizacion', label: 'Personalización', icon: Palette },
@@ -144,6 +156,49 @@ export function ProfilePage() {
               </div>
             </CardBody>
           </Card>
+        )}
+
+        {/* TAB: CONFIGURACIÓN */}
+        {activeTab === 'configuracion' && (
+          <div className="space-y-5 lg:col-span-2">
+            {(companies.data?.length ?? 0) > 1 && (
+              <div className="max-w-md">
+                <Select
+                  label="Empresa que querés configurar"
+                  value={configurationCompanyId}
+                  options={(companies.data ?? []).map((company) => ({
+                    value: company.id,
+                    label: company.name,
+                  }))}
+                  onChange={(event) => setConfigurationCompanyId(event.target.value)}
+                />
+              </div>
+            )}
+            {companies.isLoading ? (
+              <Card>
+                <CardBody className="py-10 text-center text-sm text-ink-soft">
+                  Cargando empresas…
+                </CardBody>
+              </Card>
+            ) : companies.isError ? (
+              <Card>
+                <CardBody className="py-10 text-center text-sm text-danger" role="alert">
+                  No pudimos cargar tus empresas.
+                </CardBody>
+              </Card>
+            ) : configurationCompanyId ? (
+              <CompanyRubroConfiguration
+                companyId={configurationCompanyId}
+                companyName={companies.data?.find((company) => company.id === configurationCompanyId)?.name}
+              />
+            ) : (
+              <Card>
+                <CardBody className="py-10 text-center text-sm text-ink-soft">
+                  Creá una empresa para configurar los módulos de su rubro.
+                </CardBody>
+              </Card>
+            )}
+          </div>
         )}
 
         {/* TAB: SEGURIDAD */}

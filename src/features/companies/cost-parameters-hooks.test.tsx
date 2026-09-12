@@ -14,8 +14,10 @@ vi.mock('@/lib/api', () => ({
 
 const {
   useCostParameters,
+  useLeaveOptionCostParameterPending,
   useResetCostParameter,
   useSaveCostParameter,
+  useSaveOptionCostParameter,
 } = await import('./cost-parameters-hooks');
 
 let queryClient: QueryClient;
@@ -64,5 +66,27 @@ describe('contrato HTTP de parámetros del negocio', () => {
     await act(() => result.current.mutateAsync('parametro'));
 
     expect(apiDelete).toHaveBeenCalledWith('/companies/company-test/parametros-costeo/parametro');
+  });
+
+  it('guarda una opción como texto confirmado', async () => {
+    apiPut.mockResolvedValue({ data: { data: {} } });
+    const { result } = renderHook(() => useSaveOptionCostParameter('company-test'), { wrapper });
+
+    await act(() => result.current.mutateAsync({ key: 'pregunta', value: 'opcion-b' }));
+
+    expect(apiPut).toHaveBeenCalledWith('/companies/company-test/parametros-costeo/pregunta', {
+      valorTexto: 'opcion-b',
+      confirmado: true,
+    });
+  });
+
+  it('usa DELETE para dejar pendiente una opción respondida', async () => {
+    apiDelete.mockResolvedValue({ data: { data: {} } });
+    const { result } = renderHook(() => useLeaveOptionCostParameterPending('company-test'), { wrapper });
+
+    await act(() => result.current.mutateAsync('pregunta'));
+
+    expect(apiDelete).toHaveBeenCalledWith('/companies/company-test/parametros-costeo/pregunta');
+    expect(apiPut).not.toHaveBeenCalled();
   });
 });

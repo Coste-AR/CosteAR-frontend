@@ -10,6 +10,7 @@ import {
   useResetCostParameter,
   useSaveCostParameter,
   type CostParameter,
+  isNumericCostParameter,
 } from '../cost-parameters-hooks';
 
 function formatValue(value: number) {
@@ -207,7 +208,10 @@ export function CompanyCostParametersTab({ companyId }: { companyId: string }) {
     );
   }
 
-  const items = parameters.data ?? [];
+  // El mismo endpoint ahora también devuelve preguntas de opción. Esta pestaña
+  // conserva deliberadamente su comportamiento numérico; las opciones se
+  // responden en Configuración, donde viven los módulos que las habilitan.
+  const items = (parameters.data ?? []).filter(isNumericCostParameter);
 
   return (
     <section data-testid="company-cost-parameters" className="space-y-5">

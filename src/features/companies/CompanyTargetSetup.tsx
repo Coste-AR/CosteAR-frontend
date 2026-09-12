@@ -10,11 +10,13 @@ import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { useCompany } from "./company-hooks";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
+import { CompanyRubroConfiguration } from "./components/CompanyRubroConfiguration";
 
 export function CompanyTargetSetup() {
   const { id } = useParams({ from: '/companies/$id/setup' });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [showRubroConfiguration, setShowRubroConfiguration] = useState(true);
 
   // Comparte hook y query key con CompanyDetailPage (useCompany en
   // company-hooks.ts) a propósito: antes esta pantalla tenía su propio fetch
@@ -85,7 +87,7 @@ export function CompanyTargetSetup() {
   };
 
   useKeyboardShortcut({ key: 's', ctrlKey: true }, () => {
-    if (isPerfect && !updateMutation.isPending) {
+    if (!showRubroConfiguration && isPerfect && !updateMutation.isPending) {
       handleSave();
     } else if (!isPerfect) {
       toast.error("La suma debe ser 100% para guardar");
@@ -95,6 +97,19 @@ export function CompanyTargetSetup() {
   const marketReference = industryBenchmark?.data 
     ? `Promedio en ${industry}`
     : "Promedio General PyME";
+
+  if (showRubroConfiguration) {
+    return (
+      <AppShell>
+        <CompanyRubroConfiguration
+          companyId={id}
+          companyName={company?.name}
+          mode="onboarding"
+          onComplete={() => setShowRubroConfiguration(false)}
+        />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
