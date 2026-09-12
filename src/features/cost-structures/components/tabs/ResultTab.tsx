@@ -271,6 +271,19 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
     ],
   };
 
+  // La API ya proyectó estos importes: acá sólo se rotula la unidad que
+  // acompaña al resultado. `null` no habilita un fallback plausible; es una
+  // ausencia declarada que la pantalla tiene que hacer visible.
+  const etiquetaUnidad = result.unidadGestion
+    ? `por ${result.unidadGestion.nombre}`
+    : result.unidadGestion === null
+      ? 'Sin unidad declarada'
+      : 'Unidad no informada en esta corrida';
+  const unitCost = result.detail.unitCost;
+  const costosUnitariosCoinciden =
+    unitCost?.unitFinishedGoodsCost !== undefined &&
+    unitCost.unitProductionCost === unitCost.unitFinishedGoodsCost;
+
   const handleExportPDF = async () => {
     const input = document.getElementById('pdf-export-content');
     if (!input) return;
@@ -340,37 +353,82 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
             }}
           />
         )}
-        {result.detail.unitCost && (
-          <Card>
-            <CardBody className="space-y-2 py-8 text-center">
-              <p className="text-[11px] uppercase tracking-widest text-ink-soft">Costo unitario de producción</p>
-              {/* El número final del sistema de costos: es el que más se mira y
-                  el que más hay que poder abrir. La cuenta se arma acá porque el
-                  árbol llega hasta el costo de producción, no hasta el unitario. */}
-              <TraceableValue
-                title="Costo unitario de producción"
-                derivation={{
-                  label: 'Costo unitario de producción',
-                  formula: 'costo de producción ÷ unidades producidas',
-                  value: result.detail.unitCost.unitProductionCost,
-                  unit: '$',
-                  children: [
-                    costoDeProduccion,
-                    {
-                      label: 'Unidades producidas',
-                      formula: null,
-                      value: result.detail.unitCost.unitsProduced,
-                      unit: 'u',
-                      children: [],
-                    },
-                  ],
-                }}
-              >
-                <Money value={result.detail.unitCost.unitProductionCost} className="block text-5xl font-bold text-ink" />
-              </TraceableValue>
-              {result.detail.unitCost.unitsProduced > 0 && (
-                <p className="text-[12px] text-ink-soft">
-                  costo de producción ÷ {result.detail.unitCost.unitsProduced.toLocaleString('es-AR')} u producidas
+        {unitCost && (
+          <Card data-testid="unit-cost-summary">
+            <CardHeader
+              title="Costos unitarios"
+              description="Son dos renglones distintos del estado de costos."
+            />
+            <CardBody className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <article className="rounded-xl border border-line bg-surface-alt px-5 py-6 text-center">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-soft">
+                    Costo unitario de producción
+                  </p>
+                  {/* El número final del sistema de costos: es el que más se mira y
+                      el que más hay que poder abrir. La cuenta se arma acá porque el
+                      árbol llega hasta el costo de producción, no hasta el unitario. */}
+                  <TraceableValue
+                    title="Costo unitario de producción"
+                    derivation={{
+                      label: 'Costo unitario de producción',
+                      formula: 'costo de producción ÷ cantidad producida',
+                      value: unitCost.unitProductionCost,
+                      unit: '$',
+                      children: [
+                        costoDeProduccion,
+                        {
+                          label: 'Cantidad producida',
+                          formula: null,
+                          value: unitCost.unitsProduced,
+                          unit: result.unidadGestion?.nombre ?? null,
+                          children: [],
+                        },
+                      ],
+                    }}
+                  >
+                    <Money value={unitCost.unitProductionCost} className="mt-2 block text-4xl font-bold text-ink" />
+                  </TraceableValue>
+                  <p className="mt-1 text-[12px] font-medium text-granate-deep">{etiquetaUnidad}</p>
+                  <p className="mt-3 text-[12px] text-ink-soft">
+                    Lo gastado en el período, repartido sobre lo producido.
+                  </p>
+                </article>
+
+                <article className="rounded-xl border border-granate/20 bg-granate-tenue px-5 py-6 text-center">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-granate-deep">
+                    Costo unitario de productos terminados
+                  </p>
+                  {unitCost.unitFinishedGoodsCost === undefined ? (
+                    <p className="mt-4 text-sm font-semibold text-ink-soft">
+                      No disponible en esta corrida histórica
+                    </p>
+                  ) : (
+                    <TraceableValue
+                      title="Costo unitario de productos terminados"
+                      derivation={{
+                        label: 'Costo unitario de productos terminados',
+                        formula: 'costo de productos terminados ÷ cantidad terminada',
+                        value: unitCost.unitFinishedGoodsCost,
+                        unit: '$',
+                        children: [],
+                      }}
+                    >
+                      <Money value={unitCost.unitFinishedGoodsCost} className="mt-2 block text-4xl font-bold text-ink" />
+                    </TraceableValue>
+                  )}
+                  <p className="mt-1 text-[12px] font-medium text-granate-deep">{etiquetaUnidad}</p>
+                  <p className="mt-3 text-[12px] text-ink-soft">
+                    Lo que costó lo que efectivamente salió terminado; sirve para poner precio.
+                  </p>
+                </article>
+              </div>
+
+              {unitCost.unitFinishedGoodsCost !== undefined && (
+                <p className="rounded-lg bg-surface-alt px-4 py-3 text-center text-[12px] text-ink-soft">
+                  {costosUnitariosCoinciden
+                    ? 'Los dos costos coinciden. No es un error: el trabajo sin terminar no cambió este costo.'
+                    : 'La diferencia refleja el trabajo que quedó sin terminar durante el período.'}
                 </p>
               )}
             </CardBody>

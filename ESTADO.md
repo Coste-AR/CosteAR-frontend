@@ -16,7 +16,10 @@
   nosotros, no gastan contexto de la sesión.
 -->
 
-**Actualizado: 22-08-2026**
+**Actualizado: 12-09-2026**
+
+- ✅ **Listo para revisar:** PR #160 resuelve el issue #57; muestra los dos costos
+  unitarios y la unidad informada por la API. No mergear sin la etiqueta `auto-merge`.
 
 - ⚠️ **El flujo cambió**: el PR nace en draft y se mergea con squash. Las promociones
   (`dev→staging→main`) van con **merge commit**, no squash.
@@ -27,4 +30,4 @@
 - 🔴 **No inventes datos de un cliente real en fixtures ni en ejemplos.** Ni nombre, ni localidad,
   ni números. Este repo es **público** (regla CLI-01).
 
-**En curso:** Santiago — infraestructura y flujo, en el backend.
+**En curso en otro repo:** Santiago — infraestructura y flujo, en el backend.

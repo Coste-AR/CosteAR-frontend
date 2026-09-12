@@ -123,6 +123,7 @@ async function mockCostingScreen(page: Page, periodStatus: 'OPEN' | 'CLOSED') {
           runN: writes.filter((write) => write.method === 'CALCULATE').length,
           calculationId: `calculation-third-party-${thirdPartyWork}`,
           results: {
+            unidadGestion: { codigo: 'caja-prueba', nombre: 'Caja de prueba', factor: 10 },
             rawMaterialConsumed: 2_000,
             directLaborTotal: 1_500,
             indirectCostsApplied: 2_500,
@@ -138,7 +139,13 @@ async function mockCostingScreen(page: Page, periodStatus: 'OPEN' | 'CLOSED') {
               rawMaterial: { optimalLot: 100, finalStockQty: 20, finalStockValue: 1_000 },
               directLabor: { workingDays: 240, itcsPercent: 30, iapPercent: 10, hourlyRates: {} },
               indirectCosts: { perDepartment: {} },
-              unitCost: { unitsProduced: 100, unitProductionCost: real / 100, unitCostOfGoodsSold: (real - 500) / 100 },
+              unitCost: {
+                unitsProduced: 100,
+                unitProductionCost: real / 100,
+                unitFinishedGoodsCost: real / 100 + 7,
+                unitCostOfGoodsSold: (real - 500) / 100,
+                basadoEn: 'producidas',
+              },
             },
           },
           tree: [],
@@ -207,6 +214,12 @@ test('carga trabajos de terceros por separado y muestra su impacto exacto en el 
   await expect(page.getByRole('row').filter({ hasText: 'Costo normal de producción' })).toContainText('6.000');
   await expect(page.getByRole('row').filter({ hasText: 'Costo real de producción' })).toContainText('7.000');
   await expect(page.getByRole('row').filter({ hasText: 'Costo de productos vendidos' })).toContainText('6.500');
+
+  const unitarios = page.getByTestId('unit-cost-summary');
+  await expect(unitarios.getByText('Costo unitario de producción')).toBeVisible();
+  await expect(unitarios.getByText('Costo unitario de productos terminados')).toBeVisible();
+  await expect(unitarios.getByText('por Caja de prueba')).toHaveCount(2);
+  await expect(unitarios.getByText(/trabajo que quedó sin terminar/i)).toBeVisible();
 
   expect(consola.mensajes).toEqual([]);
 });
