@@ -16,6 +16,7 @@ import { Money } from '@/components/ui/Money';
 import { TabList, Tab } from '@/components/ui/Tabs';
 import { useSimulate } from '../cost-structure-hooks';
 import { apiErrorMessage } from '@/lib/api';
+import { nombreUnidad, nombreUnidadPlural } from '@/lib/unit-display';
 import type {
   CalculationResult,
   ComponenteContribucionMarginal,
@@ -356,6 +357,13 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
   };
 
   const hasCajonesBase = Boolean(currentResult?.detail.unitCost?.unitsProduced);
+  const unidadMostrada = projected
+    ? projected.unidadGestion
+    : birdSource
+      ? birdSource.unidadGestion
+      : currentResult?.unidadGestion;
+  const unidadSingular = nombreUnidad(unidadMostrada);
+  const unidadPlural = nombreUnidadPlural(unidadMostrada);
   const hasActiveEscalones = escalones.some(
     (escalon) => escalon.aves_desde > 0 && avesObjetivo >= escalon.aves_desde,
   );
@@ -544,7 +552,7 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                     <p className="text-2xl font-mono text-ink">
                       <Money value={projected.contribucionMarginal.contribucionMarginalUnitaria} />
                     </p>
-                    <p className="mt-1 text-xs text-ink-soft">por cajón vendido</p>
+                    <p className="mt-1 text-xs text-ink-soft">por {unidadSingular}</p>
                   </div>
                 )}
               </div>
@@ -562,7 +570,7 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                     <p className="text-2xl font-mono text-ink">
                       {Math.ceil(projected.puntoEquilibrio.unidadesEquilibrio).toLocaleString('es-AR')}
                     </p>
-                    <p className="mt-1 text-xs text-ink-soft">cajones</p>
+                    <p className="mt-1 text-xs text-ink-soft">{unidadPlural}</p>
                   </div>
                 )}
               </div>
@@ -864,7 +872,7 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                         {proy && !proy.incompleta && (
                           <div className="space-y-3">
                             <div className="flex justify-between items-baseline text-sm">
-                              <span className="text-ink-soft">Cajones proyectados</span>
+                              <span className="text-ink-soft">{unidadPlural} proyectados</span>
                               <span className="font-mono tabular font-semibold text-ink">
                                 {Math.round(proy.cajones).toLocaleString('es-AR')}
                               </span>
@@ -930,9 +938,9 @@ export function ScenarioSimulator({ structureId, currentResult }: Props) {
                                 </p>
                               ) : (
                                 <div className="flex justify-between text-sm">
-                                  <span className="text-ink-soft">En cajones</span>
+                                  <span className="text-ink-soft">En {unidadPlural}</span>
                                   <span className="font-mono tabular font-semibold text-ink">
-                                    {Math.ceil(proy.puntoEquilibrio.unidadesEquilibrio).toLocaleString('es-AR')} caj.
+                                    {Math.ceil(proy.puntoEquilibrio.unidadesEquilibrio).toLocaleString('es-AR')} {unidadPlural}
                                   </span>
                                 </div>
                               )}
