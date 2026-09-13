@@ -1,7 +1,7 @@
 ---
 issue: 97
 repo: CosteAR-frontend
-pr: pendiente
+pr: 170
 rama: feat/panel-confirmacion-no-bloqueo
 agente: codex
 modelo: gpt-5
