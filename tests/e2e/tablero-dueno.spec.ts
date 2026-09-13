@@ -31,6 +31,11 @@ const TABLERO_COMPLETO = {
       validada: true,
       ejecutadaEn: '2099-01-15T12:00:00.000Z',
     },
+    unidadGestion: { codigo: 'cajon', nombre: 'Cajón', factor: 360 },
+    rubro: {
+      clave: 'AVICOLA_POSTURA',
+      icons: { LoteProductivo: 'bird' },
+    },
     pendientes: [],
     costoPorCajon: {
       variable: numero(11),
@@ -87,6 +92,7 @@ testConSesion('muestra los seis números reales del período en el orden definid
   await expect(page).toHaveURL(new RegExp(`/owner-dashboard\\?periodId=${PERIOD_ID}$`));
   await expect(page.getByRole('heading', { name: 'Tablero de la empresa' })).toBeVisible();
   await expect(page.getByText('Período 2099-01, expresado en cajones.')).toBeVisible();
+  await expect(page.getByTestId('industry-icon')).toHaveAttribute('data-icon', 'bird');
 
   const metricas = page.getByTestId('owner-metric');
   await expect(metricas).toHaveCount(6);
@@ -117,6 +123,53 @@ testConSesion('muestra los seis números reales del período en el orden definid
 
   await expandirParaCaptura(page);
   expect(consola.mensajes, 'errores en /owner-dashboard').toEqual([]);
+});
+
+testConSesion('toma la unidad y el icono del rubro de la respuesta', async ({ page, consola }) => {
+  const tableroDeOtroRubro = {
+    data: {
+      ...TABLERO_COMPLETO.data,
+      unidadGestion: { codigo: 'bulto', nombre: 'Bulto', factor: 12 },
+      rubro: {
+        clave: 'RUBRO_SINTETICO',
+        icons: { UnidadProductiva: 'warehouse' },
+      },
+    },
+  };
+
+  await responderTablero(page, tableroDeOtroRubro);
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+
+  await laAppPinto(page);
+  await expect(page.getByText('Período 2099-01, expresado en bultos.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Costo por bulto' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Punto de equilibrio en bultos' })).toBeVisible();
+  await expect(page.getByTestId('industry-icon')).toHaveAttribute('data-icon', 'warehouse');
+  await expect(page.getByText(/caj[oó]n/i)).toHaveCount(0);
+
+  await expandirParaCaptura(page);
+  expect(consola.mensajes, 'errores al mostrar otro rubro').toEqual([]);
+});
+
+testConSesion('declara cuando falta la unidad y usa un icono neutro sin inventar rubro', async ({ page, consola }) => {
+  const tableroSinContexto = {
+    data: {
+      ...TABLERO_COMPLETO.data,
+      unidadGestion: null,
+      rubro: null,
+    },
+  };
+
+  await responderTablero(page, tableroSinContexto);
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+
+  await laAppPinto(page);
+  await expect(page.getByText('Sin unidad declarada', { exact: true }).first()).toBeVisible();
+  await expect(page.getByTestId('industry-icon')).toHaveAttribute('data-icon', 'neutral');
+  await expect(page.getByText(/caj[oó]n/i)).toHaveCount(0);
+
+  await expandirParaCaptura(page);
+  expect(consola.mensajes, 'errores cuando falta el contexto del negocio').toEqual([]);
 });
 
 testConSesion('agrupa por área qué falta cargar y muestra el período de cada pendiente', async ({ page, consola }) => {

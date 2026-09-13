@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { CostPeriodStatus } from './period-hooks';
+import type { UnidadGestion } from '@/lib/types';
 
 /**
  * COMPARACIÓN ENTRE PERÍODOS (problema C — Fase 4).
@@ -84,6 +85,7 @@ export interface PeriodComparison {
   offsetting: boolean;
   warnings: string[];
   macroContrast: MacroContrast | null;
+  unidadGestion: UnidadGestion | null;
 }
 
 /**

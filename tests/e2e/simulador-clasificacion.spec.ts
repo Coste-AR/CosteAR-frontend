@@ -54,6 +54,7 @@ function simulationResult({
   ];
 
   return {
+    unidadGestion: { codigo: 'bulto', nombre: 'Bulto', factor: 12 },
     rawMaterialConsumed: 2_000,
     directLaborTotal: 1_500,
     indirectCostsApplied: 2_500,
@@ -105,7 +106,7 @@ test('el simulador marca el escenario cuando falta una clasificación del domini
   consola,
 }, testInfo) => {
   test.setTimeout(90_000);
-  const response = simulationResult({
+  let response = simulationResult({
     comportamientoIndirectos: null,
     contribucion: null,
     equilibrio: null,
@@ -228,6 +229,21 @@ test('el simulador marca el escenario cuando falta una clasificación del domini
   await expect(contributionCard).toContainText('Incompleta');
   await expect(equilibriumCard).toContainText('Incompleto');
   expect(simulationCalls).toBe(1);
+
+  response = simulationResult({
+    comportamientoIndirectos: 'FIJO',
+    contribucion: 58.33,
+    equilibrio: 25.72,
+  });
+  await Promise.all([
+    page.waitForResponse((networkResponse) =>
+      networkResponse.url().endsWith(`/api/v1/cost-structures/${STRUCTURE_ID}/simulate`),
+    ),
+    run.click(),
+  ]);
+  await expect(contributionCard).toContainText('por bulto');
+  await expect(equilibriumCard).toContainText('bultos');
+  expect(simulationCalls).toBe(2);
 
   const simulator = page.getByTestId('scenario-simulator');
   await simulator.evaluate((section) => {
