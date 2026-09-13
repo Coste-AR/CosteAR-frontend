@@ -10,8 +10,12 @@ import { test as base, expect, type Page, type Route } from '@playwright/test';
  * rompe el test, que es la unica forma de que "la pantalla anda" signifique algo.
  */
 type ErroresDeConsola = { mensajes: string[] };
+type FixturesCompartidos = {
+  capturaPaginaCompleta: void;
+  consola: ErroresDeConsola;
+};
 
-export const test = base.extend<{ consola: ErroresDeConsola }>({
+export const test = base.extend<FixturesCompartidos>({
   /**
    * El bootstrap de sesion pega a /auth/refresh en CADA carga de pagina. Sin
    * backend levantado eso da 500 y ensucia la consola con un error que no es
@@ -31,6 +35,22 @@ export const test = base.extend<{ consola: ErroresDeConsola }>({
     );
     await use(page);
   },
+
+  capturaPaginaCompleta: [
+    async ({ page }, use, testInfo) => {
+      try {
+        await use();
+      } finally {
+        if (!page.isClosed()) {
+          await testInfo.attach(`pagina-completa-${testInfo.project.name}`, {
+            body: await page.screenshot({ fullPage: true }),
+            contentType: 'image/png',
+          });
+        }
+      }
+    },
+    { auto: true },
+  ],
 
   consola: async ({ page }, use) => {
     const mensajes: string[] = [];

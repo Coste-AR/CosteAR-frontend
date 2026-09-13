@@ -5,7 +5,7 @@ import {
   Building2, Bell, ArrowRight, ClipboardCheck,
   DollarSign, AlertTriangle, CheckCircle2, FileText,
   ChevronRight, Activity, Percent, Search,
-  User, ShieldCheck,
+  User, ShieldCheck, Egg,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/Button';
@@ -165,6 +165,15 @@ export function DashboardPage() {
                 <div className="mt-3">
                   <p className="text-[12px] font-bold text-ink leading-tight">Alertas</p>
                   <p className="text-[9.5px] text-ink-soft mt-0.5 font-medium">{unread} críticas</p>
+                </div>
+              </Link>
+              <Link to="/panel-campo" className="flex flex-col justify-between rounded-2xl bg-white border border-line p-4 hover:border-granate/20 hover:-translate-y-0.5 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.01)] group">
+                <div className="size-8 rounded-xl bg-granate-tenue text-granate flex items-center justify-center border border-granate/5 group-hover:scale-105 transition-transform duration-300">
+                  <Egg className="size-4" />
+                </div>
+                <div className="mt-3">
+                  <p className="text-[12px] font-bold text-ink leading-tight">Cargar hoy</p>
+                  <p className="text-[9.5px] text-ink-soft mt-0.5 font-medium">Panel de campo</p>
                 </div>
               </Link>
               <Link to="/profile" className="flex flex-col justify-between rounded-2xl bg-white border border-line p-4 hover:border-granate/20 hover:-translate-y-0.5 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.01)] group">

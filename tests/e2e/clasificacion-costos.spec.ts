@@ -8,6 +8,11 @@ test('clasifica costos con confirmación explícita y conserva sin confirmar al 
   page,
   consola,
 }, testInfo) => {
+  // WebKit puede tardar más de 30 s en estabilizar y capturar la pantalla
+  // completa bajo la carga paralela de la suite. El flujo tiene esperas
+  // específicas propias; este margen evita que el timeout total lo corte
+  // mientras está generando la evidencia obligatoria.
+  test.setTimeout(90_000);
   const saved: Array<{ key: string; behavior: Behavior; confirmed: boolean }> = [];
   const classifications: Record<string, { behavior: Behavior | null; confirmed: boolean; reason?: string }> = {
     comportamiento_materia_prima: {

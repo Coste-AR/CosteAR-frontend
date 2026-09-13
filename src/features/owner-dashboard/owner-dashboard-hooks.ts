@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import type { UnidadGestion } from '@/lib/types';
 
 export interface OwnerDashboardNumber {
   valor: number | null;
@@ -38,6 +39,11 @@ export interface OwnerDashboardData {
     id: string;
     validada: boolean;
     ejecutadaEn: string;
+  } | null;
+  unidadGestion: UnidadGestion | null;
+  rubro: {
+    clave: string;
+    icons: Record<string, string>;
   } | null;
   pendientes: OwnerDashboardPending[];
   costoPorCajon: {

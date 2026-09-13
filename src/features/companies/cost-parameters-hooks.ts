@@ -15,7 +15,36 @@ export interface CostParameter {
   nota?: string;
 }
 
-const parametersQueryKey = (companyId: string) => [
+export interface CostParameterOption {
+  valor: string;
+  etiqueta: string;
+}
+
+export interface OptionCostParameter {
+  clave: string;
+  valor: string | null;
+  descripcion: string;
+  opciones: CostParameterOption[];
+  origen: CostParameterOrigin;
+  confirmado: boolean;
+  propuestaModulo?: { valores: string[]; clave: string };
+}
+
+export type BusinessParameter = CostParameter | OptionCostParameter;
+
+export function isOptionCostParameter(
+  parameter: BusinessParameter,
+): parameter is OptionCostParameter {
+  return 'opciones' in parameter;
+}
+
+export function isNumericCostParameter(
+  parameter: BusinessParameter,
+): parameter is CostParameter {
+  return !isOptionCostParameter(parameter);
+}
+
+export const parametersQueryKey = (companyId: string) => [
   'companies',
   companyId,
   'cost-parameters',
@@ -25,12 +54,38 @@ export function useCostParameters(companyId: string) {
   return useQuery({
     queryKey: parametersQueryKey(companyId),
     queryFn: async () => {
-      const response = await api.get<{ data: CostParameter[] }>(
+      const response = await api.get<{ data: BusinessParameter[] }>(
         `/companies/${companyId}/parametros-costeo`,
       );
       return response.data.data;
     },
     enabled: !!companyId,
+  });
+}
+
+export function useSaveOptionCostParameter(companyId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: string }) => {
+      const response = await api.put<{ data: unknown }>(
+        `/companies/${companyId}/parametros-costeo/${key}`,
+        { valorTexto: value, confirmado: true },
+      );
+      return response.data.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: parametersQueryKey(companyId) }),
+  });
+}
+
+export function useLeaveOptionCostParameterPending(companyId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (key: string) => {
+      await api.delete(`/companies/${companyId}/parametros-costeo/${key}`);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: parametersQueryKey(companyId) }),
   });
 }
 

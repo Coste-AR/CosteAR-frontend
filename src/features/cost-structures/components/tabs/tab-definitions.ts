@@ -4,9 +4,11 @@ import {
   Factory,
   GitCompare,
   History,
+  Handshake,
   Inbox,
   Layers,
   Package,
+  Recycle,
   Scale,
   Split,
   TrendingUp,
@@ -30,8 +32,10 @@ import type { CostingSystem } from '../shared/CostingSystemSelector';
 
 export type OrdersTab =
   | 'raw-material'
+  | 'waste'
   | 'direct-labor'
   | 'indirect-costs'
+  | 'third-party-work'
   | 'sales'
   | 'simulate';
 
@@ -57,8 +61,10 @@ export interface TabDefinition {
 
 const ORDERS_TABS: TabDefinition[] = [
   { id: 'raw-material', label: 'Materia Prima', icon: Package, configKey: 'mp' },
+  { id: 'waste', label: 'Desperdicios', icon: Recycle },
   { id: 'direct-labor', label: 'Mano de Obra', icon: Users, configKey: 'mod' },
   { id: 'indirect-costs', label: 'Costos Indirectos', icon: Factory, configKey: 'cip' },
+  { id: 'third-party-work', label: 'Trabajos de terceros', icon: Handshake },
   { id: 'sales', label: 'Venta', icon: TrendingUp, configKey: 'sales' },
   { id: 'result', label: 'Resultado', icon: BarChart2 },
   { id: 'simulate', label: 'Simulador', icon: Activity },

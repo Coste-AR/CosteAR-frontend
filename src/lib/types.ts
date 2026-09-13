@@ -90,15 +90,51 @@ export interface CostStructure {
   salesQuantity: string | null;
   /** Unidades PRODUCIDAS (costo unitario). Si es null, se usan las vendidas. */
   productionQuantity: string | null;
+  /** Importe del período que va directo al costo real; no es un CIP. */
+  thirdPartyWork?: string | null;
   createdAt: string;
   deletedAt?: string | null;
 }
 
+/** Unidad elegida por la empresa y ya aplicada por la API a sus resultados. */
+export interface UnidadGestion {
+  codigo: string;
+  nombre: string;
+  factor: number;
+}
+
 export interface CalculationResult {
+  /**
+   * `null` significa que la empresa no declaró una unidad. Es opcional sólo
+   * porque las corridas históricas persistidas antes del contrato no lo traen.
+   */
+  unidadGestion?: UnidadGestion | null;
   rawMaterialConsumed: number;
   directLaborTotal: number;
   indirectCostsApplied: number;
   productionCost: number;
+  /**
+   * Renglones del estado de costos real. Son opcionales para poder abrir
+   * corridas históricas creadas antes de que el backend los expusiera.
+   */
+  thirdPartyWork?: number;
+  assetDepreciation?: number;
+  budgetVariance?: number;
+  realProductionCost?: number;
+  /**
+   * Imputación del desperdicio del período. Es opcional porque las corridas
+   * guardadas antes de que existiera R5 no lo traen.
+   */
+  desperdicio?: {
+    /** Merma normal neta de recupero: ya está absorbida por las unidades buenas. */
+    alCosto: number;
+    /** Merma extraordinaria retirada del costo y llevada a pérdida del período. */
+    alResultado: number;
+    /** Recupero que reduce el costo de materiales. */
+    recuperoAplicado: number;
+    /** Registros todavía sin naturaleza, excluidos del cálculo. */
+    pendientes: Array<{ concepto: string; valor: number; motivo: string }>;
+  };
   costOfGoodsSold: number;
   grossMargin: number;
   grossMarginPct: number;
@@ -183,7 +219,10 @@ export interface CalculationResult {
     unitCost?: {
       unitsProduced: number;
       unitProductionCost: number;
+      /** Opcional para corridas guardadas antes del 20-08-2026. */
+      unitFinishedGoodsCost?: number;
       unitCostOfGoodsSold: number;
+      basadoEn?: 'producidas' | 'vendidas';
     };
   };
 }
@@ -291,6 +330,10 @@ export interface CostCalculation {
   directLaborTotal: string;
   indirectCostsApplied: string;
   productionCost: string;
+  thirdPartyWork?: string;
+  assetDepreciation?: string;
+  budgetVariance?: string;
+  realProductionCost?: string;
   costOfGoodsSold: string;
   grossMargin: string;
   grossMarginPct: string;

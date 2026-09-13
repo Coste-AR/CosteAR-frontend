@@ -153,14 +153,18 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
     },
   ];
 
-  /**
-   * La cuenta del costo de producción, armada una sola vez y reusada por las
-   * filas que la contienen (costo de producción, COGS y el costo unitario). Los
-   * tres números salen de la MISMA suma: si se armara por separado en cada lado
-   * podrían llegar a contar historias distintas.
-   */
-  const costoDeProduccion = {
-    label: 'Costo de producción',
+  // Las corridas nuevas abren el puente entre costo normal y real. Las viejas
+  // no guardaban esos renglones; para ellas se conserva la presentación previa
+  // en vez de inventar un desglose que el snapshot no puede demostrar.
+  const hasRealCostBreakdown =
+    result.thirdPartyWork !== undefined ||
+    result.assetDepreciation !== undefined ||
+    result.budgetVariance !== undefined ||
+    result.realProductionCost !== undefined;
+  const totalProductionCost = result.realProductionCost ?? result.productionCost;
+
+  const costoNormalDeProduccion = {
+    label: hasRealCostBreakdown ? 'Costo normal de producción' : 'Costo de producción',
     formula: 'materia prima consumida + mano de obra directa + costos indirectos aplicados',
     value: result.productionCost,
     unit: '$',
@@ -173,6 +177,76 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
       dataPointId: r.derivation?.dataPointId ?? null,
     })),
   };
+
+  const ajustesCostoReal = hasRealCostBreakdown
+    ? [
+        result.thirdPartyWork !== undefined
+          ? {
+              label: 'Trabajos de terceros',
+              formula: 'importe del período sumado entero, sin prorrateo entre centros',
+              value: result.thirdPartyWork,
+              unit: '$',
+              children: [],
+            }
+          : null,
+        result.assetDepreciation
+          ? {
+              label: 'Amortización de activos',
+              formula: 'amortización del período informada por el motor',
+              value: result.assetDepreciation,
+              unit: '$',
+              children: [],
+            }
+          : null,
+        result.budgetVariance
+          ? {
+              label: 'Variación presupuesto',
+              formula: 'CIP real − presupuesto ajustado al nivel real de actividad',
+              value: result.budgetVariance,
+              unit: '$',
+              children: [],
+            }
+          : null,
+      ].filter((item): item is NonNullable<typeof item> => item !== null)
+    : [];
+
+  /** El total real sale del motor; la interfaz solo abre sus renglones. */
+  const costoDeProduccion = hasRealCostBreakdown
+    ? {
+        label: 'Costo real de producción',
+        formula: 'costo normal + trabajos de terceros + otros ajustes del período',
+        value: totalProductionCost,
+        unit: '$',
+        children: [costoNormalDeProduccion, ...ajustesCostoReal],
+      }
+    : costoNormalDeProduccion;
+
+  // R5 llega calculada desde el backend. La pantalla no vuelve a hacer la
+  // cuenta: únicamente abre los importes que el motor separó para que se vea
+  // qué quedó absorbido, qué redujo el costo y qué salió al resultado del mes.
+  const desperdicio = result.desperdicio;
+  const ajustesDesperdicio = desperdicio
+    ? [
+        desperdicio.recuperoAplicado > 0
+          ? {
+              label: 'Recupero de desperdicio',
+              formula: 'reducción del costo de materiales informada por el motor',
+              value: -desperdicio.recuperoAplicado,
+              unit: '$',
+              children: [],
+            }
+          : null,
+        desperdicio.alResultado > 0
+          ? {
+              label: 'Merma extraordinaria',
+              formula: 'pérdida del período retirada del costo por el motor',
+              value: -desperdicio.alResultado,
+              unit: '$',
+              children: [],
+            }
+          : null,
+      ].filter((item): item is NonNullable<typeof item> => item !== null)
+    : [];
 
   const margenBruto = {
     label: 'Margen bruto',
@@ -192,10 +266,23 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
         formula: 'costo de producción ajustado por la variación de existencias de producto terminado',
         value: result.costOfGoodsSold,
         unit: '$',
-        children: [costoDeProduccion],
+        children: [costoDeProduccion, ...ajustesDesperdicio],
       },
     ],
   };
+
+  // La API ya proyectó estos importes: acá sólo se rotula la unidad que
+  // acompaña al resultado. `null` no habilita un fallback plausible; es una
+  // ausencia declarada que la pantalla tiene que hacer visible.
+  const etiquetaUnidad = result.unidadGestion
+    ? `por ${result.unidadGestion.nombre}`
+    : result.unidadGestion === null
+      ? 'Sin unidad declarada'
+      : 'Unidad no informada en esta corrida';
+  const unitCost = result.detail.unitCost;
+  const costosUnitariosCoinciden =
+    unitCost?.unitFinishedGoodsCost !== undefined &&
+    unitCost.unitProductionCost === unitCost.unitFinishedGoodsCost;
 
   const handleExportPDF = async () => {
     const input = document.getElementById('pdf-export-content');
@@ -249,7 +336,7 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
             materiaPrima: result.rawMaterialConsumed,
             manoDeObra: result.directLaborTotal,
             costosIndirectos: result.indirectCostsApplied,
-            costoProduccion: result.productionCost,
+            costoProduccion: totalProductionCost,
             cogs: result.costOfGoodsSold,
             margenBruto: result.grossMargin,
             margenBrutoPct: result.grossMarginPct,
@@ -266,50 +353,82 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
             }}
           />
         )}
-        {result.detail.unitCost && (
-          <Card>
-            <CardBody className="space-y-2 py-8 text-center">
-              <p className="text-[11px] uppercase tracking-widest text-ink-soft">Costo unitario de producción</p>
-              {/* El número final del sistema de costos: es el que más se mira y
-                  el que más hay que poder abrir. La cuenta se arma acá porque el
-                  árbol llega hasta el costo de producción, no hasta el unitario. */}
-              <TraceableValue
-                title="Costo unitario de producción"
-                derivation={{
-                  label: 'Costo unitario de producción',
-                  formula: 'costo de producción ÷ unidades producidas',
-                  value: result.detail.unitCost.unitProductionCost,
-                  unit: '$',
-                  children: [
-                    {
-                      label: 'Costo de producción',
-                      formula: 'materia prima + mano de obra + costos indirectos',
-                      value: result.productionCost,
+        {unitCost && (
+          <Card data-testid="unit-cost-summary">
+            <CardHeader
+              title="Costos unitarios"
+              description="Son dos renglones distintos del estado de costos."
+            />
+            <CardBody className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <article className="rounded-xl border border-line bg-surface-alt px-5 py-6 text-center">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-soft">
+                    Costo unitario de producción
+                  </p>
+                  {/* El número final del sistema de costos: es el que más se mira y
+                      el que más hay que poder abrir. La cuenta se arma acá porque el
+                      árbol llega hasta el costo de producción, no hasta el unitario. */}
+                  <TraceableValue
+                    title="Costo unitario de producción"
+                    derivation={{
+                      label: 'Costo unitario de producción',
+                      formula: 'costo de producción ÷ cantidad producida',
+                      value: unitCost.unitProductionCost,
                       unit: '$',
-                      children: rows.map((r) => ({
-                        label: r.label,
-                        formula: r.derivation?.formula ?? null,
-                        value: r.value,
+                      children: [
+                        costoDeProduccion,
+                        {
+                          label: 'Cantidad producida',
+                          formula: null,
+                          value: unitCost.unitsProduced,
+                          unit: result.unidadGestion?.nombre ?? null,
+                          children: [],
+                        },
+                      ],
+                    }}
+                  >
+                    <Money value={unitCost.unitProductionCost} className="mt-2 block text-4xl font-bold text-ink" />
+                  </TraceableValue>
+                  <p className="mt-1 text-[12px] font-medium text-granate-deep">{etiquetaUnidad}</p>
+                  <p className="mt-3 text-[12px] text-ink-soft">
+                    Lo gastado en el período, repartido sobre lo producido.
+                  </p>
+                </article>
+
+                <article className="rounded-xl border border-granate/20 bg-granate-tenue px-5 py-6 text-center">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-granate-deep">
+                    Costo unitario de productos terminados
+                  </p>
+                  {unitCost.unitFinishedGoodsCost === undefined ? (
+                    <p className="mt-4 text-sm font-semibold text-ink-soft">
+                      No disponible en esta corrida histórica
+                    </p>
+                  ) : (
+                    <TraceableValue
+                      title="Costo unitario de productos terminados"
+                      derivation={{
+                        label: 'Costo unitario de productos terminados',
+                        formula: 'costo de productos terminados ÷ cantidad terminada',
+                        value: unitCost.unitFinishedGoodsCost,
                         unit: '$',
-                        children: r.derivation?.children ?? [],
-                        dataPointId: r.derivation?.dataPointId ?? null,
-                      })),
-                    },
-                    {
-                      label: 'Unidades producidas',
-                      formula: null,
-                      value: result.detail.unitCost.unitsProduced,
-                      unit: 'u',
-                      children: [],
-                    },
-                  ],
-                }}
-              >
-                <Money value={result.detail.unitCost.unitProductionCost} className="block text-5xl font-bold text-ink" />
-              </TraceableValue>
-              {result.detail.unitCost.unitsProduced > 0 && (
-                <p className="text-[12px] text-ink-soft">
-                  costo de producción ÷ {result.detail.unitCost.unitsProduced.toLocaleString('es-AR')} u producidas
+                        children: [],
+                      }}
+                    >
+                      <Money value={unitCost.unitFinishedGoodsCost} className="mt-2 block text-4xl font-bold text-ink" />
+                    </TraceableValue>
+                  )}
+                  <p className="mt-1 text-[12px] font-medium text-granate-deep">{etiquetaUnidad}</p>
+                  <p className="mt-3 text-[12px] text-ink-soft">
+                    Lo que costó lo que efectivamente salió terminado; sirve para poner precio.
+                  </p>
+                </article>
+              </div>
+
+              {unitCost.unitFinishedGoodsCost !== undefined && (
+                <p className="rounded-lg bg-surface-alt px-4 py-3 text-center text-[12px] text-ink-soft">
+                  {costosUnitariosCoinciden
+                    ? 'Los dos costos coinciden. No es un error: el trabajo sin terminar no cambió este costo.'
+                    : 'La diferencia refleja el trabajo que quedó sin terminar durante el período.'}
                 </p>
               )}
             </CardBody>
@@ -336,19 +455,82 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
                       </TraceableValue>
                     </td>
                     <td className="px-6 py-3 text-right text-ink-soft">
-                      {result.productionCost > 0 ? `${((r.value / result.productionCost) * 100).toFixed(1)}%` : '—'}
+                      {totalProductionCost > 0 ? `${((r.value / totalProductionCost) * 100).toFixed(1)}%` : '—'}
+                    </td>
+                  </tr>
+                ))}
+                {hasRealCostBreakdown && (
+                  <tr className="bg-surface-alt/60 font-medium">
+                    <td className="px-6 py-3.5 text-ink">Costo normal de producción</td>
+                    <td className="px-6 py-3.5 text-right">
+                      <TraceableValue title="Costo normal de producción" derivation={costoNormalDeProduccion}>
+                        <Money value={result.productionCost} />
+                      </TraceableValue>
+                    </td>
+                    <td className="px-6 py-3.5 text-right text-ink-soft">
+                      {totalProductionCost > 0 ? `${((result.productionCost / totalProductionCost) * 100).toFixed(1)}%` : '—'}
+                    </td>
+                  </tr>
+                )}
+                {ajustesCostoReal.map((ajuste) => (
+                  <tr key={ajuste.label} className={ajuste.label === 'Trabajos de terceros' ? 'bg-action/5' : undefined}>
+                    <td className="px-6 py-3.5 text-ink">
+                      {ajuste.label}
+                      {ajuste.label === 'Trabajos de terceros' && (
+                        <span className="ml-2 text-[11px] font-normal text-ink-soft">fuera de CIP · sin prorrateo</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-3.5 text-right font-medium">
+                      <TraceableValue title={ajuste.label} derivation={ajuste}>
+                        <Money value={ajuste.value} />
+                      </TraceableValue>
+                    </td>
+                    <td className="px-6 py-3.5 text-right text-ink-soft">
+                      {totalProductionCost > 0 ? `${((ajuste.value / totalProductionCost) * 100).toFixed(1)}%` : '—'}
                     </td>
                   </tr>
                 ))}
                 <tr className="bg-surface-alt font-semibold">
-                  <td className="px-6 py-3.5 text-ink">Costo de producción</td>
+                  <td className="px-6 py-3.5 text-ink">{costoDeProduccion.label}</td>
                   <td className="px-6 py-3.5 text-right">
-                    <TraceableValue title="Costo de producción" derivation={costoDeProduccion}>
-                      <Money value={result.productionCost} />
+                    <TraceableValue title={costoDeProduccion.label} derivation={costoDeProduccion}>
+                      <Money value={totalProductionCost} />
                     </TraceableValue>
                   </td>
                   <td className="px-6 py-3.5 text-right text-ink-soft">100%</td>
                 </tr>
+                {desperdicio && desperdicio.alCosto > 0 && (
+                  <tr className="border-t-4 border-line">
+                    <td className="px-6 py-3.5 text-ink">
+                      Merma normal absorbida
+                      <span className="ml-2 text-[11px] font-normal text-ink-soft">
+                        informativa — ya está dentro del costo consumido
+                      </span>
+                    </td>
+                    <td className="px-6 py-3.5 text-right text-ink"><Money value={desperdicio.alCosto} /></td>
+                    <td className="px-6 py-3.5" />
+                  </tr>
+                )}
+                {desperdicio && desperdicio.recuperoAplicado > 0 && (
+                  <tr>
+                    <td className="px-6 py-3.5 text-ink">
+                      Recupero de desperdicio
+                      <span className="ml-2 text-[11px] font-normal text-ink-soft">reduce el costo de materiales</span>
+                    </td>
+                    <td className="px-6 py-3.5 text-right font-semibold text-ok">− <Money value={desperdicio.recuperoAplicado} /></td>
+                    <td className="px-6 py-3.5" />
+                  </tr>
+                )}
+                {desperdicio && desperdicio.alResultado > 0 && (
+                  <tr>
+                    <td className="px-6 py-3.5 text-ink">
+                      Merma extraordinaria
+                      <span className="ml-2 text-[11px] font-normal text-ink-soft">fuera del costo — pérdida del período</span>
+                    </td>
+                    <td className="px-6 py-3.5 text-right font-semibold text-danger">− <Money value={desperdicio.alResultado} /></td>
+                    <td className="px-6 py-3.5" />
+                  </tr>
+                )}
                 <tr className="bg-granate-tenue font-bold">
                   <td className="px-6 py-3.5 text-granate">Costo de productos vendidos (COGS)</td>
                   <td className="px-6 py-3.5 text-right">
@@ -388,6 +570,17 @@ export function ResultTab({ result, companyId, period, incompleto, runId, struct
             </table>
           </CardBody>
         </Card>
+
+        {desperdicio && desperdicio.pendientes.length > 0 && (
+          <div role="alert" className="rounded-xl border border-warn/30 bg-warn/10 px-4 py-3">
+            <p className="text-[13px] font-semibold text-warn">
+              {desperdicio.pendientes.length} {desperdicio.pendientes.length === 1 ? 'desperdicio quedó' : 'desperdicios quedaron'} fuera del cálculo
+            </p>
+            <p className="mt-1 text-[12px] text-ink">
+              Todavía no tienen naturaleza declarada: {desperdicio.pendientes.map((item) => item.concepto).join(', ')}.
+            </p>
+          </div>
+        )}
 
         {Object.keys(result.detail.indirectCosts.perDepartment).length > 0 && (
           <Card>

@@ -4,11 +4,15 @@ import {
   AlertCircle,
   AlertTriangle,
   BarChart3,
+  Bird,
+  Building2,
   CalendarClock,
   Calculator,
   CheckCircle2,
   ClipboardList,
+  Container,
   Factory,
+  FlaskConical,
   Info,
   PackageCheck,
   Scale,
@@ -16,6 +20,7 @@ import {
   ShoppingCart,
   TrendingUp,
   WalletCards,
+  Warehouse,
 } from 'lucide-react';
 import { useSearch } from '@tanstack/react-router';
 import { AppShell, PageHeader } from '@/components/layout/AppShell';
@@ -23,8 +28,10 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { apiErrorMessage } from '@/lib/api';
 import { formatDate, formatMoney } from '@/lib/utils';
+import { nombreUnidad, nombreUnidadPlural, SIN_UNIDAD_DECLARADA } from '@/lib/unit-display';
 import {
   useOwnerDashboard,
+  type OwnerDashboardData,
   type OwnerDashboardNumber,
   type OwnerDashboardPending,
   type OwnerDashboardPendingArea,
@@ -33,7 +40,14 @@ import {
 const SIN_DATOS = 'Sin datos';
 const INCOMPLETO = 'Incompleto';
 
-const cajonesFormatter = new Intl.NumberFormat('es-AR', {
+const INDUSTRY_ICONS: Record<string, LucideIcon> = {
+  bird: Bird,
+  warehouse: Warehouse,
+  container: Container,
+  flask: FlaskConical,
+};
+
+const quantityFormatter = new Intl.NumberFormat('es-AR', {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
@@ -120,7 +134,7 @@ function MetricValue({
   detail,
 }: {
   numero: OwnerDashboardNumber | undefined;
-  kind: 'money' | 'cajones';
+  kind: 'money' | 'quantity';
   detail: string;
 }) {
   if (!numero) {
@@ -149,7 +163,7 @@ function MetricValue({
     <div>
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-mono-jb text-xl font-bold text-ink">
-          {kind === 'money' ? formatMoney(numero.valor) : cajonesFormatter.format(numero.valor)}
+          {kind === 'money' ? formatMoney(numero.valor) : quantityFormatter.format(numero.valor)}
         </p>
         <AssumptionMark parametros={numero.parametrosSinConfirmarDetalle} />
       </div>
@@ -308,23 +322,28 @@ function ClosingPendingBlock({ pendientes }: { pendientes: OwnerDashboardPending
   );
 }
 
-function MoneyToCratesConverter({
+function MoneyToUnitConverter({
   precio,
   periodo,
+  unidad,
 }: {
   precio: OwnerDashboardNumber | undefined;
   periodo: string | undefined;
+  unidad: OwnerDashboardData['unidadGestion'] | undefined;
 }) {
   const [importe, setImporte] = useState('');
   const importeNumero = importe === '' ? null : Number(importe);
   const importeValido = importeNumero !== null && Number.isFinite(importeNumero) && importeNumero >= 0;
-  const precioDisponible = numeroSeguro(precio) && precio.valor > 0;
-  const cajones = precioDisponible && importeValido ? importeNumero / precio.valor : null;
+  const unidadDisponible = Boolean(unidad);
+  const precioDisponible = unidadDisponible && numeroSeguro(precio) && precio.valor > 0;
+  const cantidad = precioDisponible && importeValido ? importeNumero / precio.valor : null;
+  const unidadSingular = nombreUnidad(unidad);
+  const unidadPlural = nombreUnidadPlural(unidad);
 
   return (
     <Card data-testid="money-to-crates-converter">
       <CardHeader
-        title="Conversor de pesos a cajones"
+        title={unidadDisponible ? `Conversor de pesos a ${unidadPlural}` : 'Conversor de pesos no disponible'}
         description="Traducí un importe al equivalente de venta del período. No se guarda ningún dato."
         action={(
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-granate/10 bg-granate-tenue text-granate">
@@ -355,10 +374,10 @@ function MoneyToCratesConverter({
                 Equivale a
               </p>
               <p className="mt-1 font-mono-jb text-2xl font-bold text-granate-deep">
-                {cajones === null ? '—' : `${cajonesFormatter.format(cajones)} cajones`}
+                {cantidad === null ? '—' : `${quantityFormatter.format(cantidad)} ${unidadPlural}`}
               </p>
               <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
-                Precio usado: <strong>{formatMoney(precio.valor)} por cajón</strong>
+                Precio usado: <strong>{formatMoney(precio.valor)} por {unidadSingular}</strong>
                 {periodo ? <> · Período <strong>{periodo}</strong></> : null}
               </p>
               <div className="mt-2">
@@ -369,10 +388,12 @@ function MoneyToCratesConverter({
             <div data-testid="converter-missing-price">
               <p className="flex items-center gap-2 text-sm font-bold text-warning">
                 <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
-                Falta el precio promedio del período
+                {unidadDisponible ? 'Falta el precio promedio del período' : 'Sin unidad declarada'}
               </p>
               <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
-                No se puede convertir el importe a cajones hasta que haya ventas para calcularlo.
+                {unidadDisponible
+                  ? `No se puede convertir el importe a ${unidadPlural} hasta que haya ventas para calcularlo.`
+                  : 'La empresa tiene que declarar su unidad de gestión antes de convertir importes.'}
               </p>
               <MissingReasons motivos={precio?.motivos ?? []} />
             </div>
@@ -386,9 +407,11 @@ function MoneyToCratesConverter({
 function ProducedProgress({
   producido,
   equilibrio,
+  unidad,
 }: {
   producido: OwnerDashboardNumber | undefined;
   equilibrio: OwnerDashboardNumber | undefined;
+  unidad: OwnerDashboardData['unidadGestion'] | undefined;
 }) {
   const completo = numeroSeguro(producido) && numeroSeguro(equilibrio) && equilibrio.valor > 0;
 
@@ -409,7 +432,8 @@ function ProducedProgress({
 
   const porcentaje = Math.max(0, producido.valor / equilibrio.valor * 100);
   const ancho = Math.min(porcentaje, 100);
-  const descripcion = `${cajonesFormatter.format(producido.valor)} de ${cajonesFormatter.format(equilibrio.valor)} cajones`;
+  const unidadPlural = nombreUnidadPlural(unidad);
+  const descripcion = `${quantityFormatter.format(producido.valor)} de ${quantityFormatter.format(equilibrio.valor)} ${unidadPlural}`;
   const parametros = parametrosUnicos(producido, equilibrio);
 
   return (
@@ -424,12 +448,12 @@ function ProducedProgress({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(ancho)}
-        aria-valuetext={`${descripcion} (${cajonesFormatter.format(porcentaje)} %)`}
+        aria-valuetext={`${descripcion} (${quantityFormatter.format(porcentaje)} %)`}
         className="h-3 w-full overflow-hidden rounded-full bg-line"
       >
         <div className="h-full rounded-full bg-granate" style={{ width: `${ancho}%` }} />
       </div>
-      <p className="mt-2 text-[11px] font-semibold text-ink-soft/70">Cajones producidos sobre el equilibrio</p>
+      <p className="mt-2 text-[11px] font-semibold text-ink-soft/70">{unidadPlural} producidos sobre el equilibrio</p>
     </div>
   );
 }
@@ -438,16 +462,34 @@ export function OwnerDashboardPage() {
   const { periodId } = useSearch({ strict: false }) as { periodId?: string };
   const tablero = useOwnerDashboard(periodId);
   const data = tablero.data;
+  const unidadSingular = nombreUnidad(data?.unidadGestion);
+  const unidadPlural = nombreUnidadPlural(data?.unidadGestion);
+  const porUnidad = data?.unidadGestion ? `por ${unidadSingular}` : SIN_UNIDAD_DECLARADA;
+  const enUnidad = data?.unidadGestion ? `en ${unidadPlural}` : `· ${SIN_UNIDAD_DECLARADA}`;
+  const iconName = data?.rubro?.icons.LoteProductivo
+    ?? Object.values(data?.rubro?.icons ?? {})[0]
+    ?? 'neutral';
+  const IndustryIcon = INDUSTRY_ICONS[iconName] ?? Building2;
 
   return (
     <AppShell>
       <div className="animate-rise space-y-8" data-testid="owner-dashboard">
         <PageHeader
           title="Tablero de la empresa"
-          description={data ? `Período ${data.periodo.codigo}, expresado en cajones.` : 'Una vista simple del período, expresada en cajones.'}
+          description={data
+            ? data.unidadGestion
+              ? `Período ${data.periodo.codigo}, expresado en ${unidadPlural}.`
+              : `Período ${data.periodo.codigo}. ${SIN_UNIDAD_DECLARADA}.`
+            : 'Una vista simple del período.'}
           action={(
-            <span className="inline-flex items-center rounded-full border border-granate/15 bg-granate-tenue px-3.5 py-1.5 text-[11px] font-bold text-granate">
-              Unidad: cajones
+            <span className="inline-flex items-center gap-2 rounded-full border border-granate/15 bg-granate-tenue px-3.5 py-1.5 text-[11px] font-bold text-granate">
+              <IndustryIcon
+                data-testid="industry-icon"
+                data-icon={iconName}
+                className="size-4"
+                aria-label={data?.rubro ? `Rubro ${data.rubro.clave}` : 'Rubro no declarado'}
+              />
+              {data?.unidadGestion ? `Unidad: ${unidadSingular}` : 'Sin unidad declarada'}
             </span>
           )}
         />
@@ -484,7 +526,7 @@ export function OwnerDashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            <MetricCard title="Costo por cajón" icon={WalletCards}>
+            <MetricCard title={`Costo ${porUnidad}`} icon={WalletCards}>
               <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {([
                   ['Variable', data?.costoPorCajon.variable],
@@ -494,7 +536,7 @@ export function OwnerDashboardPage() {
                   <div key={label} className="rounded-xl border border-line bg-surface-alt px-2 py-3">
                     <dt className="text-[10px] font-bold uppercase tracking-wider text-ink-soft">{label}</dt>
                     <dd className="mt-1">
-                      <MetricValue numero={numero} kind="money" detail="Por cajón" />
+                      <MetricValue numero={numero} kind="money" detail={porUnidad} />
                     </dd>
                   </div>
                 ))}
@@ -502,15 +544,15 @@ export function OwnerDashboardPage() {
             </MetricCard>
 
             <MetricCard title="Precio promedio de venta del período" icon={PackageCheck}>
-              <MetricValue numero={data?.precioPromedioVenta} kind="money" detail="Precio por cajón" />
+              <MetricValue numero={data?.precioPromedioVenta} kind="money" detail={`Precio ${porUnidad}`} />
             </MetricCard>
 
-            <MetricCard title="Contribución marginal por cajón" icon={TrendingUp}>
-              <MetricValue numero={data?.contribucionMarginalPorCajon} kind="money" detail="Por cajón" />
+            <MetricCard title={`Contribución marginal ${porUnidad}`} icon={TrendingUp}>
+              <MetricValue numero={data?.contribucionMarginalPorCajon} kind="money" detail={porUnidad} />
             </MetricCard>
 
-            <MetricCard title="Punto de equilibrio en cajones" icon={Scale}>
-              <MetricValue numero={data?.puntoEquilibrioCajones} kind="cajones" detail="Cajones" />
+            <MetricCard title={`Punto de equilibrio ${enUnidad}`} icon={Scale}>
+              <MetricValue numero={data?.puntoEquilibrioCajones} kind="quantity" detail={unidadPlural} />
               <div className="mt-4 flex items-center gap-2 border-t border-line pt-3 text-[11px] text-ink-soft">
                 <CalendarClock className="size-3.5" aria-hidden="true" />
                 <span>Último recálculo: <strong>{data?.puntoEquilibrioCajones.fechaUltimoRecalculo ? formatDate(data.puntoEquilibrioCajones.fechaUltimoRecalculo) : SIN_DATOS}</strong></span>
@@ -518,7 +560,7 @@ export function OwnerDashboardPage() {
             </MetricCard>
 
             <MetricCard title="Producido contra equilibrio" icon={BarChart3}>
-              <ProducedProgress producido={data?.producidoCajones} equilibrio={data?.puntoEquilibrioCajones} />
+              <ProducedProgress producido={data?.producidoCajones} equilibrio={data?.puntoEquilibrioCajones} unidad={data?.unidadGestion} />
             </MetricCard>
 
             <MetricCard title="Resultado del período" icon={WalletCards}>
@@ -528,9 +570,10 @@ export function OwnerDashboardPage() {
         </section>
 
         <section aria-label="Conversor del período">
-          <MoneyToCratesConverter
+          <MoneyToUnitConverter
             precio={data?.precioPromedioVenta}
             periodo={data?.periodo.codigo}
+            unidad={data?.unidadGestion}
           />
         </section>
 

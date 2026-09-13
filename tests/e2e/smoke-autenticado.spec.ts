@@ -4,7 +4,7 @@ import { testConSesion as test, expect, laAppPinto } from './fixtures';
 // workers. El splash consume 5,3 s por si solo y la evidencia no se recorta.
 test.setTimeout(60_000);
 
-test('dashboard carga con la sesion iniciada', async ({ page, consola }, testInfo) => {
+test('dashboard carga con la sesion iniciada', async ({ page, consola }) => {
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
 
   await laAppPinto(page);
@@ -13,11 +13,6 @@ test('dashboard carga con la sesion iniciada', async ({ page, consola }, testInf
   await expect(page.getByText('Por Validar', { exact: true })).toBeVisible();
   await expect(page.getByText('Alertas Activas', { exact: true })).toBeVisible();
   await expect(page.getByText('Estructuras Totales', { exact: true })).toBeVisible();
-
-  await testInfo.attach(`dashboard-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
 
   expect(consola.mensajes, 'errores en /dashboard').toEqual([]);
 });

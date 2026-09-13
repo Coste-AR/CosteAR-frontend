@@ -18,6 +18,11 @@ test('confirma parametros del negocio y permite volver al valor sugerido', async
   page,
   consola,
 }, testInfo) => {
+  // WebKit puede tardar más de 30 s en estabilizar y capturar la pantalla
+  // completa bajo la carga paralela de la suite. El flujo tiene esperas
+  // específicas propias; este margen evita que el timeout total lo corte
+  // mientras está generando la evidencia obligatoria.
+  test.setTimeout(90_000);
   const writes: Array<{ method: 'PUT' | 'DELETE'; key: string; value?: number; confirmed?: boolean }> = [];
   const parameters: Parameter[] = [
     {

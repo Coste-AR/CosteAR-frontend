@@ -30,6 +30,7 @@ import { AcceptTermsPage } from '@/features/auth/AcceptTermsPage';
 import { LandingPage } from '@/features/landing/LandingPage';
 import { TrazabilidadDatoPage, TrazabilidadCalculoPage } from '@/features/trazabilidad/TrazabilidadPages';
 import { OwnerDashboardPage } from '@/features/owner-dashboard/OwnerDashboardPage';
+import { FieldPanelPage } from '@/features/field-panel/FieldPanelPage';
 import { authDestination } from '@/features/auth/auth-destination';
 
 
@@ -97,6 +98,17 @@ const ownerDashboardRoute = createRoute({
       : undefined,
   }),
   component: OwnerDashboardPage,
+});
+const fieldPanelRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/panel-campo',
+  beforeLoad: requireAuth,
+  validateSearch: (search: Record<string, unknown>): { companyId?: string } => ({
+    companyId: typeof search.companyId === 'string' && search.companyId.length > 0
+      ? search.companyId
+      : undefined,
+  }),
+  component: FieldPanelPage,
 });
 const companiesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/companies', beforeLoad: requireAuth, component: CompaniesPage });
 const companyDetailRoute = createRoute({ getParentRoute: () => rootRoute, path: '/companies/$id', beforeLoad: requireAuth, component: CompanyDetailPage });
@@ -179,6 +191,7 @@ const routeTree = rootRoute.addChildren([
   resetRoute,
   dashboardRoute,
   ownerDashboardRoute,
+  fieldPanelRoute,
   companiesRoute,
   companyDetailRoute,
   companySetupRoute,

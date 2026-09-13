@@ -131,6 +131,24 @@ export function useUpdateSales(id: string) {
 }
 
 /**
+ * Importe de trabajos hechos afuera durante el período. Tiene endpoint propio
+ * porque no es un costo indirecto y nunca debe mezclarse con su prorrateo.
+ */
+export function useUpdateThirdPartyWork(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (thirdPartyWork: number) => {
+      const res = await api.put<{ data: CostStructure }>(
+        `/cost-structures/${id}/third-party-work`,
+        { thirdPartyWork },
+      );
+      return res.data.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['cost-structures', id] }),
+  });
+}
+
+/**
  * Cambia el sistema de costeo de una estructura ya creada (U01).
  *
  * El backend solo lo permite mientras la estructura NO tenga cálculos: si ya los

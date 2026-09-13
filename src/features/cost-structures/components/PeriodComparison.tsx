@@ -4,6 +4,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
 import { formatMoney, formatPercent, cn } from '@/lib/utils';
 import { apiErrorMessage } from '@/lib/api';
+import { nombreUnidad } from '@/lib/unit-display';
 import { usePeriods } from '../period-hooks';
 import {
   usePeriodComparison,
@@ -290,6 +291,9 @@ export function PeriodComparison({ structureId }: { structureId: string }) {
   }
 
   const c: Comparison | undefined = data;
+  const etiquetaCostoUnitario = c?.unidadGestion
+    ? `Costo por ${nombreUnidad(c.unidadGestion)}`
+    : 'Costo · sin unidad declarada';
 
   return (
     <div className="space-y-5">
@@ -353,10 +357,12 @@ export function PeriodComparison({ structureId }: { structureId: string }) {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <HeadlineCard
-              title="Costo por unidad"
+              title={etiquetaCostoUnitario}
               hint="La comparación honesta: no cambia por producir más o menos."
               value={c.unit?.productionCost ?? null}
-              unavailable="Cargá la cantidad producida en los dos meses (sección Ventas) y el costo por unidad aparece solo."
+              unavailable={c.unidadGestion
+                ? `Cargá la cantidad producida en los dos meses (sección Ventas) y el costo por ${nombreUnidad(c.unidadGestion)} aparece solo.`
+                : 'Sin unidad declarada: no se puede rotular el costo unitario.'}
             />
             <HeadlineCard
               title="Costo total del mes"

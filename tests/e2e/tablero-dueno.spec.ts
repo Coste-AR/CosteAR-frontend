@@ -31,6 +31,11 @@ const TABLERO_COMPLETO = {
       validada: true,
       ejecutadaEn: '2099-01-15T12:00:00.000Z',
     },
+    unidadGestion: { codigo: 'cajon', nombre: 'Cajón', factor: 360 },
+    rubro: {
+      clave: 'AVICOLA_POSTURA',
+      icons: { LoteProductivo: 'bird' },
+    },
     pendientes: [],
     costoPorCajon: {
       variable: numero(11),
@@ -79,7 +84,7 @@ async function expandirParaCaptura(page: Page) {
   });
 }
 
-testConSesion('muestra los seis números reales del período en el orden definido', async ({ page, consola }, testInfo) => {
+testConSesion('muestra los seis números reales del período en el orden definido', async ({ page, consola }) => {
   await responderTablero(page, TABLERO_COMPLETO);
   await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
 
@@ -87,6 +92,7 @@ testConSesion('muestra los seis números reales del período en el orden definid
   await expect(page).toHaveURL(new RegExp(`/owner-dashboard\\?periodId=${PERIOD_ID}$`));
   await expect(page.getByRole('heading', { name: 'Tablero de la empresa' })).toBeVisible();
   await expect(page.getByText('Período 2099-01, expresado en cajones.')).toBeVisible();
+  await expect(page.getByTestId('industry-icon')).toHaveAttribute('data-icon', 'bird');
 
   const metricas = page.getByTestId('owner-metric');
   await expect(metricas).toHaveCount(6);
@@ -116,15 +122,57 @@ testConSesion('muestra los seis números reales del período en el orden definid
   await expect(pendientes.getByTestId('closing-pending-item')).toHaveCount(0);
 
   await expandirParaCaptura(page);
-  await testInfo.attach(`tablero-empresa-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
-
   expect(consola.mensajes, 'errores en /owner-dashboard').toEqual([]);
 });
 
-testConSesion('agrupa por área qué falta cargar y muestra el período de cada pendiente', async ({ page, consola }, testInfo) => {
+testConSesion('toma la unidad y el icono del rubro de la respuesta', async ({ page, consola }) => {
+  const tableroDeOtroRubro = {
+    data: {
+      ...TABLERO_COMPLETO.data,
+      unidadGestion: { codigo: 'bulto', nombre: 'Bulto', factor: 12 },
+      rubro: {
+        clave: 'RUBRO_SINTETICO',
+        icons: { UnidadProductiva: 'warehouse' },
+      },
+    },
+  };
+
+  await responderTablero(page, tableroDeOtroRubro);
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+
+  await laAppPinto(page);
+  await expect(page.getByText('Período 2099-01, expresado en bultos.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Costo por bulto' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Punto de equilibrio en bultos' })).toBeVisible();
+  await expect(page.getByTestId('industry-icon')).toHaveAttribute('data-icon', 'warehouse');
+  await expect(page.getByText(/caj[oó]n/i)).toHaveCount(0);
+
+  await expandirParaCaptura(page);
+  expect(consola.mensajes, 'errores al mostrar otro rubro').toEqual([]);
+});
+
+testConSesion('declara cuando falta la unidad y usa un icono neutro sin inventar rubro', async ({ page, consola }) => {
+  const tableroSinContexto = {
+    data: {
+      ...TABLERO_COMPLETO.data,
+      unidadGestion: null,
+      rubro: null,
+    },
+  };
+
+  await responderTablero(page, tableroSinContexto);
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+
+  await laAppPinto(page);
+  await expect(page.getByText('Sin unidad declarada', { exact: true }).first()).toBeVisible();
+  await expect(page.getByTestId('industry-icon')).toHaveAttribute('data-icon', 'neutral');
+  await expect(page.getByText(/caj[oó]n/i)).toHaveCount(0);
+
+  await expandirParaCaptura(page);
+  expect(consola.mensajes, 'errores cuando falta el contexto del negocio').toEqual([]);
+});
+
+testConSesion('agrupa por área qué falta cargar y muestra el período de cada pendiente', async ({ page, consola }) => {
   const tableroConPendientes = {
     data: {
       ...TABLERO_COMPLETO.data,
@@ -174,15 +222,10 @@ testConSesion('agrupa por área qué falta cargar y muestra el período de cada 
   await expect(pendientes.getByText('No falta nada para cerrar este período')).toHaveCount(0);
 
   await expandirParaCaptura(page);
-  await testInfo.attach(`pendientes-cierre-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
-
   expect(consola.mensajes, 'errores al mostrar los pendientes de cierre').toEqual([]);
 });
 
-testConSesion('no presenta como válido un número que el backend marca incompleto', async ({ page, consola }, testInfo) => {
+testConSesion('no presenta como válido un número que el backend marca incompleto', async ({ page, consola }) => {
   const tableroIncompleto = {
     data: {
       ...TABLERO_COMPLETO.data,
@@ -212,15 +255,10 @@ testConSesion('no presenta como válido un número que el backend marca incomple
   await expect(conversor.getByText(/999[.\s]?999/)).toHaveCount(0);
 
   await expandirParaCaptura(page);
-  await testInfo.attach(`conversor-sin-precio-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
-
   expect(consola.mensajes, 'errores en el caso incompleto').toEqual([]);
 });
 
-testConSesion('marca los números apoyados en supuestos y nombra el parámetro sin marcar baseUnidades', async ({ page, consola }, testInfo) => {
+testConSesion('marca los números apoyados en supuestos y nombra el parámetro sin marcar baseUnidades', async ({ page, consola }) => {
   const tableroConSupuesto = {
     data: {
       ...TABLERO_COMPLETO.data,
@@ -249,11 +287,6 @@ testConSesion('marca los números apoyados en supuestos y nombra el parámetro s
   await expect(producido.getByRole('button', { name: /Supuesto/ })).toHaveCount(0);
 
   await expandirParaCaptura(page);
-  await testInfo.attach(`tablero-supuesto-${testInfo.project.name}`, {
-    body: await page.screenshot({ fullPage: true }),
-    contentType: 'image/png',
-  });
-
   expect(consola.mensajes, 'errores al marcar supuestos').toEqual([]);
 });
 
