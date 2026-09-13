@@ -63,6 +63,18 @@ test('confirma parametros del negocio y permite volver al valor sugerido', async
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
 
+    if (request.method() === 'GET' && pathname === '/api/v1/companies') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: [{ id: COMPANY_ID, name: 'Empresa de prueba', industry: 'Rubro de prueba', isActive: true }] }),
+      });
+    }
+
+    if (request.method() === 'GET' && pathname === `/api/v1/companies/${COMPANY_ID}/modulos-rubro`) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [] }) });
+    }
+
     if (request.method() === 'GET' && pathname === `/api/v1/companies/${COMPANY_ID}`) {
       return route.fulfill({
         status: 200,
@@ -168,9 +180,10 @@ test('confirma parametros del negocio y permite volver al valor sugerido', async
     return route.fallback();
   });
 
-  await page.goto(`/companies/${COMPANY_ID}`, { waitUntil: 'domcontentloaded' });
+  await page.goto('/profile', { waitUntil: 'domcontentloaded' });
   await laAppPinto(page);
-  await page.getByRole('tab', { name: 'Parámetros' }).click();
+  await expect(page.getByRole('tab', { name: 'Parámetros' })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Configuración' }).click();
 
   await expect(page.getByText('Parámetros del negocio')).toBeVisible();
   await expect(page.getByText('Estimación del sistema')).toBeVisible();

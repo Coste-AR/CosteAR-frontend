@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from '@tanstack/react-router';
-import { Edit2, Trash2, ArrowLeft, Users, FileSpreadsheet, BookOpen, History, Tags, SlidersHorizontal } from 'lucide-react';
+import { Edit2, Trash2, ArrowLeft, Users, FileSpreadsheet, BookOpen, History, Tags } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useCompany, useCostStructures, useDeleteCompany } from './company-hooks';
@@ -15,23 +15,60 @@ import { CompanyOperatorsTab } from './components/CompanyOperatorsTab';
 import { DeviationWidget } from './components/DeviationWidget';
 import { BenchmarkRadarWidget } from './components/BenchmarkRadarWidget';
 import { CostBehaviorClassificationTab } from './components/CostBehaviorClassificationTab';
-import { CompanyCostParametersTab } from './components/CompanyCostParametersTab';
 import toast from 'react-hot-toast';
+import { useRubroModules } from './rubro-configuration-hooks';
+import { isCompanyConfigurationComplete, useCostParameters } from './cost-parameters-hooks';
 
 export function CompanyDetailPage() {
   const { id } = useParams({ from: '/companies/$id' });
   const navigate = useNavigate();
   const { data: company } = useCompany(id);
   const { data: structures, isLoading: structuresLoading } = useCostStructures(id);
+  const modules = useRubroModules(id);
+  const parameters = useCostParameters(id);
   const delCompany = useDeleteCompany();
   
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'structures' | 'parameters' | 'classification' | 'ledger' | 'history' | 'operators'>('structures');
+  const [activeTab, setActiveTab] = useState<'structures' | 'classification' | 'ledger' | 'history' | 'operators'>('structures');
+  const configurationLoaded = modules.isSuccess && parameters.isSuccess;
+  const configurationComplete = configurationLoaded
+    && isCompanyConfigurationComplete(modules.data, parameters.data);
+
+  useEffect(() => {
+    if (configurationLoaded && !configurationComplete) {
+      navigate({ to: '/companies/$id/setup', params: { id }, replace: true });
+    }
+  }, [configurationComplete, configurationLoaded, id, navigate]);
 
   const handleDeleteCompany = () => {
     setShowDeleteConfirm(true);
   };
+
+  if (!configurationComplete) {
+    return (
+      <AppShell>
+        {modules.isError || parameters.isError ? (
+          <div className="mx-auto max-w-lg rounded-2xl border border-danger/20 bg-danger/5 p-6 text-center">
+            <p role="alert" className="text-sm font-semibold text-danger">
+              No pudimos verificar si la configuración está completa. {apiErrorMessage(modules.error ?? parameters.error)}
+            </p>
+            <button
+              type="button"
+              className="mt-4 text-sm font-bold text-granate underline"
+              onClick={() => void Promise.all([modules.refetch(), parameters.refetch()])}
+            >
+              Volver a intentar
+            </button>
+          </div>
+        ) : (
+          <div className="flex min-h-64 items-center justify-center text-sm text-ink-soft" role="status">
+            {configurationLoaded ? 'Abriendo la configuración obligatoria…' : 'Revisando la configuración…'}
+          </div>
+        )}
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -84,7 +121,6 @@ export function CompanyDetailPage() {
       <TabList className="mb-6">
         {[
           { id: 'structures', label: 'Estructuras de Costos', icon: FileSpreadsheet },
-          { id: 'parameters', label: 'Parámetros', icon: SlidersHorizontal },
           { id: 'classification', label: 'Fijo / variable', icon: Tags },
           { id: 'ledger', label: 'Libro de Costos', icon: BookOpen },
           { id: 'history', label: 'Historial', icon: History },
@@ -108,7 +144,6 @@ export function CompanyDetailPage() {
         {activeTab === 'structures' && (
           <CompanyStructuresList companyId={id} periodicity={company?.periodicity} structures={structures ?? []} />
         )}
-        {activeTab === 'parameters' && <CompanyCostParametersTab companyId={id} />}
         {activeTab === 'classification' && <CostBehaviorClassificationTab companyId={id} />}
         {activeTab === 'ledger' && (
           <CompanyLedgerTab companyId={id} companyName={company?.name ?? 'Cliente'} />

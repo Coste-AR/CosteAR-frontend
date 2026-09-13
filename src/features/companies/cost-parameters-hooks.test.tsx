@@ -18,6 +18,7 @@ const {
   useResetCostParameter,
   useSaveCostParameter,
   useSaveOptionCostParameter,
+  isCompanyConfigurationComplete,
 } = await import('./cost-parameters-hooks');
 
 let queryClient: QueryClient;
@@ -88,5 +89,27 @@ describe('contrato HTTP de parámetros del negocio', () => {
 
     expect(apiDelete).toHaveBeenCalledWith('/companies/company-test/parametros-costeo/pregunta');
     expect(apiPut).not.toHaveBeenCalled();
+  });
+});
+
+describe('configuración completa de una empresa', () => {
+  const modules = [{
+    clave: 'principal',
+    nombre: 'Principal',
+    descripcion: '',
+    estado: 'prendido' as const,
+    porDefecto: true,
+    dependeDe: [],
+    parametros: ['opcion'],
+    alertas: [],
+  }];
+
+  it('queda incompleta con una opción activa pendiente o un número no confirmado', () => {
+    const option = { clave: 'opcion', valor: null, descripcion: 'Opción', opciones: [], origen: 'default' as const, confirmado: false };
+    const numeric = { clave: 'numero', valor: 12, valorDefault: 12, descripcion: 'Número', unidad: null, seguro: false, origen: 'default' as const, confirmado: false };
+
+    expect(isCompanyConfigurationComplete(modules, [option, numeric])).toBe(false);
+    expect(isCompanyConfigurationComplete(modules, [{ ...option, valor: 'a', confirmado: true }, numeric])).toBe(false);
+    expect(isCompanyConfigurationComplete(modules, [{ ...option, valor: 'a', confirmado: true }, { ...numeric, confirmado: true }])).toBe(true);
   });
 });
