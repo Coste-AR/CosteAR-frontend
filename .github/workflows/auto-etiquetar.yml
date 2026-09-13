@@ -184,7 +184,9 @@ jobs:
       - name: Etiquetar si el CI verde alcanza como revision
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CIRCUITO_PAT: ${{ secrets.CIRCUITO_PAT }}
+          # Sabotaje deliberado: permite llegar al timeout con el token efimero
+          # contra el destino inexistente. El resultado final vuelve al secreto.
+          CIRCUITO_PAT: ${{ secrets.CIRCUITO_PAT || secrets.GITHUB_TOKEN }}
           # Sabotaje deliberado para probar el cierre sin veredicto. Se restaura
           # al repositorio real después de capturar la corrida roja.
           G7_ADMIN_REPO: Coste-AR/no-existe
