@@ -120,6 +120,14 @@
 #     version medible, y ese salto no cambia la mayor. Los agrupados y los
 #     mayores siguen yendo a una persona.
 #
+# G7. NINGUN PR CONTRA dev SE ETIQUETA SIN EL VEREDICTO DEL GUARDIAN DE DATOS
+#     DE CLIENTE. La lista de identificadores vive en CosteAR-admin porque este
+#     repo es publico. Este workflow pide la revision cross-repo y espera el
+#     status G7/datos-de-cliente sobre el SHA exacto. Solo success habilita:
+#     failure, falta de PAT, dispatch fallido o ausencia de status dejan la
+#     puerta cerrada. Las promociones contra staging no pasan por G7 porque el
+#     contrato de admin acepta exclusivamente PRs cuya base es dev.
+#
 # EL MODO TANDA — trabajar en volumen sin nadie disponible para etiquetar
 #
 # Con la variable de repositorio AUTO_ETIQUETAR_CODIGO = "si", la clase apta se
@@ -160,6 +168,7 @@ on:
 permissions:
   pull-requests: write
   contents: read
+  statuses: read
 
 jobs:
   etiquetar:
@@ -175,6 +184,10 @@ jobs:
       - name: Etiquetar si el CI verde alcanza como revision
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CIRCUITO_PAT: ${{ secrets.CIRCUITO_PAT }}
+          # Sabotaje deliberado para probar el cierre sin veredicto. Se restaura
+          # al repositorio real después de capturar la corrida roja.
+          G7_ADMIN_REPO: Coste-AR/no-existe
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           MODO: ${{ vars.AUTO_ETIQUETAR_CODIGO }}
@@ -291,6 +304,55 @@ jobs:
             head_sha=$(jq -r '.headRefOid' <<<"$info")
             autor=$(jq -r '.author.login // ""' <<<"$info")
             titulo=$(jq -r '.title // ""' <<<"$info")
+
+            # ── GUARDA 7: pedir y esperar el veredicto privado ────────────────
+            #
+            # La lista de datos protegidos no puede vivir en este repo publico.
+            # CosteAR-admin la aplica y publica solamente un commit status sobre
+            # el SHA exacto. Pedir el veredicto antes de las otras guardas evita
+            # que cualquier camino contra dev —incluido Dependabot— etiquete sin
+            # haber pasado G7. Admin rechaza otras bases por contrato, asi que
+            # las promociones contra staging conservan su guarda especifica.
+            if [ "$base" = "dev" ]; then
+              if [ -z "${CIRCUITO_PAT:-}" ]; then
+                echo "NO APTO: CIRCUITO_PAT esta vacio; no se pudo pedir el veredicto G7."
+                echo "::endgroup::"; continue
+              fi
+
+              if ! GH_TOKEN="$CIRCUITO_PAT" gh api --method POST \
+                "repos/$G7_ADMIN_REPO/dispatches" \
+                -f event_type=g7-revisar \
+                -f "client_payload[repo]=$REPO" \
+                -F "client_payload[pr]=$n" \
+                -f "client_payload[sha]=$head_sha" >/dev/null 2>&1; then
+                echo "G7: el dispatch fallo; se espera el status y la puerta sigue cerrada."
+              fi
+
+              g7_estado=""
+              for intento in $(seq 1 30); do
+                g7_estado=$(gh api "repos/$REPO/commits/$head_sha/status" \
+                  --jq '[.statuses[] | select(.context == "G7/datos-de-cliente")] | sort_by(.updated_at) | last | .state // ""' \
+                  2>/dev/null || true)
+
+                if [ "$g7_estado" = "success" ] || [ "$g7_estado" = "failure" ]; then
+                  break
+                fi
+
+                if [ "$intento" -lt 30 ]; then
+                  sleep 10
+                fi
+              done
+
+              if [ "$g7_estado" = "failure" ]; then
+                echo "NO APTO: G7 encontró datos de cliente."
+                echo "::endgroup::"; continue
+              fi
+              if [ "$g7_estado" != "success" ]; then
+                echo "NO APTO: G7 no dio veredicto."
+                echo "::endgroup::"; continue
+              fi
+              echo "G7: veredicto success sobre el SHA del PR."
+            fi
 
             if [ "$(jq -r '.isDraft' <<<"$info")" = "true" ]; then
               echo "SALTEADO: es borrador."; echo "::endgroup::"; continue
