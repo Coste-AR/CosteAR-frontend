@@ -1,7 +1,7 @@
 ---
 issue: 163
 repo: CosteAR-frontend
-pr: pendiente
+pr: 171
 rama: feat/onboarding-configuracion-completa
 agente: codex
 modelo: gpt-5
