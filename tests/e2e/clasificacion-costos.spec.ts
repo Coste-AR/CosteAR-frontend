@@ -96,6 +96,14 @@ test('clasifica costos con confirmación explícita y conserva sin confirmar al 
       });
     }
 
+    if (request.method() === 'GET' && pathname === `/api/v1/companies/${COMPANY_ID}/modulos-rubro`) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [] }) });
+    }
+
+    if (request.method() === 'GET' && pathname === `/api/v1/companies/${COMPANY_ID}/parametros-costeo`) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [] }) });
+    }
+
     const prefix = `/api/v1/companies/${COMPANY_ID}/parametros-costeo/`;
     if (pathname.startsWith(prefix)) {
       const key = pathname.slice(prefix.length);

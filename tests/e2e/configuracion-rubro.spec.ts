@@ -23,6 +23,17 @@ type OptionQuestion = {
   confirmado: boolean;
 };
 
+type NumericParameter = {
+  clave: string;
+  valor: number;
+  descripcion: string;
+  unidad: string;
+  valorDefault: number;
+  seguro: boolean;
+  origen: 'empresa' | 'default';
+  confirmado: boolean;
+};
+
 const BASE_MODULE: ModuleState = {
   clave: 'registro-base',
   nombre: 'Registro principal',
@@ -30,7 +41,7 @@ const BASE_MODULE: ModuleState = {
   estado: 'prendido',
   porDefecto: true,
   dependeDe: [],
-  parametros: ['forma-registro', 'frecuencia-revision'],
+  parametros: ['forma-registro', 'frecuencia-revision', 'vida-util'],
   alertas: [],
 };
 
@@ -92,10 +103,22 @@ const QUESTIONS: OptionQuestion[] = [
   },
 ];
 
+const NUMERIC_PARAMETERS: NumericParameter[] = [{
+  clave: 'vida-util',
+  valor: 24,
+  descripcion: 'Vida útil declarada',
+  unidad: 'meses',
+  valorDefault: 24,
+  seguro: false,
+  origen: 'default',
+  confirmado: false,
+}];
+
 async function prepareConfiguration(page: Page) {
   const modules = [structuredClone(BASE_MODULE), structuredClone(OPTIONAL_MODULE), structuredClone(DEPENDENT_MODULE)];
   const questions = structuredClone(QUESTIONS);
-  const writes: Array<{ method: 'PUT' | 'DELETE'; key: string; value?: string | boolean }> = [];
+  const numericParameters = structuredClone(NUMERIC_PARAMETERS);
+  const writes: Array<{ method: 'PUT' | 'DELETE'; key: string; value?: string | number | boolean; confirmed?: boolean }> = [];
   const dependencyReason = `No podés apagar "${BASE_MODULE.nombre}" porque "${DEPENDENT_MODULE.nombre}" depende de este módulo.`;
 
   await page.route('**/api/v1/**', async (route) => {
@@ -116,6 +139,12 @@ async function prepareConfiguration(page: Page) {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { id: COMPANY_ID, name: 'Empresa de prueba', industry: 'Rubro sintético', cuit: null, isActive: true, createdAt: '2099-01-01T00:00:00.000Z', periodicity: 'MONTHLY', condicionIva: 'EXENTO' } }) });
     }
     if (method === 'GET' && pathname === `/api/v1/companies/${COMPANY_ID}/target-budget`) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: null }) });
+    }
+    if (method === 'GET' && pathname === `/api/v1/companies/${COMPANY_ID}/cost-structures`) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [] }) });
+    }
+    if (method === 'GET' && pathname === `/api/v1/companies/${COMPANY_ID}/deviations`) {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: null }) });
     }
     if (method === 'GET' && pathname.startsWith('/api/v1/benchmarks/')) {
@@ -141,20 +170,30 @@ async function prepareConfiguration(page: Page) {
     const parametersPath = `/api/v1/companies/${COMPANY_ID}/parametros-costeo`;
     if (method === 'GET' && pathname === parametersPath) {
       const activeKeys = new Set(modules.filter((item) => item.estado === 'prendido').flatMap((item) => item.parametros));
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: questions.filter((item) => activeKeys.has(item.clave)) }) });
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [...questions, ...numericParameters].filter((item) => activeKeys.has(item.clave)) }) });
     }
     if (pathname.startsWith(`${parametersPath}/`)) {
       const key = pathname.slice(parametersPath.length + 1);
-      const question = questions.find((item) => item.clave === key)!;
+      const question = questions.find((item) => item.clave === key);
+      const numeric = numericParameters.find((item) => item.clave === key);
       if (method === 'PUT') {
-        const { valorTexto } = request.postDataJSON() as { valorTexto: string; confirmado: boolean };
-        question.valor = valorTexto;
-        question.origen = 'empresa';
-        question.confirmado = true;
-        writes.push({ method: 'PUT', key, value: valorTexto });
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: question }) });
+        const payload = request.postDataJSON() as { valorTexto?: string; valor?: number; confirmado: boolean };
+        if (question && payload.valorTexto) {
+          question.valor = payload.valorTexto;
+          question.origen = 'empresa';
+          question.confirmado = true;
+          writes.push({ method: 'PUT', key, value: payload.valorTexto, confirmed: payload.confirmado });
+          return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: question }) });
+        }
+        if (numeric && payload.valor !== undefined) {
+          numeric.valor = payload.valor;
+          numeric.origen = 'empresa';
+          numeric.confirmado = true;
+          writes.push({ method: 'PUT', key, value: payload.valor, confirmed: payload.confirmado });
+          return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: numeric }) });
+        }
       }
-      if (method === 'DELETE') {
+      if (method === 'DELETE' && question) {
         question.valor = null;
         question.origen = 'default';
         question.confirmado = false;
@@ -166,7 +205,7 @@ async function prepareConfiguration(page: Page) {
     return route.fallback();
   });
 
-  return { modules, questions, writes, dependencyReason };
+  return { modules, questions, numericParameters, writes, dependencyReason };
 }
 
 async function expandAppShellForEvidence(page: Page) {
@@ -204,7 +243,20 @@ test('con el módulo prendido su pregunta está en el DOM', async ({ page, conso
   expect(consola.mensajes).toEqual([]);
 });
 
-test('recorre la configuración y un módulo apagado no deja campos en el DOM', async ({ page, consola }) => {
+test('una empresa existente incompleta vuelve al wizard antes de mostrar su ficha', async ({ page, consola }) => {
+  test.setTimeout(60_000);
+  await prepareConfiguration(page);
+
+  await page.goto(`/companies/${COMPANY_ID}`, { waitUntil: 'domcontentloaded' });
+  await laAppPinto(page);
+
+  await expect(page).toHaveURL(new RegExp(`/companies/${COMPANY_ID}/setup$`));
+  await expect(page.getByText('Configurá cómo trabaja tu empresa')).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Estructuras de Costos' })).toHaveCount(0);
+  expect(consola.mensajes).toEqual([]);
+});
+
+test('completa opciones y números obligatorios sin confirmar sugerencias en silencio', async ({ page, consola }, testInfo) => {
   test.setTimeout(90_000);
   const { writes, dependencyReason } = await prepareConfiguration(page);
 
@@ -236,13 +288,37 @@ test('recorre la configuración y un módulo apagado no deja campos en el DOM', 
   await expect(page.getByLabel('Primera forma')).toBeChecked();
 
   await page.getByLabel('Segunda forma').click();
-  await page.getByTestId('option-question-frecuencia-revision').getByLabel('No sé todavía').click();
+  await expect(page.getByLabel('No sé todavía')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Seguir con los números' }).click();
+  await expect(page.getByRole('alert')).toContainText('Respondé todas las preguntas');
+  await page.getByLabel('En intervalos largos').click();
+  await page.getByRole('button', { name: 'Seguir con los números' }).click();
+
+  const lifeInput = page.getByLabel('Vida útil declarada');
+  await expect(lifeInput).toHaveValue('');
+  await expect(page.getByText(/Valor habitual del rubro: 24 meses/)).toBeVisible();
+  await page.getByRole('button', { name: 'Ver resumen' }).click();
+  await expect(page.getByRole('alert')).toContainText('Completá todos los valores numéricos');
+  await lifeInput.fill('30');
   await page.getByRole('button', { name: 'Ver resumen' }).click();
 
   await expect(page.getByText('Configuración lista para empezar')).toBeVisible();
-  await expect.poll(() => writes).toContainEqual({ method: 'PUT', key: 'forma-registro', value: 'forma-b' });
-  expect(writes.filter((write) => write.key === 'frecuencia-revision')).toEqual([]);
+  await expect(page.getByText(/Vida útil declarada:/)).toContainText('30 meses');
+  await expect.poll(() => writes).toContainEqual({ method: 'PUT', key: 'forma-registro', value: 'forma-b', confirmed: true });
+  expect(writes).toContainEqual({ method: 'PUT', key: 'frecuencia-revision', value: 'larga', confirmed: true });
+  expect(writes).toContainEqual({ method: 'PUT', key: 'vida-util', value: 30, confirmed: true });
   expect(writes.filter((write) => write.key === 'tipo-detalle')).toEqual([]);
+  await testInfo.attach(`resumen-configuracion-${testInfo.project.name}`, {
+    body: await page.getByTestId('rubro-configuration').screenshot(),
+    contentType: 'image/png',
+  });
+
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await page.goto(`/companies/${COMPANY_ID}`, { waitUntil: 'domcontentloaded' });
+  await laAppPinto(page);
+  await expect(page).toHaveURL(new RegExp(`/companies/${COMPANY_ID}$`));
+  await expect(page.getByRole('tab', { name: 'Estructuras de Costos' })).toBeVisible();
+  await expect(page.getByText('Configurá cómo trabaja tu empresa')).toHaveCount(0);
 
   await page.goto('/profile', { waitUntil: 'domcontentloaded' });
   await laAppPinto(page);
