@@ -53,13 +53,59 @@ const TABLERO_COMPLETO = {
   },
 };
 
-async function responderTablero(page: Page, body: unknown) {
+const indicadorCapia = (
+  indicatorCode: string,
+  value: number,
+  unit: 'cajon' | 'kg' | 'ton' | 'unidad',
+  productId: number,
+) => ({
+  indicatorCode,
+  value,
+  unit,
+  ivaPct: 21,
+  priceIncludesIva: true,
+  effectiveFrom: '2099-01-12T00:00:00.000Z',
+  effectiveTo: '2099-01-18T00:00:00.000Z',
+  source: 'CAPIA',
+  sourceLabel: 'ENCUESTA SEMANAL 02/2099',
+  productId,
+  product: 'Referencia sectorial sintética',
+  category: 'CATEGORÍA SINTÉTICA',
+});
+
+const CAPIA_VIGENTE = {
+  data: {
+    semana: {
+      sourceLabel: 'ENCUESTA SEMANAL 02/2099',
+      effectiveFrom: '2099-01-12T00:00:00.000Z',
+      effectiveTo: '2099-01-18T00:00:00.000Z',
+    },
+    items: [
+      indicadorCapia('CAPIA_HUEVO_BLANCO_CAJON', 41_000, 'cajon', 251),
+      indicadorCapia('CAPIA_HUEVO_COLOR_CAJON', 42_000, 'cajon', 252),
+      indicadorCapia('CAPIA_ALIMENTO_PONEDORA_KG', 510, 'kg', 268),
+      indicadorCapia('CAPIA_MAPLE_UNIDAD', 220, 'unidad', 270),
+      indicadorCapia('CAPIA_MAIZ_TON', 205_000, 'ton', 272),
+      indicadorCapia('CAPIA_SOJA_TON', 315_000, 'ton', 273),
+    ],
+  },
+};
+
+async function responderTablero(page: Page, body: unknown, capia: unknown = CAPIA_VIGENTE) {
   await page.route('**/api/v1/periods/*/tablero-dueno', (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
     return route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(body),
+    });
+  });
+  await page.route('**/api/v1/indicadores/capia/vigentes', (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(capia),
     });
   });
 }
@@ -120,6 +166,15 @@ testConSesion('muestra los seis números reales del período en el orden definid
   const pendientes = page.getByTestId('closing-pending');
   await expect(pendientes.getByText('No falta nada para cerrar este período')).toBeVisible();
   await expect(pendientes.getByTestId('closing-pending-item')).toHaveCount(0);
+
+  const referencias = page.getByTestId('capia-references');
+  await expect(referencias.getByRole('heading', { name: 'Referencias del sector' })).toBeVisible();
+  await expect(referencias.getByText('Semana 02 · 12–18/01')).toBeVisible();
+  await expect(referencias.locator('[data-testid^="capia-CAPIA_"]')).toHaveCount(6);
+  await expect(referencias.getByText('Huevo blanco')).toBeVisible();
+  await expect(referencias.getByText('Alimento ponedora')).toBeVisible();
+  await expect(referencias.getByText('por tonelada').first()).toBeVisible();
+  await expect(referencias.getByText('con IVA').first()).toBeVisible();
 
   await expandirParaCaptura(page);
   expect(consola.mensajes, 'errores en /owner-dashboard').toEqual([]);

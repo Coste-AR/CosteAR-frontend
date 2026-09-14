@@ -60,6 +60,32 @@ export interface OwnerDashboardData {
   resultadoPeriodo: OwnerDashboardNumber;
 }
 
+export interface CapiaWeek {
+  sourceLabel: string | null;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+}
+
+export interface CapiaIndicator {
+  indicatorCode: string;
+  value: number;
+  unit: 'cajon' | 'kg' | 'ton' | 'unidad' | 'ave' | null;
+  ivaPct: number | null;
+  priceIncludesIva: boolean;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  source: 'CAPIA';
+  sourceLabel: string | null;
+  productId: number | null;
+  product: string | null;
+  category: string | null;
+}
+
+export interface CapiaIndicatorsData {
+  semana: CapiaWeek | null;
+  items: CapiaIndicator[];
+}
+
 export function useOwnerDashboard(periodId: string | undefined) {
   return useQuery({
     queryKey: ['owner-dashboard', periodId],
@@ -70,5 +96,18 @@ export function useOwnerDashboard(periodId: string | undefined) {
       return res.data.data;
     },
     enabled: Boolean(periodId),
+  });
+}
+
+export function useCapiaIndicators(enabled: boolean) {
+  return useQuery({
+    queryKey: ['capia-indicators', 'vigentes'],
+    queryFn: async () => {
+      const res = await api.get<{ data: CapiaIndicatorsData }>(
+        '/indicadores/capia/vigentes',
+      );
+      return res.data.data;
+    },
+    enabled,
   });
 }

@@ -30,12 +30,14 @@ import { apiErrorMessage } from '@/lib/api';
 import { formatDate, formatMoney } from '@/lib/utils';
 import { nombreUnidad, nombreUnidadPlural, SIN_UNIDAD_DECLARADA } from '@/lib/unit-display';
 import {
+  useCapiaIndicators,
   useOwnerDashboard,
   type OwnerDashboardData,
   type OwnerDashboardNumber,
   type OwnerDashboardPending,
   type OwnerDashboardPendingArea,
 } from './owner-dashboard-hooks';
+import { CapiaReferences } from './CapiaReferences';
 
 const SIN_DATOS = 'Sin datos';
 const INCOMPLETO = 'Incompleto';
@@ -462,6 +464,7 @@ export function OwnerDashboardPage() {
   const { periodId } = useSearch({ strict: false }) as { periodId?: string };
   const tablero = useOwnerDashboard(periodId);
   const data = tablero.data;
+  const capia = useCapiaIndicators(data?.rubro?.clave === 'AVICOLA_POSTURA');
   const unidadSingular = nombreUnidad(data?.unidadGestion);
   const unidadPlural = nombreUnidadPlural(data?.unidadGestion);
   const porUnidad = data?.unidadGestion ? `por ${unidadSingular}` : SIN_UNIDAD_DECLARADA;
@@ -567,6 +570,15 @@ export function OwnerDashboardPage() {
               <MetricValue numero={data?.resultadoPeriodo} kind="money" detail="Resultado total" />
             </MetricCard>
           </div>
+        </section>
+
+        <section aria-label="Referencias del sector">
+          <CapiaReferences
+            rubroClave={data?.rubro?.clave}
+            data={capia.data}
+            isLoading={capia.isLoading}
+            isError={capia.isError}
+          />
         </section>
 
         <section aria-label="Conversor del período">
