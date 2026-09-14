@@ -98,3 +98,5 @@ pr,issue,autor,base,abierto,mergeado,horas,archivos,agregadas,borradas,corridas_
 165,96,g-lautiialtamiranda,dev,2026-09-13T15:03:08Z,2026-09-13T15:12:23Z,0.2,7,699,1,10,0,,,docs/sesiones/2026-09-13-96-panel-campo.md
 167,,SantiagoBriz,staging,2026-09-13T19:23:37Z,2026-09-13T20:36:57Z,1.2,71,5104,187,0,0,,,docs/sesiones/2026-09-10-149-cobertura-por-feature.md
 175,169,g-lautiialtamiranda,dev,2026-09-14T00:33:29Z,2026-09-14T00:43:54Z,0.2,4,270,4,10,0,,,docs/sesiones/2026-09-13-169-briefing-modo-mensajes.md
+171,163,AlanArevalo1,dev,2026-09-13T21:04:21Z,2026-09-14T01:41:32Z,4.6,10,482,42,14,0,,,docs/sesiones/2026-09-13-163-onboarding-configuracion-completa.md
+176,,SantiagoBriz,staging,2026-09-14T02:16:43Z,2026-09-14T04:00:26Z,1.7,14,752,46,11,0,,,docs/sesiones/2026-09-13-163-onboarding-configuracion-completa.md
