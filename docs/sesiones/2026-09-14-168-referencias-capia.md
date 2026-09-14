@@ -1,14 +1,14 @@
 ---
 issue: 168
 repo: CosteAR-frontend
-pr: pendiente
+pr: 177
 rama: feat/referencias-capia
 agente: codex
 modelo: gpt-5
 tanda: B2
 inicio: 2026-09-14T08:04-03:00
-fin: pendiente
-minutos: pendiente
+fin: 2026-09-14T08:47-03:00
+minutos: 43
 tokens: no-informado
 clears: 0
 intentos_hasta_verde: 3
@@ -22,7 +22,7 @@ rebotes_de_guarda: 0
 
 | | |
 | --- | --- |
-| Tiempo de la sesión | Pendiente al cerrar el PR. La medición verificable comienza con la creación de la rama; el diagnóstico previo de la cola no quedó cronometrado. |
+| Tiempo de la sesión | 43 min medidos desde la creación de la rama; el diagnóstico previo de la cola no quedó cronometrado. |
 | Tokens consumidos | no informado |
 | Intentos hasta el verde | 3 |
 | Rojos deliberados | 1: el test de componente se ejecutó antes de crear `CapiaReferences` y falló por el import inexistente. |
