@@ -10,6 +10,7 @@ import { TabList, Tab } from '@/components/ui/Tabs';
 import { AvatarCropModal } from './AvatarCropModal';
 import { useCompanies } from '@/features/companies/company-hooks';
 import { CompanyRubroConfiguration } from '@/features/companies/components/CompanyRubroConfiguration';
+import { CompanyCostParametersTab } from '@/features/companies/components/CompanyCostParametersTab';
 import { Select } from '@/components/ui/Select';
 
 const MAX_AVATAR_BYTES = 6 * 1024 * 1024;
@@ -187,10 +188,15 @@ export function ProfilePage() {
                 </CardBody>
               </Card>
             ) : configurationCompanyId ? (
-              <CompanyRubroConfiguration
-                companyId={configurationCompanyId}
-                companyName={companies.data?.find((company) => company.id === configurationCompanyId)?.name}
-              />
+              <>
+                <CompanyRubroConfiguration
+                  companyId={configurationCompanyId}
+                  companyName={companies.data?.find((company) => company.id === configurationCompanyId)?.name}
+                />
+                <div className="border-t border-line pt-6">
+                  <CompanyCostParametersTab companyId={configurationCompanyId} />
+                </div>
+              </>
             ) : (
               <Card>
                 <CardBody className="py-10 text-center text-sm text-ink-soft">
