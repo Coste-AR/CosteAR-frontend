@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { ArrowLeft, Bird, Egg, Scale, Wheat } from 'lucide-react';
+import { ArrowLeft, Bird, CheckCircle2, Egg, Scale, Wheat } from 'lucide-react';
 import { CosteARLogo } from '@/components/layout/CosteARLogo';
 import { Button } from '@/components/ui/Button';
 import { apiErrorMessage } from '@/lib/api';
@@ -14,6 +14,12 @@ import {
 } from './field-panel-hooks';
 
 type ActionKey = 'produccion' | 'plantel' | 'alimento' | 'peso';
+
+interface SavedConfirmation {
+  amount: number;
+  item: 'huevos' | 'gallinas';
+  lot: string;
+}
 
 const ACTIONS = [
   { key: 'produccion', label: 'Huevos', detail: 'Producción del día', icon: Egg, available: true },
@@ -60,6 +66,7 @@ export function FieldPanelPage() {
   const [action, setAction] = useState<ActionKey | null>(null);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState<LotLossInput['motivo'] | ''>('');
+  const [confirmation, setConfirmation] = useState<SavedConfirmation | null>(null);
   const date = todayLocal();
   const production = useCreateDailyProduction(selectedLotId);
   const loss = useCreateLotLoss(selectedLotId);
@@ -85,6 +92,15 @@ export function FieldPanelPage() {
     loss.reset();
   };
 
+  const finishSave = (saved: SavedConfirmation) => {
+    setConfirmation(saved);
+    setAction(null);
+    setAmount('');
+    setReason('');
+    production.reset();
+    loss.reset();
+  };
+
   const submitProduction = async (event: FormEvent) => {
     event.preventDefault();
     const numericAmount = Number(amount);
@@ -97,7 +113,7 @@ export function FieldPanelPage() {
         roturas: 0,
         descartes: 0,
       });
-      resetAction();
+      finishSave({ amount: numericAmount, item: 'huevos', lot: selectedLot?.referencia ?? 'lote' });
     } catch {
       // React Query conserva el error para mostrar la salida de reintento.
     }
@@ -109,7 +125,7 @@ export function FieldPanelPage() {
     if (!selectedLotId || !reason || !Number.isFinite(numericAmount) || numericAmount <= 0) return;
     try {
       await loss.mutateAsync({ tipo: 'baja', cantidad: numericAmount, fecha: date, motivo: reason });
-      resetAction();
+      finishSave({ amount: numericAmount, item: 'gallinas', lot: selectedLot?.referencia ?? 'lote' });
     } catch {
       // React Query conserva el error para mostrar la salida de reintento.
     }
@@ -163,6 +179,23 @@ export function FieldPanelPage() {
                 ))}
               </div>
             )}
+          </section>
+        ) : confirmation ? (
+          <section className="flex flex-1 flex-col items-center justify-center py-8 text-center" aria-live="polite">
+            <CheckCircle2 className="size-24 text-success" strokeWidth={1.8} aria-hidden="true" />
+            <h1 className="mt-5 text-3xl font-extrabold text-granate-deep">Listo</h1>
+            <p className="mt-3 text-lg font-bold text-ink">
+              Listo: {confirmation.amount} {confirmation.item}, {confirmation.lot}, hoy
+            </p>
+            <p className="mt-2 text-sm text-ink-soft">El dato quedó guardado y disponible para revisión.</p>
+            <div className="mt-8 grid w-full max-w-sm gap-3">
+              <Button type="button" className="h-14 text-base" onClick={() => setConfirmation(null)}>
+                Cargar otro dato
+              </Button>
+              <Button type="button" variant="secondary" className="h-14 text-base" onClick={() => navigate({ to: '/dashboard' })}>
+                Volver al inicio
+              </Button>
+            </div>
           </section>
         ) : action === null ? (
           <section className="flex flex-1 flex-col justify-center py-8">
