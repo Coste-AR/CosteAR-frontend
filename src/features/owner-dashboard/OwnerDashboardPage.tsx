@@ -324,12 +324,24 @@ function ClosingPendingBlock({ pendientes }: { pendientes: OwnerDashboardPending
   );
 }
 
+/**
+ * Cuántas unidades hay que VENDER para cubrir un importe.
+ *
+ * El divisor es la contribución marginal, no el precio. Un costo fijo no se
+ * paga con facturación: se paga con lo que queda después de los costos
+ * variables de cada unidad. La condición de equilibrio es `CM = CF`, no
+ * `V = CF` — dividir por el precio contesta «cuántas unidades FACTURAN ese
+ * importe», que es una pregunta distinta y siempre da de menos.
+ *
+ * Hasta el 14-09-2026 esto dividía por `precioPromedioVenta` y la pantalla
+ * informaba un número de unidades con el que el costo NO quedaba cubierto.
+ */
 function MoneyToUnitConverter({
-  precio,
+  contribucion,
   periodo,
   unidad,
 }: {
-  precio: OwnerDashboardNumber | undefined;
+  contribucion: OwnerDashboardNumber | undefined;
   periodo: string | undefined;
   unidad: OwnerDashboardData['unidadGestion'] | undefined;
 }) {
@@ -337,8 +349,11 @@ function MoneyToUnitConverter({
   const importeNumero = importe === '' ? null : Number(importe);
   const importeValido = importeNumero !== null && Number.isFinite(importeNumero) && importeNumero >= 0;
   const unidadDisponible = Boolean(unidad);
-  const precioDisponible = unidadDisponible && numeroSeguro(precio) && precio.valor > 0;
-  const cantidad = precioDisponible && importeValido ? importeNumero / precio.valor : null;
+  // Con contribución <= 0 no hay volumen que alcance: vender más agranda la
+  // pérdida. Se corta acá para no emitir ni un infinito ni un negativo.
+  const contribucionDisponible = unidadDisponible && numeroSeguro(contribucion) && contribucion.valor > 0;
+  const contribucionNoPositiva = unidadDisponible && numeroSeguro(contribucion) && contribucion.valor <= 0;
+  const cantidad = contribucionDisponible && importeValido ? importeNumero / contribucion.valor : null;
   const unidadSingular = nombreUnidad(unidad);
   const unidadPlural = nombreUnidadPlural(unidad);
 
@@ -346,7 +361,7 @@ function MoneyToUnitConverter({
     <Card data-testid="money-to-crates-converter">
       <CardHeader
         title={unidadDisponible ? `Conversor de pesos a ${unidadPlural}` : 'Conversor de pesos no disponible'}
-        description="Traducí un importe al equivalente de venta del período. No se guarda ningún dato."
+        description="Calculá cuánto hay que vender para cubrir un importe del período. No se guarda ningún dato."
         action={(
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-granate/10 bg-granate-tenue text-granate">
             <Calculator className="size-4.5" aria-hidden="true" />
@@ -365,39 +380,45 @@ function MoneyToUnitConverter({
           placeholder="0,00"
           value={importe}
           onChange={(event) => setImporte(event.target.value)}
-          disabled={!precioDisponible}
-          hint={precioDisponible ? 'Escribí el gasto o importe que querés comparar.' : undefined}
+          disabled={!contribucionDisponible}
+          hint={contribucionDisponible ? 'Escribí el gasto o importe que querés cubrir.' : undefined}
         />
 
         <div className="rounded-xl border border-line bg-surface-alt px-4 py-4" aria-live="polite">
-          {precioDisponible ? (
+          {contribucionDisponible ? (
             <>
               <p className="text-[11px] font-bold uppercase tracking-wider text-ink-soft">
-                Equivale a
+                Hay que vender
               </p>
               <p className="mt-1 font-mono-jb text-2xl font-bold text-granate-deep">
                 {cantidad === null ? '—' : `${quantityFormatter.format(cantidad)} ${unidadPlural}`}
               </p>
               <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
-                Precio usado: <strong>{formatMoney(precio.valor)} por {unidadSingular}</strong>
+                Contribución marginal usada: <strong>{formatMoney(contribucion.valor)} por {unidadSingular}</strong>
                 {periodo ? <> · Período <strong>{periodo}</strong></> : null}
               </p>
               <div className="mt-2">
-                <AssumptionMark parametros={precio.parametrosSinConfirmarDetalle} />
+                <AssumptionMark parametros={contribucion.parametrosSinConfirmarDetalle} />
               </div>
             </>
           ) : (
             <div data-testid="converter-missing-price">
               <p className="flex items-center gap-2 text-sm font-bold text-warning">
                 <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
-                {unidadDisponible ? 'Falta el precio promedio del período' : 'Sin unidad declarada'}
+                {!unidadDisponible
+                  ? 'Sin unidad declarada'
+                  : contribucionNoPositiva
+                    ? 'La contribución marginal no es positiva'
+                    : 'Falta la contribución marginal del período'}
               </p>
               <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
-                {unidadDisponible
-                  ? `No se puede convertir el importe a ${unidadPlural} hasta que haya ventas para calcularlo.`
-                  : 'La empresa tiene que declarar su unidad de gestión antes de convertir importes.'}
+                {!unidadDisponible
+                  ? 'La empresa tiene que declarar su unidad de gestión antes de convertir importes.'
+                  : contribucionNoPositiva
+                    ? `Cada ${unidadSingular} que se vende no deja nada para cubrir costos fijos, así que ningún volumen alcanza. Hay que revisar el precio o los costos variables antes de usar este conversor.`
+                    : `No se puede calcular cuántos ${unidadPlural} cubren el importe hasta tener la contribución marginal del período.`}
               </p>
-              <MissingReasons motivos={precio?.motivos ?? []} />
+              <MissingReasons motivos={contribucion?.motivos ?? []} />
             </div>
           )}
         </div>
@@ -583,7 +604,7 @@ export function OwnerDashboardPage() {
 
         <section aria-label="Conversor del período">
           <MoneyToUnitConverter
-            precio={data?.precioPromedioVenta}
+            contribucion={data?.contribucionMarginalPorCajon}
             periodo={data?.periodo.codigo}
             unidad={data?.unidadGestion}
           />
