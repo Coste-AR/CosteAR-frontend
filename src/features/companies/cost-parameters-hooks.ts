@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import type { RubroModule } from './rubro-configuration-hooks';
 
 export type CostParameterOrigin = 'periodo' | 'estructura' | 'empresa' | 'default';
 
@@ -42,6 +43,25 @@ export function isNumericCostParameter(
   parameter: BusinessParameter,
 ): parameter is CostParameter {
   return !isOptionCostParameter(parameter);
+}
+
+export function isCompanyConfigurationComplete(
+  modules: RubroModule[],
+  parameters: BusinessParameter[],
+): boolean {
+  const activeParameterKeys = new Set(
+    modules
+      .filter((module) => module.estado === 'prendido')
+      .flatMap((module) => module.parametros),
+  );
+
+  return parameters.every((parameter) => {
+    if (isOptionCostParameter(parameter)) {
+      return !activeParameterKeys.has(parameter.clave)
+        || (parameter.confirmado && parameter.valor !== null);
+    }
+    return parameter.confirmado;
+  });
 }
 
 export const parametersQueryKey = (companyId: string) => [

@@ -6,6 +6,7 @@ import type { RubroModule } from '../rubro-configuration-hooks';
 
 const setModule = vi.fn();
 const saveOption = vi.fn();
+const saveNumeric = vi.fn();
 const leavePending = vi.fn();
 const useRubroModules = vi.fn();
 const useCostParameters = vi.fn();
@@ -29,6 +30,7 @@ vi.mock('../cost-parameters-hooks', async (importOriginal) => {
     ...original,
     useCostParameters: () => useCostParameters(),
     useSaveOptionCostParameter: () => ({ mutateAsync: saveOption, isPending: false }),
+    useSaveCostParameter: () => ({ mutateAsync: saveNumeric, isPending: false }),
     useLeaveOptionCostParameterPending: () => ({ mutateAsync: leavePending, isPending: false }),
   };
 });
@@ -58,10 +60,22 @@ const UNANSWERED_QUESTION: BusinessParameter = {
   confirmado: false,
 };
 
+const NUMERIC_PARAMETER: BusinessParameter = {
+  clave: 'cantidad-sintetica',
+  valor: 24,
+  valorDefault: 24,
+  descripcion: 'Cantidad real de prueba',
+  unidad: 'unidad',
+  seguro: false,
+  origen: 'default',
+  confirmado: false,
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   setModule.mockResolvedValue({});
   saveOption.mockResolvedValue({});
+  saveNumeric.mockResolvedValue({});
   leavePending.mockResolvedValue({});
   useRubroModules.mockReturnValue({ data: [MODULE], isLoading: false, isError: false });
   useCostParameters.mockReturnValue({ data: [UNANSWERED_QUESTION], isLoading: false, isError: false });
@@ -115,5 +129,36 @@ describe('configuración del rubro', () => {
 
     expect((await screen.findByRole('alert')).textContent).toContain(backendReason);
     expect(screen.getByRole('switch', { name: `Apagar ${MODULE.nombre}` }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('en onboarding exige opciones y números vacíos antes de confirmar todo', async () => {
+    useCostParameters.mockReturnValue({
+      data: [UNANSWERED_QUESTION, NUMERIC_PARAMETER],
+      isLoading: false,
+      isError: false,
+    });
+    render(<CompanyRubroConfiguration companyId="company-test" mode="onboarding" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Seguir con las preguntas' }));
+    expect(screen.queryByLabelText('No sé todavía')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Seguir con los números' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Respondé todas las preguntas');
+
+    fireEvent.click(screen.getByLabelText('De una forma'));
+    fireEvent.click(screen.getByRole('button', { name: 'Seguir con los números' }));
+    const numericInput = screen.getByLabelText('Cantidad real de prueba');
+    expect((numericInput as HTMLInputElement).value).toBe('');
+    expect(screen.getByText((_, element) => (
+      element?.tagName === 'P' && element.textContent?.includes('Valor habitual del rubro: 24') === true
+    ))).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver resumen' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Completá todos los valores numéricos');
+    fireEvent.change(numericInput, { target: { value: '31' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ver resumen' }));
+
+    await waitFor(() => expect(saveOption).toHaveBeenCalledWith({ key: 'pregunta-sintetica', value: 'forma-a' }));
+    expect(saveNumeric).toHaveBeenCalledWith({ key: 'cantidad-sintetica', value: 31 });
+    expect(await screen.findByText('Configuración lista para empezar')).toBeTruthy();
   });
 });

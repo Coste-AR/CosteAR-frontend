@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 const apiGet = vi.fn();
 vi.mock('@/lib/api', () => ({ api: { get: apiGet } }));
-const { useOwnerDashboard } = await import('./owner-dashboard-hooks');
+const { useCapiaIndicators, useOwnerDashboard } = await import('./owner-dashboard-hooks');
 
 let queryClient: QueryClient;
 function wrapper({ children }: { children: ReactNode }) {
@@ -32,5 +32,19 @@ describe('tablero del dueño', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
 
     expect(apiGet).toHaveBeenCalledWith('/periods/periodo-1/tablero-dueno');
+  });
+
+  it('consulta CAPIA sólo cuando el paquete del tenant lo declara', async () => {
+    const { rerender } = renderHook(({ enabled }) => useCapiaIndicators(enabled), {
+      wrapper,
+      initialProps: { enabled: false },
+    });
+    expect(apiGet).not.toHaveBeenCalled();
+
+    apiGet.mockResolvedValue({ data: { data: { semana: null, items: [] } } });
+    rerender({ enabled: true });
+    await waitFor(() => expect(apiGet).toHaveBeenCalled());
+
+    expect(apiGet).toHaveBeenCalledWith('/indicadores/capia/vigentes');
   });
 });

@@ -16,10 +16,13 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { apiErrorMessage } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import {
+  isNumericCostParameter,
   isOptionCostParameter,
   useCostParameters,
   useLeaveOptionCostParameterPending,
+  useSaveCostParameter,
   useSaveOptionCostParameter,
+  type CostParameter,
   type OptionCostParameter,
 } from '../cost-parameters-hooks';
 import {
@@ -95,10 +98,12 @@ function OptionQuestion({
   parameter,
   value,
   onChange,
+  allowPending,
 }: {
   parameter: OptionCostParameter;
   value: string | null;
   onChange: (value: string | null) => void;
+  allowPending: boolean;
 }) {
   return (
     <li data-testid={`option-question-${parameter.clave}`}>
@@ -136,7 +141,7 @@ function OptionQuestion({
                 {option.etiqueta}
               </label>
             ))}
-            <label
+            {allowPending && <label
               className={cn(
                 'flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 text-[13px] font-semibold transition-colors',
                 value === null
@@ -153,12 +158,58 @@ function OptionQuestion({
               />
               <CircleHelp className="size-4 text-warn" aria-hidden />
               No sé todavía
-            </label>
+            </label>}
           </fieldset>
         </CardBody>
       </Card>
     </li>
   );
+}
+
+function NumericQuestion({
+  parameter,
+  value,
+  onChange,
+}: {
+  parameter: CostParameter;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const inputId = `onboarding-parameter-${parameter.clave}`;
+  return (
+    <li data-testid={`numeric-question-${parameter.clave}`}>
+      <Card className="h-full">
+        <CardBody className="space-y-3 p-5">
+          <label htmlFor={inputId} className="block text-[15px] font-bold leading-snug text-ink">
+            {parameter.descripcion}
+          </label>
+          <div className="relative">
+            <input
+              id={inputId}
+              inputMode="decimal"
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+              className="h-11 w-full rounded-xl border border-line bg-surface px-3 pr-28 text-sm tabular-nums text-ink outline-none transition-colors focus:border-granate focus:ring-[3px] focus:ring-granate/15"
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex max-w-24 items-center truncate text-[12px] font-medium text-ink-soft">
+              {parameter.unidad ?? 'sin unidad'}
+            </span>
+          </div>
+          <p className="text-[11.5px] text-ink-soft">
+            Valor habitual del rubro: <strong className="text-ink">{parameter.valorDefault}</strong>{' '}
+            {parameter.unidad ?? 'sin unidad'}.
+          </p>
+        </CardBody>
+      </Card>
+    </li>
+  );
+}
+
+function parseNumericDraft(value: string): number | null {
+  const normalized = value.trim().replace(',', '.');
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function CompanyRubroConfiguration({
@@ -171,6 +222,7 @@ export function CompanyRubroConfiguration({
   const parameters = useCostParameters(companyId);
   const setModule = useSetRubroModule(companyId);
   const saveOption = useSaveOptionCostParameter(companyId);
+  const saveNumeric = useSaveCostParameter(companyId);
   const leavePending = useLeaveOptionCostParameterPending(companyId);
   const [step, setStep] = useState(0);
   const [moduleToChange, setModuleToChange] = useState<RubroModule | null>(null);
@@ -180,9 +232,14 @@ export function CompanyRubroConfiguration({
     text: string;
   } | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string | null>>({});
+  const [numericDrafts, setNumericDrafts] = useState<Record<string, string>>({});
 
   const optionParameters = useMemo(
     () => (parameters.data ?? []).filter(isOptionCostParameter),
+    [parameters.data],
+  );
+  const numericParameters = useMemo(
+    () => (parameters.data ?? []).filter(isNumericCostParameter),
     [parameters.data],
   );
 
@@ -198,12 +255,25 @@ export function CompanyRubroConfiguration({
     });
   }, [optionParameters]);
 
+  useEffect(() => {
+    setNumericDrafts((current) => {
+      const next: Record<string, string> = {};
+      for (const parameter of numericParameters) {
+        next[parameter.clave] = Object.prototype.hasOwnProperty.call(current, parameter.clave)
+          ? current[parameter.clave]!
+          : '';
+      }
+      return next;
+    });
+  }, [numericParameters]);
+
   const activeModules = (modules.data ?? []).filter((module) => module.estado === 'prendido');
   const answeredQuestions = optionParameters.filter((parameter) => drafts[parameter.clave] !== null);
   const isOnboarding = mode === 'onboarding';
   const showModules = !isOnboarding || step === 0;
   const showQuestions = !isOnboarding || step === 1;
-  const showSummary = isOnboarding && step === 2;
+  const showNumbers = isOnboarding && step === 2;
+  const showSummary = isOnboarding && step === 3;
 
   const confirmModuleChange = async () => {
     if (!moduleToChange) return;
@@ -239,7 +309,42 @@ export function CompanyRubroConfiguration({
         await saveOption.mutateAsync({ key: parameter.clave, value: draft });
       }
       setAnswerFeedback({ tone: 'ok', text: 'Respuestas guardadas. Podés volver cuando quieras.' });
-      if (isOnboarding) setStep(2);
+    } catch (error) {
+      setAnswerFeedback({ tone: 'error', text: apiErrorMessage(error) });
+    }
+  };
+
+  const continueFromQuestions = () => {
+    if (optionParameters.some((parameter) => drafts[parameter.clave] === null)) {
+      setAnswerFeedback({ tone: 'error', text: 'Respondé todas las preguntas para continuar.' });
+      return;
+    }
+    setAnswerFeedback(null);
+    setStep(2);
+  };
+
+  const finishOnboarding = async () => {
+    const parsedNumbers = numericParameters.map((parameter) => ({
+      parameter,
+      value: parseNumericDraft(numericDrafts[parameter.clave] ?? ''),
+    }));
+    if (parsedNumbers.some(({ value }) => value === null)) {
+      setAnswerFeedback({ tone: 'error', text: 'Completá todos los valores numéricos para continuar.' });
+      return;
+    }
+
+    setAnswerFeedback(null);
+    try {
+      for (const parameter of optionParameters) {
+        const draft = drafts[parameter.clave];
+        if (draft !== null && draft !== undefined && (!parameter.confirmado || draft !== parameter.valor)) {
+          await saveOption.mutateAsync({ key: parameter.clave, value: draft });
+        }
+      }
+      for (const { parameter, value } of parsedNumbers) {
+        await saveNumeric.mutateAsync({ key: parameter.clave, value: value! });
+      }
+      setStep(3);
     } catch (error) {
       setAnswerFeedback({ tone: 'error', text: apiErrorMessage(error) });
     }
@@ -274,13 +379,15 @@ export function CompanyRubroConfiguration({
             </h2>
           </div>
           <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-ink-soft">
-            {companyName ? `${companyName}: ` : ''}prendé solamente lo que usás y respondé lo que ya sabés.
-            Ningún pendiente te bloquea.
+            {companyName ? `${companyName}: ` : ''}prendé solamente lo que usás.
+            {isOnboarding
+              ? ' Para empezar a costear necesitás responder toda la configuración.'
+              : ' Podés dejar una respuesta pendiente y completarla más adelante.'}
           </p>
         </div>
         {isOnboarding && (
           <span className="w-fit rounded-full border border-line bg-surface-alt px-3 py-1 text-[11px] font-bold text-ink-soft">
-            Paso {step + 1} de 3
+            Paso {step + 1} de 4
           </span>
         )}
       </div>
@@ -322,8 +429,9 @@ export function CompanyRubroConfiguration({
           <div>
             <h3 className="text-base font-bold text-ink">Preguntas del negocio</h3>
             <p className="mt-1 text-[12.5px] leading-relaxed text-ink-soft">
-              Las opciones y sus nombres vienen del rubro. Si todavía no lo sabés, dejalo pendiente:
-              no se guarda ningún valor sugerido por vos.
+              {isOnboarding
+                ? 'Elegí una opción en cada pregunta para poder continuar.'
+                : 'Las opciones y sus nombres vienen del rubro. Podés dejar una respuesta pendiente.'}
             </p>
           </div>
           {optionParameters.length === 0 ? (
@@ -343,6 +451,7 @@ export function CompanyRubroConfiguration({
                     setDrafts((current) => ({ ...current, [parameter.clave]: value }));
                     setAnswerFeedback(null);
                   }}
+                  allowPending={!isOnboarding}
                 />
               ))}
             </ul>
@@ -361,6 +470,33 @@ export function CompanyRubroConfiguration({
         </div>
       )}
 
+      {showNumbers && (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-base font-bold text-ink">Números del negocio</h3>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-ink-soft">
+              Cargá cada valor real. La referencia habitual es sólo una ayuda y no completa el campo.
+            </p>
+          </div>
+          <ul className="grid gap-4 lg:grid-cols-2" aria-label="Parámetros numéricos del rubro">
+            {numericParameters.map((parameter) => (
+              <NumericQuestion
+                key={parameter.clave}
+                parameter={parameter}
+                value={numericDrafts[parameter.clave] ?? ''}
+                onChange={(value) => {
+                  setNumericDrafts((current) => ({ ...current, [parameter.clave]: value }));
+                  setAnswerFeedback(null);
+                }}
+              />
+            ))}
+          </ul>
+          {answerFeedback?.tone === 'error' && (
+            <p role="alert" className="text-[12.5px] font-semibold text-danger">{answerFeedback.text}</p>
+          )}
+        </div>
+      )}
+
       {showSummary && (
         <Card>
           <CardBody className="space-y-5 p-6 text-center">
@@ -372,15 +508,29 @@ export function CompanyRubroConfiguration({
               <p className="mx-auto mt-1 max-w-xl text-[13px] leading-relaxed text-ink-soft">
                 Dejaste {activeModules.length} módulo{activeModules.length === 1 ? '' : 's'} prendido{activeModules.length === 1 ? '' : 's'}
                 {' '}y respondiste {answeredQuestions.length} de {optionParameters.length} pregunta{optionParameters.length === 1 ? '' : 's'}.
-                Lo pendiente no bloquea el alta y podés cambiarlo después desde tu perfil.
+                {' '}También confirmaste {numericParameters.length} valor{numericParameters.length === 1 ? '' : 'es'} numérico{numericParameters.length === 1 ? '' : 's'}.
               </p>
+            </div>
+            <div className="grid gap-4 text-left md:grid-cols-3">
+              <div>
+                <h4 className="text-xs font-bold uppercase text-ink-soft">Módulos</h4>
+                <ul className="mt-2 space-y-1 text-sm">{activeModules.map((module) => <li key={module.clave}>{module.nombre}</li>)}</ul>
+              </div>
+              <div>
+                <h4 className="text-xs font-bold uppercase text-ink-soft">Opciones</h4>
+                <ul className="mt-2 space-y-1 text-sm">{optionParameters.map((parameter) => <li key={parameter.clave}>{parameter.descripcion}: <strong>{parameter.opciones.find((option) => option.valor === drafts[parameter.clave])?.etiqueta}</strong></li>)}</ul>
+              </div>
+              <div>
+                <h4 className="text-xs font-bold uppercase text-ink-soft">Números</h4>
+                <ul className="mt-2 space-y-1 text-sm">{numericParameters.map((parameter) => <li key={parameter.clave}>{parameter.descripcion}: <strong>{numericDrafts[parameter.clave]} {parameter.unidad}</strong></li>)}</ul>
+              </div>
             </div>
           </CardBody>
         </Card>
       )}
 
       <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-between">
-        {isOnboarding && step > 0 && step < 2 ? (
+        {isOnboarding && step > 0 && step < 3 ? (
           <Button type="button" variant="ghost" onClick={() => setStep((current) => current - 1)}>
             <ArrowLeft className="size-4" aria-hidden /> Volver
           </Button>
@@ -401,15 +551,20 @@ export function CompanyRubroConfiguration({
           </Button>
         )}
         {isOnboarding && step === 1 && (
+          <Button type="button" onClick={continueFromQuestions}>
+            Seguir con los números <ArrowRight className="size-4" aria-hidden />
+          </Button>
+        )}
+        {isOnboarding && step === 2 && (
           <Button
             type="button"
-            onClick={() => void saveAnswers()}
-            loading={saveOption.isPending || leavePending.isPending}
+            onClick={() => void finishOnboarding()}
+            loading={saveOption.isPending || saveNumeric.isPending}
           >
             Ver resumen <ArrowRight className="size-4" aria-hidden />
           </Button>
         )}
-        {isOnboarding && step === 2 && (
+        {isOnboarding && step === 3 && (
           <Button type="button" onClick={onComplete}>
             Continuar <ArrowRight className="size-4" aria-hidden />
           </Button>
