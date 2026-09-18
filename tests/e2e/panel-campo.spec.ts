@@ -103,25 +103,32 @@ testConSesion('carga producción y bajas desde botones táctiles sin mostrar din
   await page.getByRole('button', { name: /Huevos/ }).click();
   await expect(page.getByText('Lote de prueba · Galpón de prueba')).toBeVisible();
   await noHayDinero(page);
-  await page.getByLabel('Huevos').fill('840');
+  await page.getByLabel('Huevos').fill('999999999');
   await page.getByRole('button', { name: 'Guardar huevos' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Listo' })).toBeVisible();
+  await expect(page.getByText('Listo: 999999999 huevos, Lote de prueba, hoy')).toBeVisible();
+  await expect(page.getByText('El dato quedó guardado y disponible para revisión.')).toBeVisible();
 
   await expect.poll(() => requests.length).toBe(1);
   expect(requests[0]).toEqual({
     pathname: `/api/v1/lotes/${LOT_ID}/producciones`,
     body: expect.objectContaining({
       variante: 'total_diario',
-      unidadesProducidas: 840,
+      unidadesProducidas: 999999999,
       roturas: 0,
       descartes: 0,
     }),
   });
 
+  await page.getByRole('button', { name: 'Cargar otro dato' }).click();
   await page.getByRole('button', { name: /Gallinas/ }).click();
   await noHayDinero(page);
   await page.getByLabel('Gallinas').fill('3');
   await page.getByRole('radio', { name: 'Mortalidad' }).check();
   await page.getByRole('button', { name: 'Guardar gallinas' }).click();
+
+  await expect(page.getByText('Listo: 3 gallinas, Lote de prueba, hoy')).toBeVisible();
 
   await expect.poll(() => requests.length).toBe(2);
   expect(requests[1]).toEqual({
