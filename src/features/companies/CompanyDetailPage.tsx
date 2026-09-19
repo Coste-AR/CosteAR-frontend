@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from '@tanstack/react-router';
-import { Edit2, Trash2, ArrowLeft, Users, FileSpreadsheet, BookOpen, History, Tags } from 'lucide-react';
+import { Edit2, Trash2, ArrowLeft, Users, FileSpreadsheet, BookOpen, History, Tags, Scissors } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useCompany, useCostStructures, useDeleteCompany } from './company-hooks';
@@ -15,6 +15,7 @@ import { CompanyOperatorsTab } from './components/CompanyOperatorsTab';
 import { DeviationWidget } from './components/DeviationWidget';
 import { BenchmarkRadarWidget } from './components/BenchmarkRadarWidget';
 import { CostBehaviorClassificationTab } from './components/CostBehaviorClassificationTab';
+import { SemifijosTab } from './components/SemifijosTab';
 import toast from 'react-hot-toast';
 import { useRubroModules } from './rubro-configuration-hooks';
 import { isCompanyConfigurationComplete, useCostParameters } from './cost-parameters-hooks';
@@ -30,7 +31,7 @@ export function CompanyDetailPage() {
   
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'structures' | 'classification' | 'ledger' | 'history' | 'operators'>('structures');
+  const [activeTab, setActiveTab] = useState<'structures' | 'classification' | 'semifijos' | 'ledger' | 'history' | 'operators'>('structures');
   const configurationLoaded = modules.isSuccess && parameters.isSuccess;
   const configurationComplete = configurationLoaded
     && isCompanyConfigurationComplete(modules.data, parameters.data);
@@ -122,6 +123,7 @@ export function CompanyDetailPage() {
         {[
           { id: 'structures', label: 'Estructuras de Costos', icon: FileSpreadsheet },
           { id: 'classification', label: 'Fijo / variable', icon: Tags },
+          { id: 'semifijos', label: 'Semifijos', icon: Scissors },
           { id: 'ledger', label: 'Libro de Costos', icon: BookOpen },
           { id: 'history', label: 'Historial', icon: History },
           { id: 'operators', label: 'Personal Autorizado', icon: Users },
@@ -145,6 +147,7 @@ export function CompanyDetailPage() {
           <CompanyStructuresList companyId={id} periodicity={company?.periodicity} structures={structures ?? []} />
         )}
         {activeTab === 'classification' && <CostBehaviorClassificationTab companyId={id} />}
+        {activeTab === 'semifijos' && <SemifijosTab companyId={id} />}
         {activeTab === 'ledger' && (
           <CompanyLedgerTab companyId={id} companyName={company?.name ?? 'Cliente'} />
         )}
