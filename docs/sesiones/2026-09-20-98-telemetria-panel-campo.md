@@ -1,14 +1,14 @@
 ---
 issue: 98
 repo: CosteAR-frontend
-pr: pendiente
+pr: 193
 rama: feat/98-telemetria-panel-campo
 agente: codex
 modelo: gpt-5
 tanda: B3
 inicio: 2026-09-20T09:02:48-03:00
-fin: 2026-09-20T09:24:00-03:00
-minutos: 22
+fin: 2026-09-20T09:29:10-03:00
+minutos: 26
 tokens: no-informado
 clears: 0
 intentos_hasta_verde: 2
