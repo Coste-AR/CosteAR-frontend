@@ -9,7 +9,12 @@ const apiPost = vi.fn();
 
 vi.mock('@/lib/api', () => ({ api: { get: apiGet, post: apiPost } }));
 
-const { useCreateDailyProduction, useCreateLotLoss, useProductiveLots } = await import('./field-panel-hooks');
+const {
+  useCreateDailyProduction,
+  useCreateLotLoss,
+  useProductiveLots,
+  useRecordPanelTelemetry,
+} = await import('./field-panel-hooks');
 
 let queryClient: QueryClient;
 
@@ -67,5 +72,37 @@ describe('contrato HTTP del panel de campo', () => {
     await act(() => result.current.mutateAsync(input));
 
     expect(apiPost).toHaveBeenCalledWith('/lotes/lote-1/eventos', input);
+  });
+
+  it('registra telemetría sólo con la acción técnica y la duración', async () => {
+    apiPost.mockResolvedValue({ data: { data: { id: 'telemetria-1' } } });
+    const { result } = renderHook(() => useRecordPanelTelemetry('empresa-1'), { wrapper });
+
+    act(() => result.current({
+      tipo: 'CARGA_ABANDONADA',
+      accion: 'produccion',
+      duracionMs: 1_250,
+    }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
+    expect(apiPost).toHaveBeenCalledWith(
+      '/companies/empresa-1/telemetria-panel',
+      {
+        tipo: 'CARGA_ABANDONADA',
+        accion: 'produccion',
+        duracionMs: 1_250,
+      },
+    );
+  });
+
+  it('absorbe una falla de telemetría para no interrumpir la carga', async () => {
+    apiPost.mockRejectedValue(new Error('telemetría no disponible'));
+    const { result } = renderHook(() => useRecordPanelTelemetry('empresa-1'), { wrapper });
+
+    expect(() => {
+      act(() => result.current({ tipo: 'CARGA_INICIADA', accion: 'plantel' }));
+    }).not.toThrow();
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
   });
 });

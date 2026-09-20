@@ -11,6 +11,7 @@ async function noHayDinero(page: import('@playwright/test').Page) {
 
 testConSesion('carga producción y bajas desde botones táctiles sin mostrar dinero', async ({ page, consola }) => {
   const requests: Array<{ pathname: string; body: unknown }> = [];
+  const telemetryRequests: unknown[] = [];
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -82,6 +83,18 @@ testConSesion('carga producción y bajas desde botones táctiles sin mostrar din
       });
     }
 
+    if (
+      request.method() === 'POST'
+      && pathname === `/api/v1/companies/${COMPANY_ID}/telemetria-panel`
+    ) {
+      telemetryRequests.push(request.postDataJSON());
+      return route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { id: `telemetria-${telemetryRequests.length}` } }),
+      });
+    }
+
     return route.fallback();
   });
 
@@ -99,6 +112,25 @@ testConSesion('carga producción y bajas desde botones táctiles sin mostrar din
     const box = await button.boundingBox();
     expect(box?.height).toBeGreaterThanOrEqual(120);
   }
+
+  await page.getByRole('button', { name: /Huevos/ }).click();
+  await page.getByLabel('Huevos').fill('321');
+  await page.getByRole('button', { name: 'Volver a las cargas' }).click();
+
+  await expect.poll(() => telemetryRequests.length).toBe(3);
+  expect(telemetryRequests).toEqual([
+    { tipo: 'ACCION_TOCADA', accion: 'produccion' },
+    { tipo: 'CARGA_INICIADA', accion: 'produccion' },
+    {
+      tipo: 'CARGA_ABANDONADA',
+      accion: 'produccion',
+      duracionMs: expect.any(Number),
+    },
+  ]);
+  expect(JSON.stringify(telemetryRequests)).not.toMatch(
+    /importe|cantidad|nombre|unidadesProducidas|motivo|lote/i,
+  );
+  expect(JSON.stringify(telemetryRequests)).not.toContain('321');
 
   await page.getByRole('button', { name: /Huevos/ }).click();
   await expect(page.getByText('Lote de prueba · Galpón de prueba')).toBeVisible();
@@ -120,6 +152,12 @@ testConSesion('carga producción y bajas desde botones táctiles sin mostrar din
       descartes: 0,
     }),
   });
+  await expect.poll(() => telemetryRequests.length).toBe(6);
+  expect(telemetryRequests[5]).toEqual({
+    tipo: 'CARGA_COMPLETADA',
+    accion: 'produccion',
+    duracionMs: expect.any(Number),
+  });
 
   await page.getByRole('button', { name: 'Cargar otro dato' }).click();
   await page.getByRole('button', { name: /Gallinas/ }).click();
@@ -135,9 +173,84 @@ testConSesion('carga producción y bajas desde botones táctiles sin mostrar din
     pathname: `/api/v1/lotes/${LOT_ID}/eventos`,
     body: expect.objectContaining({ tipo: 'baja', cantidad: 3, motivo: 'mortalidad' }),
   });
+  await expect.poll(() => telemetryRequests.length).toBe(9);
+  expect(telemetryRequests[8]).toEqual({
+    tipo: 'CARGA_COMPLETADA',
+    accion: 'plantel',
+    duracionMs: expect.any(Number),
+  });
+  expect(JSON.stringify(telemetryRequests)).not.toMatch(
+    /importe|cantidad|nombre|unidadesProducidas|motivo|lote|999999999/i,
+  );
 
   await noHayDinero(page);
   expect(consola.mensajes, 'errores en el panel de campo').toEqual([]);
+});
+
+testConSesion('guarda la carga aunque falle la telemetría', async ({ page, consola }) => {
+  let saveRequests = 0;
+  let telemetryRequests = 0;
+
+  await page.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+
+    if (request.method() === 'GET' && pathname === '/api/v1/companies') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: [{ id: COMPANY_ID, name: 'Empresa de prueba', industry: 'AVICULTURA', isActive: true }],
+        }),
+      });
+    }
+    if (request.method() === 'GET' && pathname.endsWith('/modulos-rubro')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: [{ clave: 'produccion', nombre: 'Producción', descripcion: '', estado: 'prendido', porDefecto: true, dependeDe: [], parametros: [], alertas: [] }],
+        }),
+      });
+    }
+    if (request.method() === 'GET' && pathname.endsWith('/lotes-productivos')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: [{ id: LOT_ID, referencia: 'Lote de prueba', activo: true, unidadProductiva: null }],
+        }),
+      });
+    }
+    if (request.method() === 'POST' && pathname.endsWith('/telemetria-panel')) {
+      telemetryRequests += 1;
+      return route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { message: 'Telemetría no disponible' } }),
+      });
+    }
+    if (request.method() === 'POST' && pathname === `/api/v1/lotes/${LOT_ID}/producciones`) {
+      saveRequests += 1;
+      return route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { id: 'produccion-guardada' } }),
+      });
+    }
+    return route.fallback();
+  });
+
+  await page.goto('/panel-campo', { waitUntil: 'domcontentloaded' });
+  await laAppPinto(page);
+  await page.getByRole('button', { name: /Huevos/ }).click();
+  await page.getByLabel('Huevos').fill('12');
+  await page.getByRole('button', { name: 'Guardar huevos' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Listo' })).toBeVisible();
+  await expect.poll(() => saveRequests).toBe(1);
+  await expect.poll(() => telemetryRequests).toBe(3);
+  expect(consola.mensajes, 'la falla secundaria no ensucia la experiencia').toEqual([]);
 });
 
 testConSesion('no elige en silencio cuando hay más de un lote activo', async ({ page, consola }) => {

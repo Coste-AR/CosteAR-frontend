@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
@@ -28,6 +29,16 @@ export type LotLossInput = {
   fecha: string;
   motivo: 'mortalidad' | 'descarte' | 'canibalismo' | 'faena';
 };
+
+export type PanelActionKey = 'produccion' | 'plantel' | 'alimento' | 'peso';
+
+export type PanelTelemetryInput =
+  | { tipo: 'ACCION_TOCADA' | 'CARGA_INICIADA'; accion: PanelActionKey }
+  | {
+      tipo: 'CARGA_ABANDONADA' | 'CARGA_COMPLETADA';
+      accion: PanelActionKey;
+      duracionMs: number;
+    };
 
 export function useProductiveLots(companyId: string) {
   return useQuery({
@@ -68,4 +79,19 @@ export function useCreateLotLoss(lotId: string) {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['lots', lotId, 'events'] }),
   });
+}
+
+export function useRecordPanelTelemetry(companyId: string) {
+  const { mutate } = useMutation({
+    mutationFn: async (input: PanelTelemetryInput) => {
+      await api.post(`/companies/${companyId}/telemetria-panel`, input);
+    },
+    onError: () => {
+      // La telemetría es secundaria: su falla nunca bloquea la carga operativa.
+    },
+  });
+
+  return useCallback((input: PanelTelemetryInput) => {
+    if (companyId) mutate(input);
+  }, [companyId, mutate]);
 }

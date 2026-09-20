@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { ArrowLeft, Bird, CheckCircle2, Egg, Scale, Wheat } from 'lucide-react';
 import { CosteARLogo } from '@/components/layout/CosteARLogo';
@@ -10,15 +10,28 @@ import {
   useCreateDailyProduction,
   useCreateLotLoss,
   useProductiveLots,
+  useRecordPanelTelemetry,
   type LotLossInput,
+  type PanelActionKey,
 } from './field-panel-hooks';
 
-type ActionKey = 'produccion' | 'plantel' | 'alimento' | 'peso';
+type ActionKey = PanelActionKey;
 
 interface SavedConfirmation {
   amount: number;
   item: 'huevos' | 'gallinas';
   lot: string;
+}
+
+interface ActiveLoad {
+  action: ActionKey;
+  startedAt: number;
+}
+
+const MAX_TELEMETRY_DURATION_MS = 86_400_000;
+
+function elapsedSince(startedAt: number): number {
+  return Math.min(Math.max(Date.now() - startedAt, 0), MAX_TELEMETRY_DURATION_MS);
 }
 
 const ACTIONS = [
@@ -70,6 +83,21 @@ export function FieldPanelPage() {
   const date = todayLocal();
   const production = useCreateDailyProduction(selectedLotId);
   const loss = useCreateLotLoss(selectedLotId);
+  const recordTelemetry = useRecordPanelTelemetry(companyId);
+  const activeLoadRef = useRef<ActiveLoad | null>(null);
+  const recordTelemetryRef = useRef(recordTelemetry);
+  recordTelemetryRef.current = recordTelemetry;
+
+  useEffect(() => () => {
+    const activeLoad = activeLoadRef.current;
+    if (!activeLoad) return;
+    activeLoadRef.current = null;
+    recordTelemetryRef.current({
+      tipo: 'CARGA_ABANDONADA',
+      accion: activeLoad.action,
+      duracionMs: elapsedSince(activeLoad.startedAt),
+    });
+  }, []);
 
   useEffect(() => {
     if (activeLots.length <= 1 || !activeLots.some((lot) => lot.id === chosenLotId)) {
@@ -85,6 +113,15 @@ export function FieldPanelPage() {
   );
 
   const resetAction = () => {
+    const activeLoad = activeLoadRef.current;
+    if (activeLoad) {
+      activeLoadRef.current = null;
+      recordTelemetry({
+        tipo: 'CARGA_ABANDONADA',
+        accion: activeLoad.action,
+        duracionMs: elapsedSince(activeLoad.startedAt),
+      });
+    }
     setAction(null);
     setAmount('');
     setReason('');
@@ -93,12 +130,28 @@ export function FieldPanelPage() {
   };
 
   const finishSave = (saved: SavedConfirmation) => {
+    const activeLoad = activeLoadRef.current;
+    if (activeLoad) {
+      activeLoadRef.current = null;
+      recordTelemetry({
+        tipo: 'CARGA_COMPLETADA',
+        accion: activeLoad.action,
+        duracionMs: elapsedSince(activeLoad.startedAt),
+      });
+    }
     setConfirmation(saved);
     setAction(null);
     setAmount('');
     setReason('');
     production.reset();
     loss.reset();
+  };
+
+  const startAction = (nextAction: ActionKey) => {
+    activeLoadRef.current = { action: nextAction, startedAt: Date.now() };
+    recordTelemetry({ tipo: 'ACCION_TOCADA', accion: nextAction });
+    recordTelemetry({ tipo: 'CARGA_INICIADA', accion: nextAction });
+    setAction(nextAction);
   };
 
   const submitProduction = async (event: FormEvent) => {
@@ -231,7 +284,7 @@ export function FieldPanelPage() {
                     type="button"
                     data-testid="field-action"
                     disabled={!selectedLotId}
-                    onClick={() => setAction(key)}
+                    onClick={() => startAction(key)}
                     className="flex min-h-36 flex-col items-center justify-center rounded-3xl border border-line bg-white p-4 text-center shadow-sm transition active:scale-[0.98] disabled:opacity-45 sm:min-h-44"
                   >
                     <Icon className="size-11 text-granate sm:size-13" strokeWidth={1.8} />
