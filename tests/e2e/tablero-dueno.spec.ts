@@ -135,6 +135,10 @@ testConSesion('muestra los seis números reales del período en el orden definid
   await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
 
   await laAppPinto(page);
+  await page.getByRole('button', { name: 'Abrir ayuda de esta pantalla' }).click();
+  await expect(page.getByRole('region', { name: 'Ayuda del tablero del negocio' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '¿Qué período estoy viendo?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cerrar ayuda' }).click();
   await expect(page).toHaveURL(new RegExp(`/owner-dashboard\\?periodId=${PERIOD_ID}$`));
   await expect(page.getByRole('heading', { name: 'Tablero del negocio' })).toBeVisible();
   await vocabularioVisiblePermitido(page);

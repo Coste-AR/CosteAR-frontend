@@ -17,6 +17,7 @@ import { CosteARLogo } from "@/components/layout/CosteARLogo";
 import { TopBar } from "@/components/layout/TopBar";
 import { TraceDrawer } from "@/components/layout/TraceDrawer";
 import { TraceModeLegend } from "@/components/ui/TraceableValue";
+import { HelpAssistant } from "@/features/help/HelpAssistant";
 
 const NAV = [
   { to: "/dashboard", label: "Inicio", icon: LayoutDashboard },
@@ -357,6 +358,9 @@ export function AppShell({
         {/* Panel de trazabilidad (U10): vive en el armazón porque cualquier
             valor de cualquier pantalla lo abre. */}
         <TraceDrawer />
+        {(location.pathname === '/dashboard' || location.pathname === '/owner-dashboard') && (
+          <HelpAssistant screen={location.pathname === '/dashboard' ? 'home' : 'owner'} />
+        )}
 
         {/* Cohesive Footer */}
         <footer className="hidden lg:block border-t border-line/40 py-6 bg-zinc-50/20">

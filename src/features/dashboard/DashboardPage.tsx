@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { CostitaChat } from './CostitaChat';
 import {
   Building2, Bell, ArrowRight, ClipboardCheck,
   DollarSign, AlertTriangle, CheckCircle2, FileText,
@@ -565,7 +564,6 @@ export function DashboardPage() {
 
       </div>
 
-      <CostitaChat companies={companies} />
     </AppShell>
   );
 }

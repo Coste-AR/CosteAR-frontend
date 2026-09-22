@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { ArrowLeft, Bird, CheckCircle2, Egg, Scale, Wheat } from 'lucide-react';
 import { CosteARLogo } from '@/components/layout/CosteARLogo';
 import { Button } from '@/components/ui/Button';
+import { HelpAssistant } from '@/features/help/HelpAssistant';
 import { apiErrorMessage } from '@/lib/api';
 import { useCompanies } from '@/features/companies/company-hooks';
 import { useRubroModules } from '@/features/companies/rubro-configuration-hooks';
@@ -366,6 +367,7 @@ export function FieldPanelPage() {
           </section>
         )}
       </div>
+      <HelpAssistant screen="field" />
     </main>
   );
 }
