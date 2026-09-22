@@ -92,7 +92,7 @@ export function SubmissionCard({ s }: SubmissionCardProps) {
 
         {s.costistaNote && (
           <div className="mt-4 rounded-[16px] border-l-4 border-l-granate bg-granate-tenue p-4 shadow-inner group-hover:bg-granate/10 transition-colors">
-            <p className="font-black text-[10px] uppercase tracking-wider text-granate-deep mb-1.5">Nota de revisión de tu costista:</p>
+            <p className="font-black text-[10px] uppercase tracking-wider text-granate-deep mb-1.5">Nota de revisión:</p>
             <p className="italic text-[12px] text-ink/80 leading-relaxed font-medium">"{s.costistaNote}"</p>
           </div>
         )}

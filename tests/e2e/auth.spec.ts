@@ -1,4 +1,4 @@
-import { test, testConSesion, expect, laAppPinto } from './fixtures';
+import { test, testConSesion, expect, laAppPinto, vocabularioVisiblePermitido } from './fixtures';
 
 test.setTimeout(60_000);
 testConSesion.setTimeout(60_000);
@@ -9,6 +9,7 @@ test('una ruta protegida manda al login cuando no hay sesión', async ({ page, c
   await laAppPinto(page);
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('heading', { name: 'Ingresá a tu cuenta' })).toBeVisible();
+  await vocabularioVisiblePermitido(page);
 
   expect(consola.mensajes, 'errores al redirigir una ruta protegida').toEqual([]);
 });

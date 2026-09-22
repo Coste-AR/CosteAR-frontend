@@ -272,7 +272,7 @@ export function SemifijosTab({ companyId }: { companyId: string }) {
 
           {!conceptos.isLoading && !conceptos.isError && conceptos.data?.length === 0 && (
             <p className="py-8 text-center text-sm text-zinc-600">
-              Esta empresa todavía no tiene ningún concepto clasificado como semifijo. Clasificá uno
+              Este negocio todavía no tiene ningún concepto clasificado como semifijo. Clasificá uno
               en la pestaña <strong>Fijo / variable</strong> y volvé.
             </p>
           )}

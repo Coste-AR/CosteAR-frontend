@@ -78,8 +78,9 @@ export function fmtARS(n: number) {
 
 export function greet(name?: string | null) {
   const h = new Date().getHours();
-  const firstName = name?.split(' ')[0] ?? 'costista';
-  if (h < 12) return `Buenos días, ${firstName}`;
-  if (h < 19) return `Buenas tardes, ${firstName}`;
-  return `Buenas noches, ${firstName}`;
+  const firstName = name?.trim().split(' ')[0];
+  const destinatario = firstName ? `, ${firstName}` : '';
+  if (h < 12) return `Buenos días${destinatario}`;
+  if (h < 19) return `Buenas tardes${destinatario}`;
+  return `Buenas noches${destinatario}`;
 }

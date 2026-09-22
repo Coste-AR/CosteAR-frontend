@@ -114,7 +114,7 @@ const PIPELINE_STEPS = [
   {
     icon: ShieldCheck,
     label: 'Validación',
-    sub: 'Costista revisa',
+    sub: 'Revisión pendiente',
     color: 'bg-amber-50 text-amber-600 border-amber-200',
   },
   {
@@ -242,7 +242,7 @@ export function AutomatizacionPage() {
               </div>
               <p className="text-[13px] font-bold text-ink">Sin actividad todavía</p>
               <p className="mt-1 max-w-xs text-[11.5px] text-ink-soft">
-                Invitá a un operador desde la página de cada empresa para que empiece a cargar documentación.
+                Invitá a un operador desde la página de cada negocio para que empiece a cargar documentación.
               </p>
             </div>
           ) : (

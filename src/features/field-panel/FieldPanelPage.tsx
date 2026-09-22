@@ -213,11 +213,11 @@ export function FieldPanelPage() {
         ) : !company ? (
           <section className="my-auto space-y-5 text-center">
             <div>
-              <h1 className="text-2xl font-extrabold text-granate-deep">Elegí la empresa</h1>
-              <p className="mt-2 text-sm text-ink-soft">La carga va a quedar asociada a esta empresa.</p>
+              <h1 className="text-2xl font-extrabold text-granate-deep">Elegí el negocio</h1>
+              <p className="mt-2 text-sm text-ink-soft">La carga va a quedar asociada a este negocio.</p>
             </div>
             {(companies.data ?? []).length === 0 ? (
-              <p className="rounded-2xl border border-line bg-white p-5">Todavía no hay una empresa disponible.</p>
+              <p className="rounded-2xl border border-line bg-white p-5">Todavía no hay un negocio disponible.</p>
             ) : (
               <div className="grid gap-3">
                 {(companies.data ?? []).map((item) => (
@@ -297,7 +297,7 @@ export function FieldPanelPage() {
 
             {visibleActions.length === 0 && activeLots.length > 0 && (
               <p className="rounded-2xl border border-line bg-white p-6 text-center font-semibold">
-                No hay cargas habilitadas para esta empresa.
+                No hay cargas habilitadas para este negocio.
               </p>
             )}
           </section>

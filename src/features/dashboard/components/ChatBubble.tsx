@@ -49,7 +49,7 @@ export function CompanyChips({
   return (
     <div className="space-y-1.5 mt-3">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-        ¿Para qué empresa?
+        ¿Para qué negocio?
       </p>
       <div className="flex flex-wrap gap-2">
         {companies.map((c) => (
@@ -128,7 +128,7 @@ export function ActionCard({
       <div className="px-3 py-3 space-y-2">
         {isEntry && aiResponse.proposedEntry && (
           <>
-            <Row label="Empresa" value={aiResponse.proposedEntry.companyName || 'Sin empresa'} />
+            <Row label="Negocio" value={aiResponse.proposedEntry.companyName || 'Sin negocio'} />
             <Row label="Sección" value={sectionLabel(aiResponse.proposedEntry.costSection)} />
             <Row label="Tipo" value={aiResponse.proposedEntry.documentType} />
             {aiResponse.proposedEntry.estimatedImpact && (
@@ -145,7 +145,7 @@ export function ActionCard({
 
         {isAlert && aiResponse.proposedAlert && (
           <>
-            <Row label="Empresa" value={aiResponse.proposedAlert.companyName || 'Sin empresa'} />
+            <Row label="Negocio" value={aiResponse.proposedAlert.companyName || 'Sin negocio'} />
             <div className="flex items-center gap-2 justify-between">
               <span className="text-[11px] font-medium text-gray-500">Severidad</span>
               <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', severityColor(aiResponse.proposedAlert.severity))}>

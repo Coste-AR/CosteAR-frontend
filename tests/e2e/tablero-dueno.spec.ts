@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, laAppPinto, test, testConSesion } from './fixtures';
+import { expect, laAppPinto, test, testConSesion, vocabularioVisiblePermitido } from './fixtures';
 
 test.setTimeout(60_000);
 testConSesion.setTimeout(60_000);
@@ -136,7 +136,8 @@ testConSesion('muestra los seis números reales del período en el orden definid
 
   await laAppPinto(page);
   await expect(page).toHaveURL(new RegExp(`/owner-dashboard\\?periodId=${PERIOD_ID}$`));
-  await expect(page.getByRole('heading', { name: 'Tablero de la empresa' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tablero del negocio' })).toBeVisible();
+  await vocabularioVisiblePermitido(page);
   await expect(page.getByText('Período 2099-01, expresado en cajones.')).toBeVisible();
   await expect(page.getByTestId('industry-icon')).toHaveAttribute('data-icon', 'bird');
 

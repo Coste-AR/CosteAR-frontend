@@ -60,7 +60,7 @@ const QUICK_OPTIONS = [
   {
     id: 'empresa',
     icon: Building2,
-    label: '¿Cómo cargo una nueva empresa?',
+    label: '¿Cómo cargo un nuevo negocio?',
     sub: 'Gestión y alta de clientes',
     color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
   },
@@ -452,7 +452,7 @@ export function CostitaChat({ companies = [] }: { companies?: Company[] }) {
                           <CompanyChips
                             companies={companies}
                             onSelect={(company) => {
-                              handleSend(`La empresa es ${company.name}`);
+                              handleSend(`El negocio es ${company.name}`);
                             }}
                           />
                         )}

@@ -34,10 +34,10 @@ export function PricingSection({ onAccessClick }: PricingSectionProps) {
               </div>
               <ul className="space-y-3 text-xs text-ink-soft border-t border-line/40 pt-6">
                 <li className="flex items-center gap-2">
-                  <Check className="size-4 text-emerald-600 shrink-0" /> Hasta 3 empresas clientes
+                  <Check className="size-4 text-emerald-600 shrink-0" /> Hasta 3 negocios
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="size-4 text-emerald-600 shrink-0" /> 5 centros de costo por empresa
+                  <Check className="size-4 text-emerald-600 shrink-0" /> 5 centros de costo por negocio
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="size-4 text-emerald-600 shrink-0" /> Sincronización oficial BCRA/INDEC
@@ -62,8 +62,8 @@ export function PricingSection({ onAccessClick }: PricingSectionProps) {
               Más Popular
             </span>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-granate/80">Plan Pyme</span>
-              <h3 className="text-lg font-bold text-ink mt-1">Empresa</h3>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-granate/80">Plan para negocios</span>
+              <h3 className="text-lg font-bold text-ink mt-1">Negocio</h3>
               <p className="text-xs text-ink-soft mt-2 leading-relaxed">
                 Para pequeñas y medianas fábricas con múltiples procesos.
               </p>
@@ -73,7 +73,7 @@ export function PricingSection({ onAccessClick }: PricingSectionProps) {
               </div>
               <ul className="space-y-3 text-xs text-ink-soft border-t border-line/40 pt-6">
                 <li className="flex items-center gap-2">
-                  <Check className="size-4 text-emerald-600 shrink-0" /> Empresas ilimitadas
+                  <Check className="size-4 text-emerald-600 shrink-0" /> Negocios ilimitados
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="size-4 text-emerald-600 shrink-0" /> Centros de costo ilimitados

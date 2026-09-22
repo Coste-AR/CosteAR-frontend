@@ -70,7 +70,7 @@ export function CompanyInfoForm({
             <Input label="CUIT (opcional)" {...register('cuit')} />
             <Select
               label="Ritmo de costeo"
-              hint="Solo se puede cambiar mientras la empresa no tenga ningún período cargado."
+              hint="Solo se puede cambiar mientras el negocio no tenga ningún período cargado."
               {...register('periodicity')}
               defaultValue={company.periodicity ?? 'MONTHLY'}
               options={PERIODICITY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}

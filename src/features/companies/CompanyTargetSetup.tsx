@@ -96,7 +96,7 @@ export function CompanyTargetSetup() {
 
   const marketReference = industryBenchmark?.data 
     ? `Promedio en ${industry}`
-    : "Promedio General PyME";
+    : "Promedio general";
 
   if (showRubroConfiguration) {
     return (

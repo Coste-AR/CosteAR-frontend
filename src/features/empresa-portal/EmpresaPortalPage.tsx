@@ -140,7 +140,7 @@ export function EmpresaPortalPage() {
   const handleSend = async () => {
     if ((!text.trim() && !file) || sending) return;
     if (!activeConnectionId) {
-      setSendError('Seleccioná una empresa primero.');
+      setSendError('Seleccioná un negocio primero.');
       return;
     }
     // Con un solo producto activo no hace falta elegir (no hay ambigüedad
@@ -222,7 +222,7 @@ export function EmpresaPortalPage() {
 
             <h1 className="mb-2 text-xl font-black tracking-tight text-ink font-outfit">Hola, {user?.name?.split(' ')[0] ?? 'operador'}</h1>
             <p className="mb-8 text-[13px] text-ink-soft leading-relaxed font-medium">
-              Tu cuenta de operador está lista. Ingresá el código de invitación de tu costista para vincular tu empresa.
+              Tu cuenta de operador está lista. Ingresá el código de invitación de quien revisa tus cargas para vincular tu negocio.
             </p>
 
             {inviteSuccess ? (
@@ -249,7 +249,7 @@ export function EmpresaPortalPage() {
                   Vincularme ahora
                 </Button>
                 <p className="text-center text-[11.5px] text-ink-soft/80 font-medium">
-                  ¿No tenés un código? Solicitáselo al costista a cargo.
+                  ¿No tenés un código? Solicitáselo al responsable a cargo.
                 </p>
               </div>
             )}
@@ -308,7 +308,7 @@ export function EmpresaPortalPage() {
             </span>
             <div className="h-4 w-px bg-line hidden sm:block" />
             <span className="text-xs font-bold text-ink hidden sm:inline-block">
-              {activeCompany ? activeCompany.connection.company.name : 'Seleccioná una empresa'}
+              {activeCompany ? activeCompany.connection.company.name : 'Seleccioná un negocio'}
             </span>
           </div>
 
@@ -318,7 +318,7 @@ export function EmpresaPortalPage() {
                 onClick={() => setShowCompanyPicker(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-line bg-surface-alt/50 hover:bg-surface-alt text-xs font-bold text-ink-soft hover:text-ink transition-colors shadow-sm"
               >
-                <Building2 className="size-3.5" /> Cambiar empresa
+                <Building2 className="size-3.5" /> Cambiar negocio
               </button>
             )}
             {/* Tarjetita del perfil del costista / operario */}
@@ -354,7 +354,7 @@ export function EmpresaPortalPage() {
                 }}
               />
             ) : (
-              <p className="text-xs text-ink-soft px-2 py-3">Seleccioná una empresa para ver sus productos.</p>
+              <p className="text-xs text-ink-soft px-2 py-3">Seleccioná un negocio para ver sus productos.</p>
             )}
           </aside>
 
@@ -415,14 +415,14 @@ export function EmpresaPortalPage() {
               <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 pb-28 lg:pb-8">
                 <div className="max-w-md mx-auto space-y-6 mt-6">
                   <div className="border-b border-line pb-3">
-                    <h2 className="text-base font-extrabold text-granate-deep font-outfit">Vincularme a una nueva empresa</h2>
-                    <p className="text-xs text-ink-soft">Unite a otra empresa ingresando el código enviado por tu costista.</p>
+                    <h2 className="text-base font-extrabold text-granate-deep font-outfit">Vincularme a un nuevo negocio</h2>
+                    <p className="text-xs text-ink-soft">Unite a otro negocio ingresando el código enviado por quien revisa tus cargas.</p>
                   </div>
 
                   <Card className="p-6">
                     <CardBody className="p-0 space-y-4">
                       <p className="text-xs text-ink-soft leading-relaxed">
-                        Si prestás servicios como operador de carga para múltiples PyMEs, podés ingresar códigos de vinculación adicionales para unificarlos en tu cuenta.
+                        Si prestás servicios como operador de carga para múltiples negocios, podés ingresar códigos de vinculación adicionales para unificarlos en tu cuenta.
                       </p>
 
                       {inviteSuccess ? (
@@ -446,7 +446,7 @@ export function EmpresaPortalPage() {
                             loading={acceptInvite.isPending}
                             className="w-full py-3"
                           >
-                            Unirme a la empresa
+                            Unirme al negocio
                           </Button>
                         </div>
                       )}
@@ -464,7 +464,7 @@ export function EmpresaPortalPage() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/40 backdrop-blur-sm px-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-line animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-5 px-1">
-              <h2 className="text-lg font-black tracking-tight text-ink font-outfit">Cambiar de Empresa</h2>
+              <h2 className="text-lg font-black tracking-tight text-ink font-outfit">Cambiar de Negocio</h2>
               <button type="button" onClick={() => setShowCompanyPicker(false)} className="text-ink-soft hover:text-ink bg-surface-alt p-1.5 rounded-full transition-colors">
                 <X className="size-4" />
               </button>

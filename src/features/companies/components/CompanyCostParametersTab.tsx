@@ -29,7 +29,7 @@ function originLabel(parameter: CostParameter) {
     return parameter.seguro ? 'Convención del sistema' : 'Estimación del sistema';
   }
   if (parameter.origen === 'empresa') {
-    return parameter.confirmado ? 'Confirmado por la empresa' : 'Cargado para la empresa';
+    return parameter.confirmado ? 'Confirmado por el negocio' : 'Cargado para el negocio';
   }
   if (parameter.origen === 'estructura') return 'Definido para esta estructura';
   return 'Definido para este período';
@@ -222,7 +222,7 @@ export function CompanyCostParametersTab({ companyId }: { companyId: string }) {
         </div>
         <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-ink-soft">
           Confirmá las constantes que usa el cálculo. Las sugerencias del sistema están identificadas
-          para que nunca parezcan datos declarados por la empresa.
+          para que nunca parezcan datos declarados por el negocio.
         </p>
       </div>
 
@@ -237,7 +237,7 @@ export function CompanyCostParametersTab({ companyId }: { companyId: string }) {
       {items.length === 0 ? (
         <Card>
           <CardBody className="py-12 text-center text-sm text-ink-soft">
-            No hay parámetros disponibles para el rubro de esta empresa.
+            No hay parámetros disponibles para el rubro de este negocio.
           </CardBody>
         </Card>
       ) : (

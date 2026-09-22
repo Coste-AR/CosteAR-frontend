@@ -163,7 +163,7 @@ export function CompanyDetailPage() {
       <ConfirmDialog
         open={showDeleteConfirm}
         title="Eliminar cliente"
-        message={`¿Estás seguro de eliminar a ${company?.name}? Esta acción eliminará permanentemente la empresa, todas sus estructuras de costos, libro de costos, firmas y operadores vinculados.`}
+        message={`¿Estás seguro de eliminar a ${company?.name}? Esta acción eliminará permanentemente el negocio, todas sus estructuras de costos, libro de costos, firmas y operadores vinculados.`}
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"
         tone="danger"
@@ -172,7 +172,7 @@ export function CompanyDetailPage() {
             await delCompany.mutateAsync(id);
             navigate({ to: '/companies' });
           } catch (e) {
-            toast.error('Error al eliminar la empresa: ' + apiErrorMessage(e));
+            toast.error('Error al eliminar el negocio: ' + apiErrorMessage(e));
           }
           setShowDeleteConfirm(false);
         }}

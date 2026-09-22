@@ -131,7 +131,7 @@ export function CompaniesPage() {
             </span>
           </div>
           <h1 className="text-[36px] font-extrabold leading-[1.1] text-granate-deep tracking-tight">
-            Gestiona tus PyMEs
+            Gestioná tus negocios
           </h1>
           <p className="text-[14px] leading-relaxed text-ink-soft max-w-2xl">
             Monitorea la evolución de costos, auditorías de documentos y
@@ -235,7 +235,7 @@ export function CompaniesPage() {
             <div>
               <p className="font-semibold text-ink">Sin clientes registrados</p>
               <p className="text-sm text-ink-soft mt-1">
-                Comenzá a agregar PyMEs a tu cartera
+                Comenzá a agregar negocios a tu cartera
               </p>
             </div>
             <Button onClick={() => setShowForm(true)} className="mt-4">
@@ -322,7 +322,7 @@ export function CompaniesPage() {
       <ConfirmDialog
         open={companyToDelete !== null}
         title="Eliminar cliente"
-        message={`¿Estás seguro de eliminar a ${companyToDelete?.name}? Esta acción eliminará permanentemente la empresa, todas sus estructuras de costos, libro de costos, firmas y operadores vinculados.`}
+        message={`¿Estás seguro de eliminar a ${companyToDelete?.name}? Esta acción eliminará permanentemente el negocio, todas sus estructuras de costos, libro de costos, firmas y operadores vinculados.`}
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"
         tone="danger"
@@ -331,7 +331,7 @@ export function CompaniesPage() {
             try {
               await deleteCompany.mutateAsync(companyToDelete.id);
             } catch (e) {
-              toast.error("Error al eliminar la empresa: " + apiErrorMessage(e));
+              toast.error("Error al eliminar el negocio: " + apiErrorMessage(e));
             }
           }
           setCompanyToDelete(null);
@@ -395,10 +395,10 @@ export function NewCompanyForm({ onDone }: { onDone: () => void }) {
           <Plus className="size-3.5" /> Nuevo cliente
         </div>
         <h2 className="text-[24px] font-extrabold text-granate-deep tracking-tight">
-          Agregar PyME a tu cartera
+          Agregar negocio a tu cartera
         </h2>
         <p className="text-sm text-ink-soft max-w-2xl">
-          Completá los datos básicos de la empresa. Podrás agregar estructuras
+          Completá los datos básicos del negocio. Podrás agregar estructuras
           de costos después.
         </p>
       </div>
@@ -411,7 +411,7 @@ export function NewCompanyForm({ onDone }: { onDone: () => void }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="company-name" className="block text-[12px] font-semibold text-ink mb-2 uppercase tracking-wide">
-                Nombre de la Empresa *
+                Nombre del negocio *
               </label>
               <Input
                 id="company-name"
@@ -455,7 +455,7 @@ export function NewCompanyForm({ onDone }: { onDone: () => void }) {
               options={PERIODICITY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
             />
             <p className="text-xs text-ink-soft mt-2">
-              Cada cuánto esta empresa cierra un período de costos. Define los
+              Cada cuánto este negocio cierra un período de costos. Define los
               períodos de todas sus estructuras.{" "}
               <strong className="text-ink">
                 Se elige ahora y no se puede cambiar
@@ -483,7 +483,7 @@ export function NewCompanyForm({ onDone }: { onDone: () => void }) {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-[13px] font-extrabold text-granate-deep uppercase tracking-wider">
-                Contexto de la Empresa
+                Contexto del negocio
               </h3>
               <p className="text-xs text-ink-soft mt-1">
                 Descripción de operación, procesos, insumos principales...
