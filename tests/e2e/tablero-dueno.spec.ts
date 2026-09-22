@@ -34,6 +34,7 @@ const TABLERO_COMPLETO = {
     unidadGestion: { codigo: 'cajon', nombre: 'Cajón', factor: 360 },
     rubro: {
       clave: 'AVICOLA_POSTURA',
+      nombreProducto: 'AVI',
       icons: { LoteProductivo: 'bird' },
     },
     pendientes: [],
@@ -129,6 +130,30 @@ async function expandirParaCaptura(page: Page) {
     document.documentElement.style.overflowY = 'visible';
   });
 }
+
+testConSesion('abre y cierra el sidebar del rubro y el logo vuelve al inicio', async ({ page, consola }, testInfo) => {
+  await responderTablero(page, TABLERO_COMPLETO);
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+  await laAppPinto(page);
+
+  const mobile = testInfo.project.name.startsWith('Mobile');
+  const sidebar = page.getByTestId(mobile ? 'mobile-sidebar' : 'desktop-sidebar');
+  await testInfo.attach('sidebar-cerrado', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  await page.getByRole('button', { name: mobile ? 'Abrir menú lateral' : 'Abrir sidebar' }).click();
+  await expect(sidebar.getByText('Costear AVI')).toBeVisible();
+  await expect(sidebar.getByTestId('sidebar-rubro-icon')).toHaveAttribute('data-icon', 'bird');
+  await expect(page.locator('html')).toHaveJSProperty('scrollWidth', await page.locator('html').evaluate((element) => element.clientWidth));
+  await testInfo.attach('sidebar-abierto', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  await sidebar.getByRole('button', { name: 'Cerrar sidebar' }).click();
+  if (mobile) await expect(sidebar).toHaveAttribute('aria-hidden', 'true');
+  else await expect(sidebar.getByText('Costear AVI')).toHaveCount(0);
+  await page.getByRole('button', { name: mobile ? 'Abrir menú lateral' : 'Abrir sidebar' }).click();
+  const logo = sidebar.getByRole('link', { name: 'Costear: ir al inicio' });
+  await expect(logo).toHaveAttribute('href', '/');
+  await logo.click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  expect(consola.mensajes, 'errores en el sidebar').toEqual([]);
+});
 
 testConSesion('muestra los seis números reales del período en el orden definido', async ({ page, consola }) => {
   await responderTablero(page, TABLERO_COMPLETO);

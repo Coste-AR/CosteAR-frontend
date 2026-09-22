@@ -4,7 +4,6 @@ import { Bell, Menu, User, Zap, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAlerts } from '@/features/alerts/alert-hooks';
 import { useLogout } from '@/features/auth/auth-hooks';
-import { CosteARLogo } from '@/components/layout/CosteARLogo';
 /** Indicador global de trazabilidad, siempre activo. */
 function TraceModeIndicator() {
   return (
@@ -27,16 +26,6 @@ export function TopBar() {
 
   return (
     <header className="flex shrink-0 items-center justify-between border-b border-line/40 px-1 py-4 lg:px-8 lg:py-5">
-      {/* Left side: Logo (mobile) + Context badge (desktop) */}
-      <div className="flex items-center gap-3">
-        <div className="flex size-9 items-center justify-center rounded-xl bg-granate text-white lg:hidden">
-          <CosteARLogo className="h-5 w-auto text-white" />
-        </div>
-        <span className="hidden text-[10px] font-bold uppercase tracking-wider text-granate-deep/70 bg-granate-tenue/60 px-3 py-1 rounded-full border border-granate/10 lg:inline-block">
-          Panel de Control
-        </span>
-      </div>
-
       {/* Right side: Alerts and User details */}
       <div className="flex items-center gap-3 lg:gap-4">
         <TraceModeIndicator />
