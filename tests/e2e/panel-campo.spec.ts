@@ -9,6 +9,14 @@ async function noHayDinero(page: import('@playwright/test').Page) {
   await expect(page.getByTestId('field-panel')).not.toContainText(/\$|precio|costo|margen|importe/i);
 }
 
+async function noHayModalBloqueante(page: import('@playwright/test').Page) {
+  const ruta = new URL(page.url()).pathname;
+  await expect(
+    page.getByRole('dialog'),
+    `apareció un modal bloqueante en ${ruta}`,
+  ).toHaveCount(0);
+}
+
 testConSesion('carga producción y bajas desde botones táctiles sin mostrar dinero', async ({ page, consola }) => {
   const requests: Array<{ pathname: string; body: unknown }> = [];
   const telemetryRequests: unknown[] = [];
@@ -112,6 +120,7 @@ testConSesion('carga producción y bajas desde botones táctiles sin mostrar din
   await expect(page.getByRole('button', { name: /Peso/ })).toHaveCount(0);
   await vocabularioVisiblePermitido(page);
   await noHayDinero(page);
+  await noHayModalBloqueante(page);
 
   for (const button of await page.getByTestId('field-action').all()) {
     const box = await button.boundingBox();
@@ -119,8 +128,10 @@ testConSesion('carga producción y bajas desde botones táctiles sin mostrar din
   }
 
   await page.getByRole('button', { name: /Huevos/ }).click();
+  await noHayModalBloqueante(page);
   await page.getByLabel('Huevos').fill('321');
   await page.getByRole('button', { name: 'Volver a las cargas' }).click();
+  await noHayModalBloqueante(page);
 
   await expect.poll(() => telemetryRequests.length).toBe(3);
   expect(telemetryRequests).toEqual([
@@ -146,6 +157,7 @@ testConSesion('carga producción y bajas desde botones táctiles sin mostrar din
   await expect(page.getByRole('heading', { name: 'Listo' })).toBeVisible();
   await expect(page.getByText('Listo: 999999999 huevos, Lote de prueba, hoy')).toBeVisible();
   await expect(page.getByText('El dato quedó guardado y disponible para revisión.')).toBeVisible();
+  await noHayModalBloqueante(page);
 
   await expect.poll(() => requests.length).toBe(1);
   expect(requests[0]).toEqual({
@@ -167,11 +179,13 @@ testConSesion('carga producción y bajas desde botones táctiles sin mostrar din
   await page.getByRole('button', { name: 'Cargar otro dato' }).click();
   await page.getByRole('button', { name: /Gallinas/ }).click();
   await noHayDinero(page);
+  await noHayModalBloqueante(page);
   await page.getByLabel('Gallinas').fill('3');
   await page.getByRole('radio', { name: 'Mortalidad' }).check();
   await page.getByRole('button', { name: 'Guardar gallinas' }).click();
 
   await expect(page.getByText('Listo: 3 gallinas, Lote de prueba, hoy')).toBeVisible();
+  await noHayModalBloqueante(page);
 
   await expect.poll(() => requests.length).toBe(2);
   expect(requests[1]).toEqual({
