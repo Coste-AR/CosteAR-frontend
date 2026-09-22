@@ -104,7 +104,7 @@ export function AiSuggesterSection({
           <div>
             <h3 className="text-[13px] font-bold text-zinc-900">Asistente de Configuración Inicial (IA)</h3>
             <p className="mt-0.5 text-[12px] text-zinc-500">
-              Describí el proceso de la empresa o dictalo por voz para recibir recomendaciones de modelado de costos en base a la cátedra de la UNT.
+              Describí el proceso del negocio o dictalo por voz para recibir recomendaciones de modelado de costos en base a la cátedra de la UNT.
             </p>
           </div>
           <button

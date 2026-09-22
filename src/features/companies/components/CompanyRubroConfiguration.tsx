@@ -375,7 +375,7 @@ export function CompanyRubroConfiguration({
           <div className="flex items-center gap-2 text-granate">
             <Settings2 className="size-5" aria-hidden />
             <h2 className="text-xl font-bold text-granate-deep">
-              {isOnboarding ? 'Configurá cómo trabaja tu empresa' : 'Configuración del rubro'}
+              {isOnboarding ? 'Configurá cómo trabaja tu negocio' : 'Configuración del rubro'}
             </h2>
           </div>
           <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-ink-soft">

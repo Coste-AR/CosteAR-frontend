@@ -1,4 +1,4 @@
-import { expect, laAppPinto, testConSesion } from './fixtures';
+import { expect, laAppPinto, testConSesion, vocabularioVisiblePermitido } from './fixtures';
 
 testConSesion.setTimeout(60_000);
 
@@ -24,7 +24,7 @@ testConSesion('carga producción y bajas desde botones táctiles sin mostrar din
         body: JSON.stringify({
           data: [{
             id: COMPANY_ID,
-            name: 'Empresa de prueba',
+            name: 'Negocio de prueba',
             industry: 'AVICULTURA',
             cuit: null,
             isActive: true,
@@ -106,6 +106,7 @@ testConSesion('carga producción y bajas desde botones táctiles sin mostrar din
   await expect(page.getByRole('button', { name: /Gallinas/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Alimento/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Peso/ })).toHaveCount(0);
+  await vocabularioVisiblePermitido(page);
   await noHayDinero(page);
 
   for (const button of await page.getByTestId('field-action').all()) {

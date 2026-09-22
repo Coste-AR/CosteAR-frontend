@@ -373,7 +373,7 @@ export function DirectLaborForm({ defaultValues, onSave, saving, autoLoadExample
         </div>
         <p className="mb-2 text-[11px] leading-snug text-ink-soft">
           Las <strong className="font-medium text-ink">horas pagadas</strong> son la presencia en fábrica:
-          las horas por las que la empresa paga, trabaje o no el operario (la capacidad normal presupuestada
+          las horas por las que el negocio paga, trabaje o no el operario (la capacidad normal presupuestada
           del departamento). Las <strong className="font-medium text-ink">horas netas productivas</strong> son
           esa presencia menos los tiempos perdidos informados, y son las únicas que se imputan a las órdenes.
           Ninguna de las dos son las horas realmente trabajadas: ese es el dato real de fin de mes.

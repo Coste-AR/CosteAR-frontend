@@ -79,7 +79,7 @@ export function CompanyOperatorsTab({ companyId }: { companyId: string }) {
       <Card>
         <CardHeader
           title="Personal autorizado"
-        description="Usuarios de esta empresa que pueden cargar documentos al portal"
+        description="Usuarios de este negocio que pueden cargar documentos al portal"
         action={
           <Button size="sm" variant="secondary" onClick={() => setShowForm((v) => !v)}>
             <Plus className="size-4" /> Invitar operador
@@ -117,7 +117,7 @@ export function CompanyOperatorsTab({ companyId }: { companyId: string }) {
                 <Input
                   label="Email"
                   type="email"
-                  placeholder="maria@empresa.com"
+                  placeholder="nombre@ejemplo.com"
                   value={operatorEmail}
                   onChange={(e) => setOperatorEmail(e.target.value)}
                 />
@@ -250,7 +250,7 @@ export function CompanyOperatorsTab({ companyId }: { companyId: string }) {
         {operators.length === 0 && !showForm ? (
           <div className="flex flex-col items-center gap-2 py-8 text-center">
             <Users className="size-8 text-ink-soft/40" />
-            <p className="text-[13px] text-ink-soft">Todavía no hay personal autorizado para esta empresa.</p>
+            <p className="text-[13px] text-ink-soft">Todavía no hay personal autorizado para este negocio.</p>
           </div>
         ) : (
           <ul className="divide-y divide-line">

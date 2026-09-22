@@ -66,7 +66,7 @@ export function TopBar() {
           )}
           <div className="text-left leading-none pr-1">
             <p className="text-[11.5px] font-bold text-ink">{user?.name ?? 'Usuario'}</p>
-            <p className="text-[8.5px] text-ink-soft mt-0.5 font-bold uppercase tracking-wider">{user?.role === 'ADMIN' ? 'Administrador' : 'Costista'}</p>
+            <p className="text-[8.5px] text-ink-soft mt-0.5 font-bold uppercase tracking-wider">{user?.role === 'ADMIN' ? 'Administrador' : 'Mi cuenta'}</p>
           </div>
         </div>
 

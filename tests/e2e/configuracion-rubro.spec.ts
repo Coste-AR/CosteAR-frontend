@@ -251,7 +251,7 @@ test('una empresa existente incompleta vuelve al wizard antes de mostrar su fich
   await laAppPinto(page);
 
   await expect(page).toHaveURL(new RegExp(`/companies/${COMPANY_ID}/setup$`));
-  await expect(page.getByText('Configurá cómo trabaja tu empresa')).toBeVisible();
+  await expect(page.getByText('Configurá cómo trabaja tu negocio')).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Estructuras de Costos' })).toHaveCount(0);
   expect(consola.mensajes).toEqual([]);
 });
@@ -318,7 +318,7 @@ test('completa opciones y números obligatorios sin confirmar sugerencias en sil
   await laAppPinto(page);
   await expect(page).toHaveURL(new RegExp(`/companies/${COMPANY_ID}$`));
   await expect(page.getByRole('tab', { name: 'Estructuras de Costos' })).toBeVisible();
-  await expect(page.getByText('Configurá cómo trabaja tu empresa')).toHaveCount(0);
+  await expect(page.getByText('Configurá cómo trabaja tu negocio')).toHaveCount(0);
 
   await page.goto('/profile', { waitUntil: 'domcontentloaded' });
   await laAppPinto(page);

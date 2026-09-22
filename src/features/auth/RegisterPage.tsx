@@ -561,7 +561,7 @@ function StepClients({ draft, set }: { draft: Draft; set: SetFn }) {
   return (
     <>
       <h2 className="text-xl font-bold text-ink">Tu cartera</h2>
-      <p className="text-sm text-ink-soft">¿Ya tenés clientes (PyMEs) que querés cargar ahora?</p>
+      <p className="text-sm text-ink-soft">¿Ya tenés clientes (negocios) que querés cargar ahora?</p>
 
       <div className="grid grid-cols-2 gap-3">
         <button

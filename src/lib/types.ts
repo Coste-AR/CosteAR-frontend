@@ -41,11 +41,11 @@ export const CONDICION_IVA_LABEL: Record<CondicionIva, string> = {
   EXENTO: 'Exento / No inscripto',
 };
 
-/** La explicación contable, con la cita de la cátedra, para mostrar bajo el campo. */
+/** La explicación contable, con el criterio de la cátedra, para mostrar bajo el campo. */
 export const CONDICION_IVA_AYUDA =
-  'Define si el IVA de cada comprobante entra al costo. Según la cátedra: ' +
-  '"el IVA solo aplica si la empresa es responsable no inscripta o monotributista; ' +
-  'si es responsable inscripta, el IVA no forma parte del costo de adquisición". ' +
+  'Define si el IVA de cada comprobante entra al costo. Según la cátedra, ' +
+  'el IVA aplica si el negocio tiene condición no inscripta o monotributista; ' +
+  'si tiene condición responsable inscripta, el IVA no forma parte del costo de adquisición. ' +
   'Un Responsable Inscripto recupera el IVA como crédito fiscal, así que se costea ' +
   'sobre el NETO; un monotributista o un exento no lo recupera, así que se costea ' +
   'sobre el TOTAL. Elegir mal cambia cada línea de costo entre un 10,5 % y un 21 %.';

@@ -165,7 +165,7 @@ export function ProfilePage() {
             {(companies.data?.length ?? 0) > 1 && (
               <div className="max-w-md">
                 <Select
-                  label="Empresa que querés configurar"
+                  label="Negocio que querés configurar"
                   value={configurationCompanyId}
                   options={(companies.data ?? []).map((company) => ({
                     value: company.id,
@@ -178,13 +178,13 @@ export function ProfilePage() {
             {companies.isLoading ? (
               <Card>
                 <CardBody className="py-10 text-center text-sm text-ink-soft">
-                  Cargando empresas…
+                  Cargando negocios…
                 </CardBody>
               </Card>
             ) : companies.isError ? (
               <Card>
                 <CardBody className="py-10 text-center text-sm text-danger" role="alert">
-                  No pudimos cargar tus empresas.
+                  No pudimos cargar tus negocios.
                 </CardBody>
               </Card>
             ) : configurationCompanyId ? (
@@ -200,7 +200,7 @@ export function ProfilePage() {
             ) : (
               <Card>
                 <CardBody className="py-10 text-center text-sm text-ink-soft">
-                  Creá una empresa para configurar los módulos de su rubro.
+                  Creá un negocio para configurar los módulos de su rubro.
                 </CardBody>
               </Card>
             )}

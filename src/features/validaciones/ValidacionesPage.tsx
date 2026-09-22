@@ -176,7 +176,7 @@ export function ValidacionesPage() {
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-ink-soft/80">
-                Empresas
+                negocios
               </p>
               <p className="text-[20px] font-extrabold text-violet-700 leading-none mt-1">
                 {byCompany.size}
@@ -276,7 +276,7 @@ export function ValidacionesPage() {
                 </span>
                 <span className="text-[12px] font-semibold text-ink-soft">
                   en {byCompany.size}{" "}
-                  {byCompany.size === 1 ? "empresa" : "empresas"}
+                  {byCompany.size === 1 ? "negocio" : "negocios"}
                 </span>
                 {confidentCount > 0 && (
                   <Button

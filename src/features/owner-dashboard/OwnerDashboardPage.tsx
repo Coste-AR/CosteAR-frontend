@@ -413,7 +413,7 @@ function MoneyToUnitConverter({
               </p>
               <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
                 {!unidadDisponible
-                  ? 'La empresa tiene que declarar su unidad de gestión antes de convertir importes.'
+                  ? 'El negocio tiene que declarar su unidad de gestión antes de convertir importes.'
                   : contribucionNoPositiva
                     ? `Cada ${unidadSingular} que se vende no deja nada para cubrir costos fijos, así que ningún volumen alcanza. Hay que revisar el precio o los costos variables antes de usar este conversor.`
                     : `No se puede calcular cuántos ${unidadPlural} cubren el importe hasta tener la contribución marginal del período.`}
@@ -499,7 +499,7 @@ export function OwnerDashboardPage() {
     <AppShell>
       <div className="animate-rise space-y-8" data-testid="owner-dashboard">
         <PageHeader
-          title="Tablero de la empresa"
+          title="Tablero del negocio"
           description={data
             ? data.unidadGestion
               ? `Período ${data.periodo.codigo}, expresado en ${unidadPlural}.`

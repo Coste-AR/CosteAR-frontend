@@ -165,3 +165,8 @@ export async function laAppPinto(page: Page) {
   await expect(root).toBeVisible();
   await expect(root).not.toBeEmpty();
 }
+
+export async function vocabularioVisiblePermitido(page: Page) {
+  const texto = (await page.locator('body').innerText()).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  expect(texto).not.toMatch(/costista|empresa|pyme|gestiona tu pyme/i);
+}

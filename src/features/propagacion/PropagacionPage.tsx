@@ -249,7 +249,7 @@ export function PropagacionPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b-2 border-line bg-surface-alt text-[11px] uppercase tracking-wider text-ink-soft">
-                      <th className="px-6 py-3 text-left font-semibold">Empresa / Producto</th>
+                      <th className="px-6 py-3 text-left font-semibold">Negocio / Producto</th>
                       <th className="px-4 py-3 text-right font-semibold">Costo anterior</th>
                       <th className="px-4 py-3 text-right font-semibold">Costo nuevo</th>
                       <th className="px-4 py-3 text-right font-semibold">Margen ant.</th>

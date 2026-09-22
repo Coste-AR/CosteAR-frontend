@@ -1,4 +1,4 @@
-import { testConSesion as test, expect, laAppPinto } from './fixtures';
+import { testConSesion as test, expect, laAppPinto, vocabularioVisiblePermitido } from './fixtures';
 
 // WebKit puede tardar mas de 30 s en capturar el dashboard completo en cuatro
 // workers. El splash consume 5,3 s por si solo y la evidencia no se recorta.
@@ -13,6 +13,7 @@ test('dashboard carga con la sesion iniciada', async ({ page, consola }) => {
   await expect(page.getByText('Por Validar', { exact: true })).toBeVisible();
   await expect(page.getByText('Alertas Activas', { exact: true })).toBeVisible();
   await expect(page.getByText('Estructuras Totales', { exact: true })).toBeVisible();
+  await vocabularioVisiblePermitido(page);
 
   expect(consola.mensajes, 'errores en /dashboard').toEqual([]);
 });

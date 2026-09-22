@@ -99,7 +99,7 @@ export function DashboardPage() {
                 {greet(user?.name)}
               </h1>
               <p className="text-[13px] leading-relaxed text-ink-soft max-w-xl">
-                Revisá la evolución de los costos país y gestioná las auditorías y desvíos de tu cartera de clientes PyME desde tu centro operativo.
+                Revisá la evolución de los costos país y gestioná las auditorías y desvíos de tu cartera de clientes desde tu centro operativo.
               </p>
             </div>
 
@@ -146,7 +146,7 @@ export function DashboardPage() {
                 </div>
                 <div className="mt-3">
                   <p className="text-[12px] font-bold text-ink leading-tight">Clientes</p>
-                  <p className="text-[9.5px] text-ink-soft mt-0.5 font-medium">Alta PyME</p>
+                  <p className="text-[9.5px] text-ink-soft mt-0.5 font-medium">Agregar negocio</p>
                 </div>
               </Link>
               <Link to="/validaciones" className="flex flex-col justify-between rounded-2xl bg-white border border-line p-4 hover:border-granate/20 hover:-translate-y-0.5 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.01)] group">
@@ -271,7 +271,7 @@ export function DashboardPage() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-action opacity-75"></span>
                     <span className="relative inline-flex rounded-full size-2 bg-action"></span>
                   </span>
-                  <span className="text-[11px] font-bold text-action">Revisar PyMEs con discrepancias</span>
+                  <span className="text-[11px] font-bold text-action">Revisar negocios con discrepancias</span>
                 </div>
                 <ChevronRight className="size-4 text-action group-hover:translate-x-0.5 transition-transform" />
               </Link>
@@ -355,7 +355,7 @@ export function DashboardPage() {
                 <div className="lg:min-w-[500px]">
                   {/* Header (desktop column labels only — mobile uses stacked cards) */}
                   <div className="hidden lg:grid lg:grid-cols-[1fr_120px_70px_90px] gap-x-4 px-6 py-3 text-[9.5px] font-bold uppercase tracking-wider text-ink-soft bg-zinc-50/20 border-b border-line">
-                    <span>Empresa</span>
+                    <span>Negocio</span>
                     <span>Sector</span>
                     <span className="text-center">Modelos</span>
                     <span className="text-right">Salud</span>
