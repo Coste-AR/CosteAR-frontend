@@ -43,6 +43,7 @@ export interface OwnerDashboardData {
   unidadGestion: UnidadGestion | null;
   rubro: {
     clave: string;
+    nombreProducto: string | null;
     icons: Record<string, string>;
   } | null;
   pendientes: OwnerDashboardPending[];

@@ -4,15 +4,12 @@ import {
   AlertCircle,
   AlertTriangle,
   BarChart3,
-  Bird,
   Building2,
   CalendarClock,
   Calculator,
   CheckCircle2,
   ClipboardList,
-  Container,
   Factory,
-  FlaskConical,
   Info,
   PackageCheck,
   Scale,
@@ -20,10 +17,10 @@ import {
   ShoppingCart,
   TrendingUp,
   WalletCards,
-  Warehouse,
 } from 'lucide-react';
 import { useSearch } from '@tanstack/react-router';
 import { AppShell, PageHeader } from '@/components/layout/AppShell';
+import { INDUSTRY_ICONS } from '@/components/layout/rubro-icons';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { apiErrorMessage } from '@/lib/api';
@@ -41,13 +38,6 @@ import { CapiaReferences } from './CapiaReferences';
 
 const SIN_DATOS = 'Sin datos';
 const INCOMPLETO = 'Incompleto';
-
-const INDUSTRY_ICONS: Record<string, LucideIcon> = {
-  bird: Bird,
-  warehouse: Warehouse,
-  container: Container,
-  flask: FlaskConical,
-};
 
 const quantityFormatter = new Intl.NumberFormat('es-AR', {
   minimumFractionDigits: 0,
@@ -496,7 +486,7 @@ export function OwnerDashboardPage() {
   const IndustryIcon = INDUSTRY_ICONS[iconName] ?? Building2;
 
   return (
-    <AppShell>
+    <AppShell rubro={data?.rubro}>
       <div className="animate-rise space-y-8" data-testid="owner-dashboard">
         <PageHeader
           title="Tablero del negocio"
