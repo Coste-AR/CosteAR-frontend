@@ -1,14 +1,14 @@
 ---
 issue: 184
 repo: CosteAR-frontend
-pr: 0
+pr: 200
 rama: feat/184-sidebar-rubro
 agente: codex
 modelo: gpt-5
 tanda: B3
 inicio: 2026-09-22T05:02-03:00
-fin: 2026-09-22T05:37-03:00
-minutos: 35
+fin: 2026-09-22T05:39-03:00
+minutos: 37
 tokens: no-informado
 clears: 0
 intentos_hasta_verde: 2
