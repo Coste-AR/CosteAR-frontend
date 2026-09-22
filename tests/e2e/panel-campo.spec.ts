@@ -100,6 +100,10 @@ testConSesion('carga producción y bajas desde botones táctiles sin mostrar din
 
   await page.goto('/panel-campo', { waitUntil: 'domcontentloaded' });
   await laAppPinto(page);
+  await page.getByRole('button', { name: 'Abrir ayuda de esta pantalla' }).click();
+  await expect(page.getByRole('region', { name: 'Ayuda del panel de campo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '¿Cómo registro una carga?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cerrar ayuda' }).click();
 
   await expect(page.getByRole('heading', { name: '¿Qué querés cargar?' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Huevos/ })).toBeVisible();

@@ -1,0 +1,1 @@
+export const ASISTENTE_INACTIVIDAD_MS = 3 * 60 * 1000;
