@@ -127,7 +127,54 @@ const PUNTO_CIERRE = {
   },
 };
 
-async function responderTablero(page: Page, body: unknown, capia: unknown = CAPIA_VIGENTE, puntoCierre?: unknown) {
+const EQUILIBRIO_TRAMOS_AM_09 = {
+  data: {
+    tramos: [
+      {
+        tramoId: 'tramo-actual', tipo: 'REEMPLAZA', desde: 0, hasta: 475.7,
+        techo: 475.7, qAritmetico: 598.52, q: null, resultadoMaximo: -365_268.2,
+        motivoFueraDeTramo: 'El equilibrio aritmético supera el techo físico del tramo (475.7).',
+      },
+      {
+        tramoId: 'tramo-siguiente', tipo: 'REEMPLAZA', desde: 475.7, hasta: 950.9,
+        techo: 950.9, qAritmetico: 874.24, q: 874.24, resultadoMaximo: 227_976.6,
+      },
+    ],
+    transiciones: [{
+      desdeTramoId: 'tramo-actual', haciaTramoId: 'tramo-siguiente', qIndiferencia: 751.42,
+      binding: 874.24, margenHastaTecho: 76.66, porcentajeMargen: 8.1,
+      alertaPegadoAlTecho: true,
+    }],
+  },
+};
+
+const TRAMOS_AM_09 = {
+  data: [
+    {
+      id: 'tramo-actual', conceptoId: 'concepto-sintetico', segmentoId: null,
+      desde: 0, hasta: 475.7, tipo: 'REEMPLAZA', importeFijo: 1_780_000,
+      cmUnitaria: 2_974, techoFisico: 475.7, techoFuente: 'Informe técnico sintético',
+      techoDeclaradoEn: '2099-01-15T12:00:00.000Z', techoDeclaradoPorId: 'actor-sintetico',
+      createdAt: '2099-01-15T12:00:00.000Z',
+    },
+    {
+      id: 'tramo-siguiente', conceptoId: 'concepto-sintetico', segmentoId: null,
+      desde: 475.7, hasta: 950.9, tipo: 'REEMPLAZA', importeFijo: 2_600_000,
+      cmUnitaria: 2_974, techoFisico: 950.9, techoFuente: 'Proyecto de ampliación sintético',
+      techoDeclaradoEn: '2099-01-15T12:00:00.000Z', techoDeclaradoPorId: 'actor-sintetico',
+      createdAt: '2099-01-15T12:00:00.000Z',
+    },
+  ],
+};
+
+async function responderTablero(
+  page: Page,
+  body: unknown,
+  capia: unknown = CAPIA_VIGENTE,
+  puntoCierre?: unknown,
+  equilibrioTramos: unknown = { data: { tramos: [], transiciones: [] } },
+  tramos: unknown = { data: [] },
+) {
   const unidadGestion = (body as { data?: { unidadGestion?: { codigo?: string } | null } }).data?.unidadGestion;
   const respuestaPuntoCierre = puntoCierre ?? {
     data: {
@@ -166,6 +213,14 @@ async function responderTablero(page: Page, body: unknown, capia: unknown = CAPI
       contentType: 'application/json',
       body: JSON.stringify(respuestaPuntoCierre),
     });
+  });
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/tramos-costo/equilibrio`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(equilibrioTramos) });
+  });
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/tramos-costo`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tramos) });
   });
 }
 
@@ -291,6 +346,34 @@ testConSesion('muestra el punto de cierre de 1 y 12 meses sin colapsar horizonte
     contentType: 'image/png',
   });
   expect(consola.mensajes, 'errores al mostrar el punto de cierre').toEqual([]);
+});
+
+testConSesion('muestra AM-09 por tramos y nunca publica el equilibrio aritmético fuera de rango', async ({ page, consola }, testInfo) => {
+  await responderTablero(
+    page,
+    TABLERO_COMPLETO,
+    CAPIA_VIGENTE,
+    undefined,
+    EQUILIBRIO_TRAMOS_AM_09,
+    TRAMOS_AM_09,
+  );
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+
+  await laAppPinto(page);
+  const panel = page.getByTestId('equilibrio-tramos-panel');
+  await expect(panel.getByText('No existe un equilibrio operativo en este tramo')).toBeVisible();
+  await expect(panel.getByText('Siguiente equilibrio operativo: 874,24 cajones')).toBeVisible();
+  await expect(panel.getByText('Punto de resultado indiferente: 751,42 cajones')).toBeVisible();
+  await expect(panel.getByRole('alert')).toContainText('8,1%');
+  await expect(panel.getByText(/598,52/)).toHaveCount(0);
+  await expect(page.getByTestId('owner-metric').nth(3).getByText('40')).toHaveCount(0);
+
+  await expandirParaCaptura(page);
+  await testInfo.attach('equilibrio-por-tramos-am-09', {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  });
+  expect(consola.mensajes, 'errores al mostrar equilibrio por tramos').toEqual([]);
 });
 
 testConSesion('toma la unidad y el icono del rubro de la respuesta', async ({ page, consola }) => {

@@ -29,6 +29,7 @@ import { formatDate, formatMoney } from '@/lib/utils';
 import { nombreUnidad, nombreUnidadPlural, SIN_UNIDAD_DECLARADA } from '@/lib/unit-display';
 import {
   useCapiaIndicators,
+  useEquilibrioTramos,
   useOwnerDashboard,
   usePuntoCierre,
   type OwnerDashboardData,
@@ -38,6 +39,7 @@ import {
 } from './owner-dashboard-hooks';
 import { CapiaReferences } from './CapiaReferences';
 import { PuntoCierrePanel } from './PuntoCierrePanel';
+import { EquilibrioTramosPanel } from './EquilibrioTramosPanel';
 
 const SIN_DATOS = 'Sin datos';
 const INCOMPLETO = 'Incompleto';
@@ -499,6 +501,7 @@ export function OwnerDashboardPage() {
     puntoEquilibrioEconomico,
     actividad,
   }, Boolean(companyId && periodId && datosPuntoCierreCompletos));
+  const equilibrioTramos = useEquilibrioTramos(companyId, Boolean(companyId));
   const capia = useCapiaIndicators(data?.rubro?.clave === 'AVICOLA_POSTURA');
   const unidadSingular = nombreUnidad(data?.unidadGestion);
   const unidadPlural = nombreUnidadPlural(data?.unidadGestion);
@@ -590,11 +593,29 @@ export function OwnerDashboardPage() {
             </MetricCard>
 
             <MetricCard title={`Punto de equilibrio ${enUnidad}`} icon={Scale}>
-              <MetricValue numero={data?.puntoEquilibrioCajones} kind="quantity" detail={unidadPlural} />
-              <div className="mt-4 flex items-center gap-2 border-t border-line pt-3 text-[11px] text-ink-soft">
-                <CalendarClock className="size-3.5" aria-hidden="true" />
-                <span>Último recálculo: <strong>{data?.puntoEquilibrioCajones.fechaUltimoRecalculo ? formatDate(data.puntoEquilibrioCajones.fechaUltimoRecalculo) : SIN_DATOS}</strong></span>
-              </div>
+              {equilibrioTramos.isLoading ? (
+                <p className="text-sm font-bold text-ink-soft">Comprobando el rango físico…</p>
+              ) : equilibrioTramos.isError ? (
+                <div role="alert">
+                  <p className="text-sm font-bold text-danger">Equilibrio no disponible</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">No se pudo comprobar si entra en el rango físico.</p>
+                </div>
+              ) : equilibrioTramos.data?.equilibrio.tramos.length ? (
+                <div>
+                  <p className="font-mono-jb text-xl font-bold text-granate-deep">Función por tramos</p>
+                  <p className="mt-1 text-[11px] font-semibold text-ink-soft/70">
+                    {equilibrioTramos.data.equilibrio.tramos.length} rangos físicos declarados
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <MetricValue numero={data?.puntoEquilibrioCajones} kind="quantity" detail={unidadPlural} />
+                  <div className="mt-4 flex items-center gap-2 border-t border-line pt-3 text-[11px] text-ink-soft">
+                    <CalendarClock className="size-3.5" aria-hidden="true" />
+                    <span>Último recálculo: <strong>{data?.puntoEquilibrioCajones.fechaUltimoRecalculo ? formatDate(data.puntoEquilibrioCajones.fechaUltimoRecalculo) : SIN_DATOS}</strong></span>
+                  </div>
+                </>
+              )}
             </MetricCard>
 
             <MetricCard title="Producido contra equilibrio" icon={BarChart3}>
@@ -605,6 +626,19 @@ export function OwnerDashboardPage() {
               <MetricValue numero={data?.resultadoPeriodo} kind="money" detail="Resultado total" />
             </MetricCard>
           </div>
+        </section>
+
+        <section aria-label="Equilibrio por tramos">
+          <EquilibrioTramosPanel
+            equilibrio={equilibrioTramos.data?.equilibrio}
+            tramos={equilibrioTramos.data?.tramos}
+            unidad={unidadSingular}
+            unidadPlural={unidadPlural}
+            isLoading={companies.isLoading || equilibrioTramos.isLoading}
+            error={equilibrioTramos.isError
+              ? `No se pudo cargar el equilibrio por tramos: ${apiErrorMessage(equilibrioTramos.error)}`
+              : undefined}
+          />
         </section>
 
         <section aria-label="Referencias del sector">

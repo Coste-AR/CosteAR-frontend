@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 const apiGet = vi.fn();
 vi.mock('@/lib/api', () => ({ api: { get: apiGet } }));
-const { useCapiaIndicators, useOwnerDashboard, usePuntoCierre } = await import('./owner-dashboard-hooks');
+const { useCapiaIndicators, useEquilibrioTramos, useOwnerDashboard, usePuntoCierre } = await import('./owner-dashboard-hooks');
 
 let queryClient: QueryClient;
 function wrapper({ children }: { children: ReactNode }) {
@@ -71,5 +71,17 @@ describe('tablero del dueño', () => {
         },
       },
     );
+  });
+
+  it('consulta juntos la función de equilibrio y la fuente de cada techo', async () => {
+    apiGet
+      .mockResolvedValueOnce({ data: { data: { tramos: [], transiciones: [] } } })
+      .mockResolvedValueOnce({ data: { data: [] } });
+
+    renderHook(() => useEquilibrioTramos('company-1', true), { wrapper });
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(2));
+    expect(apiGet).toHaveBeenNthCalledWith(1, '/companies/company-1/tramos-costo/equilibrio');
+    expect(apiGet).toHaveBeenNthCalledWith(2, '/companies/company-1/tramos-costo');
   });
 });
