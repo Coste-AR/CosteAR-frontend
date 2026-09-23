@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Alert, AlertSetting, MacroSnapshot } from '@/lib/types';
+import type { Alert, AlertRule, AlertRuleIndicator, AlertRuleInput, AlertSetting, MacroSnapshot } from '@/lib/types';
 
 /** Últimos valores macro (dólar, IPC, etc.) para el semáforo de riesgo. */
 export function useMacroLatest() {
@@ -44,6 +44,44 @@ export function useMarkAlertRead() {
       await api.put(`/alerts/${id}/read`);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['alerts'] }),
+  });
+}
+
+export function useAlertRuleCatalog(companyId: string) {
+  return useQuery({
+    queryKey: ['companies', companyId, 'alert-rules', 'catalog'],
+    queryFn: async () => {
+      const res = await api.get<{ data: AlertRuleIndicator[] }>(
+        `/companies/${companyId}/alert-rules/catalog`,
+      );
+      return res.data.data;
+    },
+    enabled: !!companyId,
+  });
+}
+
+export function useAlertRules(companyId: string) {
+  return useQuery({
+    queryKey: ['companies', companyId, 'alert-rules'],
+    queryFn: async () => {
+      const res = await api.get<{ data: AlertRule[] }>(`/companies/${companyId}/alert-rules`);
+      return res.data.data;
+    },
+    enabled: !!companyId,
+  });
+}
+
+export function useSaveAlertRule(companyId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, input }: { id?: string; input: AlertRuleInput }) => {
+      const path = `/companies/${companyId}/alert-rules`;
+      const res = id
+        ? await api.patch<{ data: AlertRule }>(`${path}/${id}`, input)
+        : await api.post<{ data: AlertRule }>(path, input);
+      return res.data.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['companies', companyId, 'alert-rules'] }),
   });
 }
 

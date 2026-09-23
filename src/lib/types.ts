@@ -343,12 +343,49 @@ export interface CostCalculation {
 
 export interface Alert {
   id: string;
-  type: 'MARGIN_BELOW_THRESHOLD' | 'MACRO_CHANGE' | 'COST_SPIKE';
+  type: 'MARGIN_BELOW_THRESHOLD' | 'MACRO_CHANGE' | 'COST_SPIKE' | 'INDICADOR_FISICO';
   message: string;
   threshold: string | null;
   actualValue: string | null;
   isRead: boolean;
   createdAt: string;
+  severidad: 'INFO' | 'ADVERTENCIA' | 'CRITICA' | null;
+  indicador: string | null;
+  indicadorEtiqueta: string | null;
+  unidadValor: string | null;
+  unidadUmbral: string | null;
+  motivoNoEvaluada: string | null;
+}
+
+export interface AlertRuleIndicator {
+  clave: string;
+  etiqueta: string;
+  unidad: string;
+}
+
+export interface AlertRule {
+  id: string;
+  indicador: string;
+  descripcion: string;
+  condicion: 'MAYOR' | 'MENOR' | 'FUERA_DE_RANGO_PCT';
+  umbral: string;
+  severidad: 'INFO' | 'ADVERTENCIA' | 'CRITICA';
+  destinatarios: string[];
+  canal: 'IN_APP' | 'EMAIL';
+  activa: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AlertRuleInput {
+  indicador: AlertRule['indicador'];
+  descripcion: string;
+  condicion: AlertRule['condicion'];
+  umbral: number;
+  severidad: AlertRule['severidad'];
+  destinatarios: string[];
+  canal: AlertRule['canal'];
+  activa: boolean;
 }
 
 export interface AlertSetting {
