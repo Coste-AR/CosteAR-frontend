@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 const apiGet = vi.fn();
 vi.mock('@/lib/api', () => ({ api: { get: apiGet } }));
-const { useCapiaIndicators, useOwnerDashboard } = await import('./owner-dashboard-hooks');
+const { useCapiaIndicators, useOwnerDashboard, usePuntoCierre } = await import('./owner-dashboard-hooks');
 
 let queryClient: QueryClient;
 function wrapper({ children }: { children: ReactNode }) {
@@ -46,5 +46,30 @@ describe('tablero del dueño', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
 
     expect(apiGet).toHaveBeenCalledWith('/indicadores/capia/vigentes');
+  });
+
+  it('pide los horizontes 1 y 12 con los valores del tablero sin recalcularlos', async () => {
+    apiGet.mockResolvedValue({ data: { data: { horizontes: [] } } });
+    renderHook(() => usePuntoCierre({
+      companyId: 'company-1',
+      periodId: 'period-1',
+      precioUnitario: 500,
+      puntoEquilibrioEconomico: 750,
+      actividad: 650,
+    }, true), { wrapper });
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalled());
+    expect(apiGet).toHaveBeenCalledWith(
+      '/companies/company-1/analisis/punto-cierre',
+      {
+        params: {
+          horizontes: '1,12',
+          precioUnitario: 500,
+          puntoEquilibrioEconomico: 750,
+          actividad: 650,
+          periodId: 'period-1',
+        },
+      },
+    );
   });
 });
