@@ -5,6 +5,7 @@ test.setTimeout(60_000);
 testConSesion.setTimeout(60_000);
 
 const PERIOD_ID = '00000000-0000-4000-8000-000000000090';
+const COMPANY_ID = '00000000-0000-4000-8000-000000000091';
 const METRICAS = [
   'Costo por cajón',
   'Precio promedio de venta del período',
@@ -92,7 +93,56 @@ const CAPIA_VIGENTE = {
   },
 };
 
-async function responderTablero(page: Page, body: unknown, capia: unknown = CAPIA_VIGENTE) {
+const PUNTO_CIERRE = {
+  data: {
+    moneda: 'ARS',
+    unidad: 'cajon',
+    nominal: true,
+    precioUnitario: 30,
+    puntoEquilibrioEconomico: 40,
+    actividad: 50,
+    importeVersionIds: ['00000000-0000-4000-8000-000000000092'],
+    horizontes: [
+      {
+        horizonteMeses: 1,
+        valor: 25,
+        costosFijosErogables: 275,
+        costoVariableUnitarioErogable: 19,
+        contribucionMarginalFinanciera: 11,
+        situacion: null,
+        advertencia: 'un resultado negativo no significa que haya que cerrar',
+        basadoEn: [],
+      },
+      {
+        horizonteMeses: 12,
+        valor: 35,
+        costosFijosErogables: 385,
+        costoVariableUnitarioErogable: 19,
+        contribucionMarginalFinanciera: 11,
+        situacion: 'pierde económicamente y sostiene la caja',
+        advertencia: 'un resultado negativo no significa que haya que cerrar',
+        basadoEn: [],
+      },
+    ],
+  },
+};
+
+async function responderTablero(page: Page, body: unknown, capia: unknown = CAPIA_VIGENTE, puntoCierre?: unknown) {
+  const unidadGestion = (body as { data?: { unidadGestion?: { codigo?: string } | null } }).data?.unidadGestion;
+  const respuestaPuntoCierre = puntoCierre ?? {
+    data: {
+      ...PUNTO_CIERRE.data,
+      unidad: unidadGestion?.codigo ?? null,
+    },
+  };
+  await page.route('**/api/v1/companies', (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: [{ id: COMPANY_ID, name: 'Negocio sintético' }] }),
+    });
+  });
   await page.route('**/api/v1/periods/*/tablero-dueno', (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
     return route.fulfill({
@@ -107,6 +157,14 @@ async function responderTablero(page: Page, body: unknown, capia: unknown = CAPI
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(capia),
+    });
+  });
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/analisis/punto-cierre**`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(respuestaPuntoCierre),
     });
   });
 }
@@ -213,6 +271,26 @@ testConSesion('muestra los seis números reales del período en el orden definid
 
   await expandirParaCaptura(page);
   expect(consola.mensajes, 'errores en /owner-dashboard').toEqual([]);
+});
+
+testConSesion('muestra el punto de cierre de 1 y 12 meses sin colapsar horizontes', async ({ page, consola }, testInfo) => {
+  await responderTablero(page, TABLERO_COMPLETO);
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+
+  await laAppPinto(page);
+  const panel = page.getByTestId('punto-cierre-panel');
+  await expect(panel.getByRole('heading', { name: 'Punto de cierre' })).toBeVisible();
+  await expect(panel.getByTestId('punto-cierre-1').getByText('25 cajones')).toBeVisible();
+  await expect(panel.getByTestId('punto-cierre-12').getByText('35 cajones')).toBeVisible();
+  await expect(panel.getByText('pierde económicamente y sostiene la caja')).toBeVisible();
+  await expect(panel.getByText('un resultado negativo no significa que haya que cerrar')).toBeVisible();
+
+  await expandirParaCaptura(page);
+  await testInfo.attach('punto-cierre-por-horizonte', {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  });
+  expect(consola.mensajes, 'errores al mostrar el punto de cierre').toEqual([]);
 });
 
 testConSesion('toma la unidad y el icono del rubro de la respuesta', async ({ page, consola }) => {

@@ -87,6 +87,39 @@ export interface CapiaIndicatorsData {
   items: CapiaIndicator[];
 }
 
+export interface PuntoCierreHorizonte {
+  horizonteMeses: number;
+  valor: number | null;
+  motivoSinEquilibrio?: string;
+  costosFijosErogables: number | null;
+  costoVariableUnitarioErogable: number | null;
+  contribucionMarginalFinanciera: number | null;
+  situacion: string | null;
+  advertencia: string;
+  basadoEn: Array<{ clave: string; etiqueta: string }>;
+  conceptosIncluidos?: Array<{ clave: string; etiqueta: string }>;
+  conceptosExcluidos?: Array<{ clave: string; etiqueta: string }>;
+}
+
+export interface PuntoCierreData {
+  moneda: string | null;
+  unidad: string | null;
+  nominal: true;
+  precioUnitario: number;
+  puntoEquilibrioEconomico: number;
+  actividad: number | null;
+  importeVersionIds: string[];
+  horizontes: PuntoCierreHorizonte[];
+}
+
+interface PuntoCierreParams {
+  companyId?: string;
+  periodId?: string;
+  precioUnitario?: number;
+  puntoEquilibrioEconomico?: number;
+  actividad?: number;
+}
+
 export function useOwnerDashboard(periodId: string | undefined) {
   return useQuery({
     queryKey: ['owner-dashboard', periodId],
@@ -106,6 +139,28 @@ export function useCapiaIndicators(enabled: boolean) {
     queryFn: async () => {
       const res = await api.get<{ data: CapiaIndicatorsData }>(
         '/indicadores/capia/vigentes',
+      );
+      return res.data.data;
+    },
+    enabled,
+  });
+}
+
+export function usePuntoCierre(params: PuntoCierreParams, enabled: boolean) {
+  return useQuery({
+    queryKey: ['punto-cierre', params],
+    queryFn: async () => {
+      const res = await api.get<{ data: PuntoCierreData }>(
+        `/companies/${params.companyId}/analisis/punto-cierre`,
+        {
+          params: {
+            horizontes: '1,12',
+            precioUnitario: params.precioUnitario,
+            puntoEquilibrioEconomico: params.puntoEquilibrioEconomico,
+            actividad: params.actividad,
+            periodId: params.periodId,
+          },
+        },
       );
       return res.data.data;
     },

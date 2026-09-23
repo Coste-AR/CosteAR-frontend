@@ -24,17 +24,20 @@ import { INDUSTRY_ICONS } from '@/components/layout/rubro-icons';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { apiErrorMessage } from '@/lib/api';
+import { useCompanies } from '@/features/companies/company-hooks';
 import { formatDate, formatMoney } from '@/lib/utils';
 import { nombreUnidad, nombreUnidadPlural, SIN_UNIDAD_DECLARADA } from '@/lib/unit-display';
 import {
   useCapiaIndicators,
   useOwnerDashboard,
+  usePuntoCierre,
   type OwnerDashboardData,
   type OwnerDashboardNumber,
   type OwnerDashboardPending,
   type OwnerDashboardPendingArea,
 } from './owner-dashboard-hooks';
 import { CapiaReferences } from './CapiaReferences';
+import { PuntoCierrePanel } from './PuntoCierrePanel';
 
 const SIN_DATOS = 'Sin datos';
 const INCOMPLETO = 'Incompleto';
@@ -475,6 +478,27 @@ export function OwnerDashboardPage() {
   const { periodId } = useSearch({ strict: false }) as { periodId?: string };
   const tablero = useOwnerDashboard(periodId);
   const data = tablero.data;
+  const companies = useCompanies();
+  const companyId = companies.data?.length === 1 ? companies.data[0]?.id : undefined;
+  const precioUnitario = numeroSeguro(data?.precioPromedioVenta) && data.precioPromedioVenta.valor > 0
+    ? data.precioPromedioVenta.valor
+    : undefined;
+  const puntoEquilibrioEconomico = numeroSeguro(data?.puntoEquilibrioCajones) && data.puntoEquilibrioCajones.valor >= 0
+    ? data.puntoEquilibrioCajones.valor
+    : undefined;
+  const actividad = numeroSeguro(data?.producidoCajones) && data.producidoCajones.valor >= 0
+    ? data.producidoCajones.valor
+    : undefined;
+  const datosPuntoCierreCompletos = precioUnitario !== undefined
+    && puntoEquilibrioEconomico !== undefined
+    && actividad !== undefined;
+  const puntoCierre = usePuntoCierre({
+    companyId,
+    periodId,
+    precioUnitario,
+    puntoEquilibrioEconomico,
+    actividad,
+  }, Boolean(companyId && periodId && datosPuntoCierreCompletos));
   const capia = useCapiaIndicators(data?.rubro?.clave === 'AVICOLA_POSTURA');
   const unidadSingular = nombreUnidad(data?.unidadGestion);
   const unidadPlural = nombreUnidadPlural(data?.unidadGestion);
@@ -597,6 +621,19 @@ export function OwnerDashboardPage() {
             contribucion={data?.contribucionMarginalPorCajon}
             periodo={data?.periodo.codigo}
             unidad={data?.unidadGestion}
+          />
+        </section>
+
+        <section aria-label="Punto de cierre por horizonte">
+          <PuntoCierrePanel
+            data={puntoCierre.data}
+            isLoading={companies.isLoading || puntoCierre.isLoading}
+            error={puntoCierre.isError ? `No se pudo cargar el punto de cierre: ${apiErrorMessage(puntoCierre.error)}` : undefined}
+            unavailableReason={companies.data && companies.data.length !== 1
+              ? 'No se pudo identificar un único negocio para este período.'
+              : data && !datosPuntoCierreCompletos
+                ? motivosUnicos(data.precioPromedioVenta, data.puntoEquilibrioCajones, data.producidoCajones).join(' ') || 'Faltan datos del período para calcular el punto de cierre.'
+                : undefined}
           />
         </section>
 
