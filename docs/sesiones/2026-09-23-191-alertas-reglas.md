@@ -1,14 +1,14 @@
 ---
 issue: 191
 repo: CosteAR-frontend
-pr: pendiente
+pr: 204
 rama: feat/alertas-home-reglas
 agente: codex
 modelo: gpt-5
 tanda: B3
 inicio: 2026-09-23T02:20-03:00
-fin: 2026-09-23T02:48-03:00
-minutos: 28
+fin: 2026-09-23T02:50-03:00
+minutos: 30
 tokens: no-informado
 clears: 1
 intentos_hasta_verde: 2
