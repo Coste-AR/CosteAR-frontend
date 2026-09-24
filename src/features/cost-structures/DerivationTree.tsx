@@ -448,7 +448,7 @@ function SelloIA({ prov }: { prov: AiProvenance }) {
         {prov.confirmado ? (
           <span className="text-ok">
             {prov.corregidoPorPersona ? 'corregido y confirmado' : 'confirmado'} por{' '}
-            <strong>{prov.confirmadoPor ?? 'el costista'}</strong>
+            <strong>{prov.confirmadoPor ?? 'quien revisa'}</strong>
             {prov.confirmadoEl && <span className="text-ink-soft"> · {fmtExactAt(prov.confirmadoEl)}</span>}
           </span>
         ) : (

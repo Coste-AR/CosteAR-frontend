@@ -19,10 +19,9 @@ import type { CalculationResult } from '@/lib/types';
 /**
  * EL MODO TRAZABILIDAD TIENE QUE RESALTAR ALGO (T-05).
  *
- * El defecto que cubren estos tests: el interruptor global se prendía, el cartel
- * prometía "cada valor resaltado tiene origen rastreable"… y en 7 de las 8
- * pestañas no había un solo valor resaltado. Un modo que se prende y no cambia
- * nada le enseña al costista que la función no anda.
+ * El defecto que cubren estos tests: el indicador prometía que cada valor
+ * resaltado tiene origen rastreable, pero en 7 de las 8 pestañas no había un
+ * solo valor resaltado. La trazabilidad siempre activa tiene que mostrarlo.
  *
  * La otra mitad —igual de importante— es que NO se resalte lo que no tiene
  * origen. La auditoría no encontró un solo valor que prometiera ficha y no la
@@ -75,8 +74,8 @@ const conCache = (siembra: (qc: QueryClient) => void) => {
 
 afterEach(cleanup);
 beforeEach(() => {
-  // El modo arranca prendido: es el escenario del defecto.
-  useTraceMode.setState({ on: true, openDataPointId: null, openDerivation: null });
+  // La selección del panel se limpia; el resalte siempre está activo.
+  useTraceMode.setState({ openDataPointId: null, openDerivation: null });
 });
 
 // ── Mano de Obra ─────────────────────────────────────────────────────────────

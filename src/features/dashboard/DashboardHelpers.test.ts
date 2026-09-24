@@ -21,6 +21,6 @@ describe('ayudas del dashboard', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 8, 10, 20, 0));
     expect(greet('Ana Pérez')).toBe('Buenas noches, Ana');
-    expect(greet()).toBe('Buenas noches, costista');
+    expect(greet()).toBe('Buenas noches');
   });
 });

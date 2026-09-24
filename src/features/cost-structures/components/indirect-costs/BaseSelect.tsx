@@ -23,7 +23,7 @@ export function BaseSelect({ bases, value, companyId, onSelect }: {
       .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60);
 
   const handleCreate = async () => {
-    if (!companyId) { setErr('No se pudo identificar la empresa.'); return; }
+    if (!companyId) { setErr('No se pudo identificar el negocio.'); return; }
     const name = newName.trim();
     const unit = newUnit.trim();
     if (!name || !unit) { setErr('Poné un nombre y una unidad.'); return; }

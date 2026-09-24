@@ -96,7 +96,7 @@ export function LibroCostosPage() {
   const [adding, setAdding] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<LedgerEntry | null>(null);
 
-  const selectedCompanyName = companies.find((c) => c.id === companyId)?.name ?? 'Todas las empresas';
+  const selectedCompanyName = companies.find((c) => c.id === companyId)?.name ?? 'Todos los negocios';
 
   const handleDelete = (e: LedgerEntry) => {
     setEntryToDelete(e);
@@ -126,7 +126,7 @@ export function LibroCostosPage() {
           className="sm:w-56"
           value={companyId}
           onChange={(e) => setCompanyId(e.target.value)}
-          placeholder="Todas mis empresas"
+          placeholder="Todos mis negocios"
           options={companies.map((c) => ({ value: c.id, label: c.name }))}
         />
         <Select
@@ -137,7 +137,7 @@ export function LibroCostosPage() {
           options={(data?.periods ?? []).map((p) => ({ value: p, label: periodLabel(p) }))}
         />
         <div className="flex flex-wrap gap-2 sm:ml-auto">
-          <Button size="sm" variant="ghost" onClick={() => setAdding(true)} title={companyId ? '' : 'Elegí una empresa para cargar manual'}>
+          <Button size="sm" variant="ghost" onClick={() => setAdding(true)} title={companyId ? '' : 'Elegí un negocio para cargar manual'}>
             <Plus className="size-4" /> Agregar manual
           </Button>
           {entries.length > 0 && (

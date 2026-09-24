@@ -67,7 +67,7 @@ describe('parámetros del negocio', () => {
     expect(screen.getByText(SYSTEM_PARAMETER.descripcion)).toBeTruthy();
     expect(screen.getByText(COMPANY_PARAMETER.descripcion)).toBeTruthy();
     expect(screen.getByText('Estimación del sistema')).toBeTruthy();
-    expect(screen.getByText('Confirmado por la empresa')).toBeTruthy();
+    expect(screen.getByText('Confirmado por el negocio')).toBeTruthy();
     expect(screen.getByText(/Confirmar el formato que usa la empresa/i)).toBeTruthy();
     expect(screen.getByText(/Los períodos cerrados conservan los valores/i)).toBeTruthy();
   });

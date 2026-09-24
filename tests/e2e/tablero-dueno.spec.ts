@@ -1,10 +1,11 @@
 import type { Page } from '@playwright/test';
-import { expect, laAppPinto, test, testConSesion } from './fixtures';
+import { expect, laAppPinto, test, testConSesion, vocabularioVisiblePermitido } from './fixtures';
 
 test.setTimeout(60_000);
 testConSesion.setTimeout(60_000);
 
 const PERIOD_ID = '00000000-0000-4000-8000-000000000090';
+const COMPANY_ID = '00000000-0000-4000-8000-000000000091';
 const METRICAS = [
   'Costo por cajón',
   'Precio promedio de venta del período',
@@ -34,6 +35,7 @@ const TABLERO_COMPLETO = {
     unidadGestion: { codigo: 'cajon', nombre: 'Cajón', factor: 360 },
     rubro: {
       clave: 'AVICOLA_POSTURA',
+      nombreProducto: 'AVI',
       icons: { LoteProductivo: 'bird' },
     },
     pendientes: [],
@@ -91,7 +93,103 @@ const CAPIA_VIGENTE = {
   },
 };
 
-async function responderTablero(page: Page, body: unknown, capia: unknown = CAPIA_VIGENTE) {
+const PUNTO_CIERRE = {
+  data: {
+    moneda: 'ARS',
+    unidad: 'cajon',
+    nominal: true,
+    precioUnitario: 30,
+    puntoEquilibrioEconomico: 40,
+    actividad: 50,
+    importeVersionIds: ['00000000-0000-4000-8000-000000000092'],
+    horizontes: [
+      {
+        horizonteMeses: 1,
+        valor: 25,
+        costosFijosErogables: 275,
+        costoVariableUnitarioErogable: 19,
+        contribucionMarginalFinanciera: 11,
+        situacion: null,
+        advertencia: 'un resultado negativo no significa que haya que cerrar',
+        basadoEn: [],
+      },
+      {
+        horizonteMeses: 12,
+        valor: 35,
+        costosFijosErogables: 385,
+        costoVariableUnitarioErogable: 19,
+        contribucionMarginalFinanciera: 11,
+        situacion: 'pierde económicamente y sostiene la caja',
+        advertencia: 'un resultado negativo no significa que haya que cerrar',
+        basadoEn: [],
+      },
+    ],
+  },
+};
+
+const EQUILIBRIO_TRAMOS_AM_09 = {
+  data: {
+    tramos: [
+      {
+        tramoId: 'tramo-actual', tipo: 'REEMPLAZA', desde: 0, hasta: 475.7,
+        techo: 475.7, qAritmetico: 598.52, q: null, resultadoMaximo: -365_268.2,
+        motivoFueraDeTramo: 'El equilibrio aritmético supera el techo físico del tramo (475.7).',
+      },
+      {
+        tramoId: 'tramo-siguiente', tipo: 'REEMPLAZA', desde: 475.7, hasta: 950.9,
+        techo: 950.9, qAritmetico: 874.24, q: 874.24, resultadoMaximo: 227_976.6,
+      },
+    ],
+    transiciones: [{
+      desdeTramoId: 'tramo-actual', haciaTramoId: 'tramo-siguiente', qIndiferencia: 751.42,
+      binding: 874.24, margenHastaTecho: 76.66, porcentajeMargen: 8.1,
+      alertaPegadoAlTecho: true,
+    }],
+  },
+};
+
+const TRAMOS_AM_09 = {
+  data: [
+    {
+      id: 'tramo-actual', conceptoId: 'concepto-sintetico', segmentoId: null,
+      desde: 0, hasta: 475.7, tipo: 'REEMPLAZA', importeFijo: 1_780_000,
+      cmUnitaria: 2_974, techoFisico: 475.7, techoFuente: 'Informe técnico sintético',
+      techoDeclaradoEn: '2099-01-15T12:00:00.000Z', techoDeclaradoPorId: 'actor-sintetico',
+      createdAt: '2099-01-15T12:00:00.000Z',
+    },
+    {
+      id: 'tramo-siguiente', conceptoId: 'concepto-sintetico', segmentoId: null,
+      desde: 475.7, hasta: 950.9, tipo: 'REEMPLAZA', importeFijo: 2_600_000,
+      cmUnitaria: 2_974, techoFisico: 950.9, techoFuente: 'Proyecto de ampliación sintético',
+      techoDeclaradoEn: '2099-01-15T12:00:00.000Z', techoDeclaradoPorId: 'actor-sintetico',
+      createdAt: '2099-01-15T12:00:00.000Z',
+    },
+  ],
+};
+
+async function responderTablero(
+  page: Page,
+  body: unknown,
+  capia: unknown = CAPIA_VIGENTE,
+  puntoCierre?: unknown,
+  equilibrioTramos: unknown = { data: { tramos: [], transiciones: [] } },
+  tramos: unknown = { data: [] },
+) {
+  const unidadGestion = (body as { data?: { unidadGestion?: { codigo?: string } | null } }).data?.unidadGestion;
+  const respuestaPuntoCierre = puntoCierre ?? {
+    data: {
+      ...PUNTO_CIERRE.data,
+      unidad: unidadGestion?.codigo ?? null,
+    },
+  };
+  await page.route('**/api/v1/companies', (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: [{ id: COMPANY_ID, name: 'Negocio sintético' }] }),
+    });
+  });
   await page.route('**/api/v1/periods/*/tablero-dueno', (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
     return route.fulfill({
@@ -107,6 +205,22 @@ async function responderTablero(page: Page, body: unknown, capia: unknown = CAPI
       contentType: 'application/json',
       body: JSON.stringify(capia),
     });
+  });
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/analisis/punto-cierre**`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(respuestaPuntoCierre),
+    });
+  });
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/tramos-costo/equilibrio`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(equilibrioTramos) });
+  });
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/tramos-costo`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tramos) });
   });
 }
 
@@ -130,13 +244,42 @@ async function expandirParaCaptura(page: Page) {
   });
 }
 
+testConSesion('abre y cierra el sidebar del rubro y el logo vuelve al inicio', async ({ page, consola }, testInfo) => {
+  await responderTablero(page, TABLERO_COMPLETO);
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+  await laAppPinto(page);
+
+  const mobile = testInfo.project.name.startsWith('Mobile');
+  const sidebar = page.getByTestId(mobile ? 'mobile-sidebar' : 'desktop-sidebar');
+  await testInfo.attach('sidebar-cerrado', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  await page.getByRole('button', { name: mobile ? 'Abrir menú lateral' : 'Abrir sidebar' }).click();
+  await expect(sidebar.getByText('Costear AVI')).toBeVisible();
+  await expect(sidebar.getByTestId('sidebar-rubro-icon')).toHaveAttribute('data-icon', 'bird');
+  await expect(page.locator('html')).toHaveJSProperty('scrollWidth', await page.locator('html').evaluate((element) => element.clientWidth));
+  await testInfo.attach('sidebar-abierto', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  await sidebar.getByRole('button', { name: 'Cerrar sidebar' }).click();
+  if (mobile) await expect(sidebar).toHaveAttribute('aria-hidden', 'true');
+  else await expect(sidebar.getByText('Costear AVI')).toHaveCount(0);
+  await page.getByRole('button', { name: mobile ? 'Abrir menú lateral' : 'Abrir sidebar' }).click();
+  const logo = sidebar.getByRole('link', { name: 'Costear: ir al inicio' });
+  await expect(logo).toHaveAttribute('href', '/');
+  await logo.click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  expect(consola.mensajes, 'errores en el sidebar').toEqual([]);
+});
+
 testConSesion('muestra los seis números reales del período en el orden definido', async ({ page, consola }) => {
   await responderTablero(page, TABLERO_COMPLETO);
   await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
 
   await laAppPinto(page);
+  await page.getByRole('button', { name: 'Abrir ayuda de esta pantalla' }).click();
+  await expect(page.getByRole('region', { name: 'Ayuda del tablero del negocio' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '¿Qué período estoy viendo?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cerrar ayuda' }).click();
   await expect(page).toHaveURL(new RegExp(`/owner-dashboard\\?periodId=${PERIOD_ID}$`));
-  await expect(page.getByRole('heading', { name: 'Tablero de la empresa' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tablero del negocio' })).toBeVisible();
+  await vocabularioVisiblePermitido(page);
   await expect(page.getByText('Período 2099-01, expresado en cajones.')).toBeVisible();
   await expect(page.getByTestId('industry-icon')).toHaveAttribute('data-icon', 'bird');
 
@@ -157,11 +300,16 @@ testConSesion('muestra los seis números reales del período en el orden definid
   await expect(barra).toHaveAttribute('aria-valuetext', /50 de 40 cajones/);
   await expect(page.getByTestId('incomplete-metric')).toHaveCount(0);
 
+  // MX-01: el divisor es la contribución marginal (19), no el precio (30). Un
+  // costo fijo se cubre con lo que deja cada unidad, no con lo que factura:
+  // 75 / 19 = 3,95 cajones. Dividir por el precio daba 2,5 — y vender 2,5
+  // cajones deja 47,50 de contribución, no los 75 que la pantalla prometía.
   const conversor = page.getByTestId('money-to-crates-converter');
   await conversor.getByLabel('Importe en pesos').fill('75');
-  await expect(conversor.getByText('2,5 cajones')).toBeVisible();
-  await expect(conversor.getByText(/Precio usado:.*30,00 por cajón/)).toBeVisible();
+  await expect(conversor.getByText('3,95 cajones')).toBeVisible();
+  await expect(conversor.getByText(/Contribución marginal usada:.*19,00 por cajón/)).toBeVisible();
   await expect(conversor.getByText(/Período.*2099-01/)).toBeVisible();
+  await expect(conversor.getByText('2,5 cajones')).toHaveCount(0);
 
   const pendientes = page.getByTestId('closing-pending');
   await expect(pendientes.getByText('No falta nada para cerrar este período')).toBeVisible();
@@ -178,6 +326,54 @@ testConSesion('muestra los seis números reales del período en el orden definid
 
   await expandirParaCaptura(page);
   expect(consola.mensajes, 'errores en /owner-dashboard').toEqual([]);
+});
+
+testConSesion('muestra el punto de cierre de 1 y 12 meses sin colapsar horizontes', async ({ page, consola }, testInfo) => {
+  await responderTablero(page, TABLERO_COMPLETO);
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+
+  await laAppPinto(page);
+  const panel = page.getByTestId('punto-cierre-panel');
+  await expect(panel.getByRole('heading', { name: 'Punto de cierre' })).toBeVisible();
+  await expect(panel.getByTestId('punto-cierre-1').getByText('25 cajones')).toBeVisible();
+  await expect(panel.getByTestId('punto-cierre-12').getByText('35 cajones')).toBeVisible();
+  await expect(panel.getByText('pierde económicamente y sostiene la caja')).toBeVisible();
+  await expect(panel.getByText('un resultado negativo no significa que haya que cerrar')).toBeVisible();
+
+  await expandirParaCaptura(page);
+  await testInfo.attach('punto-cierre-por-horizonte', {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  });
+  expect(consola.mensajes, 'errores al mostrar el punto de cierre').toEqual([]);
+});
+
+testConSesion('muestra AM-09 por tramos y nunca publica el equilibrio aritmético fuera de rango', async ({ page, consola }, testInfo) => {
+  await responderTablero(
+    page,
+    TABLERO_COMPLETO,
+    CAPIA_VIGENTE,
+    undefined,
+    EQUILIBRIO_TRAMOS_AM_09,
+    TRAMOS_AM_09,
+  );
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+
+  await laAppPinto(page);
+  const panel = page.getByTestId('equilibrio-tramos-panel');
+  await expect(panel.getByText('No existe un equilibrio operativo en este tramo')).toBeVisible();
+  await expect(panel.getByText('Siguiente equilibrio operativo: 874,24 cajones')).toBeVisible();
+  await expect(panel.getByText('Punto de resultado indiferente: 751,42 cajones')).toBeVisible();
+  await expect(panel.getByRole('alert')).toContainText('8,1%');
+  await expect(panel.getByText(/598,52/)).toHaveCount(0);
+  await expect(page.getByTestId('owner-metric').nth(3).getByText('40')).toHaveCount(0);
+
+  await expandirParaCaptura(page);
+  await testInfo.attach('equilibrio-por-tramos-am-09', {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  });
+  expect(consola.mensajes, 'errores al mostrar equilibrio por tramos').toEqual([]);
 });
 
 testConSesion('toma la unidad y el icono del rubro de la respuesta', async ({ page, consola }) => {
@@ -291,6 +487,13 @@ testConSesion('no presenta como válido un número que el backend marca incomple
         parametrosSinConfirmarDetalle: [],
         motivos: ['Falta cargar ventas del período para obtener este indicador.'],
       },
+      contribucionMarginalPorCajon: {
+        valor: 999_999,
+        completo: false,
+        parametrosSinConfirmar: false,
+        parametrosSinConfirmarDetalle: [],
+        motivos: ['Falta cargar ventas del período para obtener este indicador.'],
+      },
     },
   };
 
@@ -305,12 +508,47 @@ testConSesion('no presenta como válido un número que el backend marca incomple
 
   const conversor = page.getByTestId('money-to-crates-converter');
   await expect(conversor.getByLabel('Importe en pesos')).toBeDisabled();
-  await expect(conversor.getByText('Falta el precio promedio del período')).toBeVisible();
-  await expect(conversor.getByText('No se puede convertir el importe a cajones hasta que haya ventas para calcularlo.')).toBeVisible();
+  await expect(conversor.getByText('Falta la contribución marginal del período')).toBeVisible();
+  await expect(conversor.getByText('No se puede calcular cuántos cajones cubren el importe hasta tener la contribución marginal del período.')).toBeVisible();
   await expect(conversor.getByText(/999[.\s]?999/)).toHaveCount(0);
 
   await expandirParaCaptura(page);
   expect(consola.mensajes, 'errores en el caso incompleto').toEqual([]);
+});
+
+/**
+ * MX-01. Con contribución marginal <= 0 ningún volumen cubre el costo: cada
+ * unidad vendida agranda la pérdida. Antes esto ni se planteaba porque el
+ * divisor era el precio, que siempre es positivo. El conversor tiene que
+ * negarse con el motivo — nunca un infinito, un negativo ni un guion pelado.
+ */
+testConSesion('el conversor se niega cuando la contribución marginal no es positiva', async ({ page, consola }) => {
+  const tableroSinContribucion = {
+    data: {
+      ...TABLERO_COMPLETO.data,
+      contribucionMarginalPorCajon: {
+        valor: -4,
+        completo: true,
+        parametrosSinConfirmar: false,
+        parametrosSinConfirmarDetalle: [],
+        motivos: [],
+      },
+    },
+  };
+
+  await responderTablero(page, tableroSinContribucion);
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+
+  await laAppPinto(page);
+
+  const conversor = page.getByTestId('money-to-crates-converter');
+  await expect(conversor.getByLabel('Importe en pesos')).toBeDisabled();
+  await expect(conversor.getByText('La contribución marginal no es positiva')).toBeVisible();
+  await expect(conversor.getByText(/ningún volumen alcanza/)).toBeVisible();
+  await expect(conversor.getByText(/Infinity|∞|NaN/)).toHaveCount(0);
+
+  await expandirParaCaptura(page);
+  expect(consola.mensajes, 'errores con contribución no positiva').toEqual([]);
 });
 
 testConSesion('marca los números apoyados en supuestos y nombra el parámetro sin marcar baseUnidades', async ({ page, consola }) => {

@@ -43,6 +43,7 @@ export interface OwnerDashboardData {
   unidadGestion: UnidadGestion | null;
   rubro: {
     clave: string;
+    nombreProducto: string | null;
     icons: Record<string, string>;
   } | null;
   pendientes: OwnerDashboardPending[];
@@ -86,6 +87,83 @@ export interface CapiaIndicatorsData {
   items: CapiaIndicator[];
 }
 
+export interface PuntoCierreHorizonte {
+  horizonteMeses: number;
+  valor: number | null;
+  motivoSinEquilibrio?: string;
+  costosFijosErogables: number | null;
+  costoVariableUnitarioErogable: number | null;
+  contribucionMarginalFinanciera: number | null;
+  situacion: string | null;
+  advertencia: string;
+  basadoEn: Array<{ clave: string; etiqueta: string }>;
+  conceptosIncluidos?: Array<{ clave: string; etiqueta: string }>;
+  conceptosExcluidos?: Array<{ clave: string; etiqueta: string }>;
+}
+
+export interface PuntoCierreData {
+  moneda: string | null;
+  unidad: string | null;
+  nominal: true;
+  precioUnitario: number;
+  puntoEquilibrioEconomico: number;
+  actividad: number | null;
+  importeVersionIds: string[];
+  horizontes: PuntoCierreHorizonte[];
+}
+
+export interface ResultadoTramoEquilibrio {
+  tramoId: string;
+  tipo: 'REEMPLAZA' | 'ACUMULA';
+  desde: number;
+  hasta: number | null;
+  techo: number | null;
+  qAritmetico: number | null;
+  q: number | null;
+  resultadoMaximo: number | null;
+  motivoFueraDeTramo?: string;
+}
+
+export interface TransicionTramoEquilibrio {
+  desdeTramoId: string;
+  haciaTramoId: string;
+  qIndiferencia: number | null;
+  binding: number | null;
+  margenHastaTecho: number | null;
+  porcentajeMargen: number | null;
+  alertaPegadoAlTecho: boolean;
+}
+
+export interface EquilibrioTramosData {
+  calculoId?: string;
+  tramos: ResultadoTramoEquilibrio[];
+  transiciones: TransicionTramoEquilibrio[];
+}
+
+export interface TramoCostoData {
+  id: string;
+  conceptoId: string | null;
+  segmentoId: string | null;
+  desde: number;
+  hasta: number | null;
+  tipo: 'REEMPLAZA' | 'ACUMULA';
+  importeFijo: number;
+  cmUnitaria: number;
+  techoFisico: number | null;
+  techoFuente: string | null;
+  techoDeclaradoEn: string | null;
+  techoDeclaradoPorId: string | null;
+  createdAt: string;
+}
+
+interface PuntoCierreParams {
+  companyId?: string;
+  periodId?: string;
+  precioUnitario?: number;
+  puntoEquilibrioEconomico?: number;
+  actividad?: number;
+}
+
 export function useOwnerDashboard(periodId: string | undefined) {
   return useQuery({
     queryKey: ['owner-dashboard', periodId],
@@ -109,5 +187,45 @@ export function useCapiaIndicators(enabled: boolean) {
       return res.data.data;
     },
     enabled,
+  });
+}
+
+export function usePuntoCierre(params: PuntoCierreParams, enabled: boolean) {
+  return useQuery({
+    queryKey: ['punto-cierre', params],
+    queryFn: async () => {
+      const res = await api.get<{ data: PuntoCierreData }>(
+        `/companies/${params.companyId}/analisis/punto-cierre`,
+        {
+          params: {
+            horizontes: '1,12',
+            precioUnitario: params.precioUnitario,
+            puntoEquilibrioEconomico: params.puntoEquilibrioEconomico,
+            actividad: params.actividad,
+            periodId: params.periodId,
+          },
+        },
+      );
+      return res.data.data;
+    },
+    enabled,
+  });
+}
+
+export function useEquilibrioTramos(companyId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['equilibrio-tramos', companyId],
+    queryFn: async () => {
+      const [equilibrio, tramos] = await Promise.all([
+        api.get<{ data: EquilibrioTramosData }>(
+          `/companies/${companyId}/tramos-costo/equilibrio`,
+        ),
+        api.get<{ data: TramoCostoData[] }>(
+          `/companies/${companyId}/tramos-costo`,
+        ),
+      ]);
+      return { equilibrio: equilibrio.data.data, tramos: tramos.data.data };
+    },
+    enabled: Boolean(companyId && enabled),
   });
 }

@@ -141,7 +141,7 @@ export function SidebarDock({ activeTab, setActiveTab }: SidebarDockProps) {
           >
             <ArrowLeft className="size-4.5 z-20" />
             <span className="absolute left-18 bg-granate-deep border border-white/10 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap shadow-xl pointer-events-none z-50">
-              Volver a Costista
+              Volver al tablero
             </span>
           </Link>
         )}

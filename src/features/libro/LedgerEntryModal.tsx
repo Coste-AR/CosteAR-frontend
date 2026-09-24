@@ -58,7 +58,7 @@ export function LedgerEntryModal({
       if (isEdit) {
         await update.mutateAsync({ id: entry!.id, costSection, description, amount: amt, supplier: supplier || undefined, period });
       } else {
-        if (!companyId) return setError('Elegí una empresa primero (arriba).');
+        if (!companyId) return setError('Elegí un negocio primero (arriba).');
         await create.mutateAsync({ companyId, period, costSection, description, amount: amt, supplier: supplier || undefined });
       }
       onClose();

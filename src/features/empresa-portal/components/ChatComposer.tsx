@@ -234,7 +234,7 @@ export function ChatComposer({
                 ? 'Escuchando... Hablá ahora...'
                 : activeConnectionId
                   ? 'Escribí una nota o adjuntá comprobantes...'
-                  : 'Seleccioná una empresa primero'
+                  : 'Seleccioná un negocio primero'
             }
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -293,7 +293,7 @@ export function ChatComposer({
               onSelect={onSelectStructure}
             />
           ) : (
-            <span className="text-[10px] text-danger font-bold">Empresa requerida</span>
+            <span className="text-[10px] text-danger font-bold">Negocio requerido</span>
           )}
         </div>
         <p className="text-[10px] text-ink-soft/50 hidden sm:block font-medium tracking-wide">

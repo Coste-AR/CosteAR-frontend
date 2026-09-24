@@ -93,7 +93,7 @@ export function ChatTimeline({
           </p>
         </div>
         <p className="text-xs text-ink-soft hidden sm:block">
-          Los mensajes van al costista: <span className="font-bold text-ink">{costistName}</span>
+          Los mensajes llegan a: <span className="font-bold text-ink">{costistName}</span>
         </p>
       </div>
 
@@ -103,7 +103,7 @@ export function ChatTimeline({
           <div className="h-full flex flex-col items-center justify-center text-center max-w-lg mx-auto animate-in fade-in duration-500 slide-in-from-bottom-4 py-10">
             <h3 className="text-2xl font-black text-ink font-outfit tracking-tight mb-2">¡Bienvenido al portal!</h3>
             <p className="text-[14px] text-ink-soft/90 mb-10 font-medium leading-relaxed px-4">
-              Aquí podés subir las facturas y comprobantes para que tu costista los clasifique.
+              Aquí podés subir las facturas y comprobantes para que quien revisa tus cargas los clasifique.
             </p>
             
             <div className="grid gap-6 sm:grid-cols-3 w-full">
@@ -131,7 +131,7 @@ export function ChatTimeline({
                   <Send className="size-5 ml-1" />
                 </div>
                 <h4 className="text-sm font-bold text-ink mb-1 z-10">3. Enviar</h4>
-                <p className="text-[12px] text-ink-soft z-10">Subilo y tu costista te avisará cuando esté procesado.</p>
+                <p className="text-[12px] text-ink-soft z-10">Subilo y quien revisa tus cargas te avisará cuando esté procesado.</p>
               </div>
             </div>
             
@@ -189,17 +189,17 @@ export function ChatTimeline({
                       <div className="text-[14px] text-ink-soft leading-relaxed space-y-3 font-sans font-medium">
                         {s.status === 'PENDING' && (
                           <p>
-                            Hola, recibí tu comprobante <strong>{s.fileName || 'de texto'}</strong>. El sistema clasificador de costos lo está analizando. Te avisaremos apenas el costista valide su imputación.
+                            Hola, recibí tu comprobante <strong>{s.fileName || 'de texto'}</strong>. El sistema clasificador de costos lo está analizando. Te avisaremos apenas quien revisa valide su imputación.
                           </p>
                         )}
                         {s.status === 'APPROVED' && (
                           <p>
-                            ¡Comprobante procesado y aprobado! Tu costista validó los datos del documento y se imputaron correctamente en las cuentas de la empresa.
+                            ¡Comprobante procesado y aprobado! Quien revisa tus cargas validó los datos del documento y se imputaron correctamente en las cuentas del negocio.
                           </p>
                         )}
                         {s.status === 'REJECTED' && (
                           <div className="space-y-2">
-                            <p>El comprobante no pudo ser aprobado por tu costista.</p>
+                            <p>El comprobante no pudo ser aprobado por quien revisa tus cargas.</p>
                             {s.costistaNote && (
                               <div className="bg-danger/5 border-l-2 border-l-danger p-2.5 rounded-lg text-xs italic">
                                 "{s.costistaNote}"
@@ -209,10 +209,10 @@ export function ChatTimeline({
                         )}
                         {s.status === 'CORRECTED' && (
                           <div className="space-y-2">
-                            <p>El comprobante fue aprobado con correcciones realizadas por tu costista.</p>
+                            <p>El comprobante fue aprobado con correcciones realizadas por quien revisa tus cargas.</p>
                             {s.costistaNote && (
                               <div className="mt-4 rounded-[16px] bg-granate-tenue p-4 text-[13px] border-l-4 border-l-granate shadow-inner">
-                                <p className="font-black text-granate-deep mb-1 text-[11px] uppercase tracking-wider">Nota del Costista ({costistName}):</p>
+                                <p className="font-black text-granate-deep mb-1 text-[11px] uppercase tracking-wider">Nota de revisión ({costistName}):</p>
                                 <p className="italic text-ink/80 font-medium leading-relaxed">"{s.costistaNote}"</p>
                               </div>
                             )}

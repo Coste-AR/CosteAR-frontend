@@ -187,7 +187,7 @@ test('confirma parametros del negocio y permite volver al valor sugerido', async
 
   await expect(page.getByText('Parámetros del negocio')).toBeVisible();
   await expect(page.getByText('Estimación del sistema')).toBeVisible();
-  await expect(page.getByText('Confirmado por la empresa')).toBeVisible();
+  await expect(page.getByText('Confirmado por el negocio')).toBeVisible();
   await expect(page.getByText(/Confirmar la vida útil real con la empresa/i)).toBeVisible();
   await expect(page.getByText(/Los períodos cerrados conservan los valores/i)).toBeVisible();
 
@@ -200,7 +200,7 @@ test('confirma parametros del negocio y permite volver al valor sugerido', async
     value: 30,
     confirmed: true,
   });
-  await expect(lifeRow.getByText('Confirmado por la empresa')).toBeVisible();
+  await expect(lifeRow.getByText('Confirmado por el negocio')).toBeVisible();
 
   const packageRow = page.getByRole('listitem').filter({ hasText: parameters[2]!.descripcion });
   await packageRow.getByRole('button', { name: 'Volver al sugerido' }).click();

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { CostitaChat } from './CostitaChat';
 import {
   Building2, Bell, ArrowRight, ClipboardCheck,
   DollarSign, AlertTriangle, CheckCircle2, FileText,
@@ -47,7 +46,8 @@ export function DashboardPage() {
 
   const totalStructures = companies.reduce((acc, c) => acc + (c._count?.costStructures ?? 0), 0);
   const companiesWithStructure = companies.filter((c) => (c._count?.costStructures ?? 0) > 0).length;
-  const unread = alerts.filter((a) => !a.isRead).length;
+  const unread = alerts.filter((a) => !a.isRead && !a.motivoNoEvaluada).length;
+  const notEvaluated = alerts.filter((a) => a.motivoNoEvaluada).length;
   const dolarOficial = macro.find((m) => m.indicatorCode === 'USD_OFICIAL');
   const ipc = macro.find((m) => m.indicatorCode === 'IPC_NACIONAL');
 
@@ -99,7 +99,7 @@ export function DashboardPage() {
                 {greet(user?.name)}
               </h1>
               <p className="text-[13px] leading-relaxed text-ink-soft max-w-xl">
-                Revisá la evolución de los costos país y gestioná las auditorías y desvíos de tu cartera de clientes PyME desde tu centro operativo.
+                Revisá la evolución de los costos país y gestioná las auditorías y desvíos de tu cartera de clientes desde tu centro operativo.
               </p>
             </div>
 
@@ -146,7 +146,7 @@ export function DashboardPage() {
                 </div>
                 <div className="mt-3">
                   <p className="text-[12px] font-bold text-ink leading-tight">Clientes</p>
-                  <p className="text-[9.5px] text-ink-soft mt-0.5 font-medium">Alta PyME</p>
+                  <p className="text-[9.5px] text-ink-soft mt-0.5 font-medium">Agregar negocio</p>
                 </div>
               </Link>
               <Link to="/validaciones" className="flex flex-col justify-between rounded-2xl bg-white border border-line p-4 hover:border-granate/20 hover:-translate-y-0.5 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.01)] group">
@@ -164,7 +164,7 @@ export function DashboardPage() {
                 </div>
                 <div className="mt-3">
                   <p className="text-[12px] font-bold text-ink leading-tight">Alertas</p>
-                  <p className="text-[9.5px] text-ink-soft mt-0.5 font-medium">{unread} críticas</p>
+                  <p className="text-[9.5px] text-ink-soft mt-0.5 font-medium">{unread} activas{notEvaluated > 0 ? ` · ${notEvaluated} sin evaluar` : ''}</p>
                 </div>
               </Link>
               <Link to="/panel-campo" className="flex flex-col justify-between rounded-2xl bg-white border border-line p-4 hover:border-granate/20 hover:-translate-y-0.5 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.01)] group">
@@ -211,7 +211,7 @@ export function DashboardPage() {
           <StatCard
             label="Alertas Activas"
             value={unread}
-            sub={unread > 0 ? `${unread} desvíos críticos` : 'Sin alertas'}
+            sub={notEvaluated > 0 ? `${notEvaluated} sin evaluar` : unread > 0 ? `${unread} requieren atención` : 'Sin alertas'}
             icon={Bell}
             to="/alerts"
             variant={unread > 0 ? 'warn' : 'ok'}
@@ -240,21 +240,20 @@ export function DashboardPage() {
                 </Link>
               </div>
               
-              {unread === 0 ? (
+              {unread === 0 && notEvaluated === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 mb-3.5 shadow-sm">
                     <CheckCircle2 className="size-5" />
                   </div>
-                  <p className="text-[13px] font-bold text-ink">Sin desvíos de costos</p>
-                  <p className="text-[10.5px] text-ink-soft/75 mt-1">Todos los indicadores están estables.</p>
+                  <p className="text-[13px] font-bold text-ink">Sin alertas registradas</p>
                 </div>
               ) : (
                 <ul className="space-y-2.5">
-                  {alerts.filter((a) => !a.isRead).slice(0, 3).map((a) => (
+                  {alerts.filter((a) => !a.isRead || a.motivoNoEvaluada).slice(0, 3).map((a) => (
                     <li key={a.id} className="p-3.5 bg-white border border-line rounded-2xl flex items-start gap-3 hover:border-granate/10 transition-all duration-200 shadow-[0_2px_8px_rgba(74,21,27,0.005)]">
                       <AlertTriangle className="size-4 shrink-0 text-amber-600 mt-0.5" />
                       <div className="min-w-0">
-                        <p className="text-[11.5px] leading-relaxed text-ink font-bold line-clamp-2">{a.message}</p>
+                        <p className="text-[11.5px] leading-relaxed text-ink font-bold line-clamp-2">{a.motivoNoEvaluada ? `No se pudo evaluar: ${a.motivoNoEvaluada}` : a.message}</p>
                         <p className="text-[9.5px] text-ink-soft/80 mt-1 font-semibold">{formatDate(a.createdAt)}</p>
                       </div>
                     </li>
@@ -271,7 +270,7 @@ export function DashboardPage() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-action opacity-75"></span>
                     <span className="relative inline-flex rounded-full size-2 bg-action"></span>
                   </span>
-                  <span className="text-[11px] font-bold text-action">Revisar PyMEs con discrepancias</span>
+                  <span className="text-[11px] font-bold text-action">Revisar negocios con discrepancias</span>
                 </div>
                 <ChevronRight className="size-4 text-action group-hover:translate-x-0.5 transition-transform" />
               </Link>
@@ -355,7 +354,7 @@ export function DashboardPage() {
                 <div className="lg:min-w-[500px]">
                   {/* Header (desktop column labels only — mobile uses stacked cards) */}
                   <div className="hidden lg:grid lg:grid-cols-[1fr_120px_70px_90px] gap-x-4 px-6 py-3 text-[9.5px] font-bold uppercase tracking-wider text-ink-soft bg-zinc-50/20 border-b border-line">
-                    <span>Empresa</span>
+                    <span>Negocio</span>
                     <span>Sector</span>
                     <span className="text-center">Modelos</span>
                     <span className="text-right">Salud</span>
@@ -565,7 +564,6 @@ export function DashboardPage() {
 
       </div>
 
-      <CostitaChat companies={companies} />
     </AppShell>
   );
 }

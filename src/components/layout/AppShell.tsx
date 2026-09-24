@@ -8,6 +8,9 @@ import {
   ClipboardCheck,
   Zap,
   ShieldCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -17,6 +20,8 @@ import { CosteARLogo } from "@/components/layout/CosteARLogo";
 import { TopBar } from "@/components/layout/TopBar";
 import { TraceDrawer } from "@/components/layout/TraceDrawer";
 import { TraceModeLegend } from "@/components/ui/TraceableValue";
+import { HelpAssistant } from "@/features/help/HelpAssistant";
+import { RubroBrand, type RubroPresentacion } from "@/components/layout/RubroBrand";
 
 const NAV = [
   { to: "/dashboard", label: "Inicio", icon: LayoutDashboard },
@@ -43,10 +48,13 @@ function isNavActive(pathname: string, item: (typeof NAV)[number]): boolean {
 export function AppShell({
   children,
   wide = false,
+  rubro,
 }: {
   children: ReactNode;
   wide?: boolean;
+  rubro?: RubroPresentacion | null;
 }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const user = useAuthStore((s) => s.user);
   const logout = useLogout();
   const { location } = useRouterState();
@@ -97,13 +105,31 @@ export function AppShell({
 
   return (
     <div className="flex h-screen bg-surface-alt font-outfit relative overflow-hidden">
+      <button type="button" aria-label="Abrir menú lateral" onClick={() => setSidebarOpen(true)} className="fixed left-4 top-6 z-30 rounded-xl bg-granate p-2 text-white lg:hidden">
+        <Menu className="size-5" />
+      </button>
+      {sidebarOpen && <button type="button" aria-label="Cerrar menú lateral" onClick={() => setSidebarOpen(false)} className="fixed inset-0 z-40 bg-black/40 lg:hidden" />}
+      <aside data-testid="mobile-sidebar" className={cn("fixed inset-y-0 left-0 z-50 flex w-64 flex-col gap-6 bg-granate p-5 text-white transition-transform lg:hidden", sidebarOpen ? "translate-x-0" : "-translate-x-full")} aria-hidden={!sidebarOpen} inert={!sidebarOpen}>
+        <div className="flex items-center justify-between">
+          <Link to="/" aria-label="Costear: ir al inicio" onClick={() => setSidebarOpen(false)} className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-alt p-2 text-granate"><CosteARLogo className="h-6 max-w-full" /></Link>
+          <button type="button" aria-label="Cerrar sidebar" onClick={() => setSidebarOpen(false)}><PanelLeftClose className="size-5" /></button>
+        </div>
+        <RubroBrand rubro={rubro} />
+        <nav aria-label="Secciones móviles" className="flex flex-col gap-2">
+          {activeNavItems.map(({ to, label, icon: Icon }) => <Link key={to} to={to} onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-white/10"><Icon className="size-5" />{label}</Link>)}
+        </nav>
+      </aside>
       {/* FLOATING VERTICAL SIDEBAR DOCK (Bordó Wine Red, Overflow Visible) */}
-      <aside className="hidden lg:flex fixed top-4 bottom-4 left-4 w-20 bg-granate rounded-2xl flex-col items-center py-6 justify-between z-30 overflow-visible">
+      <aside data-testid="desktop-sidebar" className={cn("hidden lg:flex fixed top-4 bottom-4 left-4 bg-granate rounded-2xl flex-col items-center py-6 justify-between z-30 overflow-visible transition-[width]", sidebarOpen ? "w-64" : "w-20")}>
         {/* Top: Logo in white container */}
-        <div className="flex flex-col items-center overflow-visible">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-surface-alt text-granate shadow-md hover:scale-105 transition-transform duration-300">
+        <div className="flex flex-col items-center gap-4 overflow-visible">
+          <Link to="/" aria-label="Costear: ir al inicio" className="flex size-12 items-center justify-center rounded-2xl bg-surface-alt text-granate shadow-md hover:scale-105 transition-transform duration-300">
             <CosteARLogo className="h-6.5 w-auto text-granate" />
-          </div>
+          </Link>
+          <button type="button" aria-label={sidebarOpen ? "Cerrar sidebar" : "Abrir sidebar"} onClick={() => setSidebarOpen((value) => !value)} className="rounded-lg p-2 text-white hover:bg-white/10">
+            {sidebarOpen ? <PanelLeftClose className="size-5" /> : <PanelLeftOpen className="size-5" />}
+          </button>
+          <RubroBrand rubro={rubro} expanded={sidebarOpen} />
         </div>
 
         {/* Center: Main Nav Icons (With smooth liquid sliding indicator) */}
@@ -160,7 +186,8 @@ export function AppShell({
                   to={to}
                   viewTransition
                   className={cn(
-                    "w-full h-12 relative flex items-center justify-center rounded-l-[24px] z-25 group transition-colors duration-150",
+                    "w-full h-12 relative flex items-center rounded-l-[24px] z-25 group transition-colors duration-150",
+                    sidebarOpen ? "gap-3 px-7" : "justify-center",
                     active ? "text-granate" : "text-white/70 hover:text-white",
                   )}
                 >
@@ -170,9 +197,10 @@ export function AppShell({
                   )}
 
                   <Icon className="size-[20px] shrink-0 z-20" />
+                  {sidebarOpen && <span className="relative z-20 truncate text-sm font-semibold">{label}</span>}
 
                   {/* Hover tooltips */}
-                  <span className="absolute left-18 bg-granate-deep border border-white/10 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap shadow-xl pointer-events-none z-50">
+                  <span className={cn("absolute left-18 bg-granate-deep border border-white/10 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap shadow-xl pointer-events-none z-50", sidebarOpen && "hidden")}>
                     {label}
                   </span>
 
@@ -357,6 +385,9 @@ export function AppShell({
         {/* Panel de trazabilidad (U10): vive en el armazón porque cualquier
             valor de cualquier pantalla lo abre. */}
         <TraceDrawer />
+        {(location.pathname === '/dashboard' || location.pathname === '/owner-dashboard') && (
+          <HelpAssistant screen={location.pathname === '/dashboard' ? 'home' : 'owner'} />
+        )}
 
         {/* Cohesive Footer */}
         <footer className="hidden lg:block border-t border-line/40 py-6 bg-zinc-50/20">

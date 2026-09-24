@@ -177,7 +177,7 @@ function NewStructureForm({
               <strong className="text-zinc-700">
                 {PERIODICITY_LABEL[periodicity!].toLowerCase()}
               </strong>{' '}
-              de esta empresa. Elegí uno anterior si vas a cargar la historia previa: la cadena
+              de este negocio. Elegí uno anterior si vas a cargar la historia previa: la cadena
               de períodos arranca ahí y no se puede mover después.
             </label>
             <select
@@ -199,7 +199,7 @@ function NewStructureForm({
           // ofrecer un campo libre sería invitar a que rebote el alta.
           <p className="text-[13px] text-zinc-500 leading-relaxed">
             El período de arranque lo pone el sistema: el que corre hoy según el ritmo de costeo
-            de esta empresa. Después lo cerrás y abrís el siguiente desde la pantalla de la
+            de este negocio. Después lo cerrás y abrís el siguiente desde la pantalla de la
             estructura.
           </p>
         )}

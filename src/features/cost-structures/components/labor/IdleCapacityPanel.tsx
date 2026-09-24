@@ -68,7 +68,7 @@ function IdleVsAbsenceNote() {
 /** Qué significa cada tipo, en los términos de la cátedra. */
 const AYUDA_POR_TIPO: Record<IdleCapacityBucket['tipo'], string> = {
   'tiempos-perdidos-informados':
-    'La empresa conoce la causa y la registra en la planilla de producción: corte de energía, ' +
+    'El negocio conoce la causa y la registra en la planilla de producción: corte de energía, ' +
     'rotura de máquina, falta de materia prima, mantenimiento programado, descanso.',
   'improductividad-oculta':
     'No se informa: surge de comparar las horas netas productivas contra el tiempo estándar de ' +

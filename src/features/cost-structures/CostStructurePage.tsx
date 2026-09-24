@@ -397,7 +397,7 @@ export function CostStructurePage() {
             params={{ id: structure?.companyId ?? '' }}
             className="mb-1.5 flex items-center gap-1 text-[13px] text-granate hover:text-action"
           >
-            <ArrowLeft className="size-3.5" /> Volver a la empresa
+            <ArrowLeft className="size-3.5" /> Volver al negocio
           </Link>
           <h1 className="text-2xl font-extrabold tracking-tight text-granate-deep">{structure?.productName ?? 'Estructura de costos'}</h1>
           {/* El período de costo dejó de ser un texto tipeado: es el período real,

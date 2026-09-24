@@ -388,7 +388,7 @@ function PasoRecuento({
 
         {operarios.length === 0 ? (
           <p className="text-[12px] italic text-ink-soft">
-            Todavía no hay operarios de empresa invitados. Podés completar esto ahora y
+            Todavía no hay personal de carga invitado. Podés completar esto ahora y
             asignarlo más adelante.
           </p>
         ) : (

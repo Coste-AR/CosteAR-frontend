@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { ArrowLeft, Bird, Egg, Scale, Wheat } from 'lucide-react';
+import { ArrowLeft, Bird, CheckCircle2, Egg, Scale, Wheat } from 'lucide-react';
 import { CosteARLogo } from '@/components/layout/CosteARLogo';
 import { Button } from '@/components/ui/Button';
+import { HelpAssistant } from '@/features/help/HelpAssistant';
 import { apiErrorMessage } from '@/lib/api';
 import { useCompanies } from '@/features/companies/company-hooks';
 import { useRubroModules } from '@/features/companies/rubro-configuration-hooks';
@@ -10,10 +11,29 @@ import {
   useCreateDailyProduction,
   useCreateLotLoss,
   useProductiveLots,
+  useRecordPanelTelemetry,
   type LotLossInput,
+  type PanelActionKey,
 } from './field-panel-hooks';
 
-type ActionKey = 'produccion' | 'plantel' | 'alimento' | 'peso';
+type ActionKey = PanelActionKey;
+
+interface SavedConfirmation {
+  amount: number;
+  item: 'huevos' | 'gallinas';
+  lot: string;
+}
+
+interface ActiveLoad {
+  action: ActionKey;
+  startedAt: number;
+}
+
+const MAX_TELEMETRY_DURATION_MS = 86_400_000;
+
+function elapsedSince(startedAt: number): number {
+  return Math.min(Math.max(Date.now() - startedAt, 0), MAX_TELEMETRY_DURATION_MS);
+}
 
 const ACTIONS = [
   { key: 'produccion', label: 'Huevos', detail: 'Producción del día', icon: Egg, available: true },
@@ -60,9 +80,25 @@ export function FieldPanelPage() {
   const [action, setAction] = useState<ActionKey | null>(null);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState<LotLossInput['motivo'] | ''>('');
+  const [confirmation, setConfirmation] = useState<SavedConfirmation | null>(null);
   const date = todayLocal();
   const production = useCreateDailyProduction(selectedLotId);
   const loss = useCreateLotLoss(selectedLotId);
+  const recordTelemetry = useRecordPanelTelemetry(companyId);
+  const activeLoadRef = useRef<ActiveLoad | null>(null);
+  const recordTelemetryRef = useRef(recordTelemetry);
+  recordTelemetryRef.current = recordTelemetry;
+
+  useEffect(() => () => {
+    const activeLoad = activeLoadRef.current;
+    if (!activeLoad) return;
+    activeLoadRef.current = null;
+    recordTelemetryRef.current({
+      tipo: 'CARGA_ABANDONADA',
+      accion: activeLoad.action,
+      duracionMs: elapsedSince(activeLoad.startedAt),
+    });
+  }, []);
 
   useEffect(() => {
     if (activeLots.length <= 1 || !activeLots.some((lot) => lot.id === chosenLotId)) {
@@ -78,11 +114,45 @@ export function FieldPanelPage() {
   );
 
   const resetAction = () => {
+    const activeLoad = activeLoadRef.current;
+    if (activeLoad) {
+      activeLoadRef.current = null;
+      recordTelemetry({
+        tipo: 'CARGA_ABANDONADA',
+        accion: activeLoad.action,
+        duracionMs: elapsedSince(activeLoad.startedAt),
+      });
+    }
     setAction(null);
     setAmount('');
     setReason('');
     production.reset();
     loss.reset();
+  };
+
+  const finishSave = (saved: SavedConfirmation) => {
+    const activeLoad = activeLoadRef.current;
+    if (activeLoad) {
+      activeLoadRef.current = null;
+      recordTelemetry({
+        tipo: 'CARGA_COMPLETADA',
+        accion: activeLoad.action,
+        duracionMs: elapsedSince(activeLoad.startedAt),
+      });
+    }
+    setConfirmation(saved);
+    setAction(null);
+    setAmount('');
+    setReason('');
+    production.reset();
+    loss.reset();
+  };
+
+  const startAction = (nextAction: ActionKey) => {
+    activeLoadRef.current = { action: nextAction, startedAt: Date.now() };
+    recordTelemetry({ tipo: 'ACCION_TOCADA', accion: nextAction });
+    recordTelemetry({ tipo: 'CARGA_INICIADA', accion: nextAction });
+    setAction(nextAction);
   };
 
   const submitProduction = async (event: FormEvent) => {
@@ -97,7 +167,7 @@ export function FieldPanelPage() {
         roturas: 0,
         descartes: 0,
       });
-      resetAction();
+      finishSave({ amount: numericAmount, item: 'huevos', lot: selectedLot?.referencia ?? 'lote' });
     } catch {
       // React Query conserva el error para mostrar la salida de reintento.
     }
@@ -109,7 +179,7 @@ export function FieldPanelPage() {
     if (!selectedLotId || !reason || !Number.isFinite(numericAmount) || numericAmount <= 0) return;
     try {
       await loss.mutateAsync({ tipo: 'baja', cantidad: numericAmount, fecha: date, motivo: reason });
-      resetAction();
+      finishSave({ amount: numericAmount, item: 'gallinas', lot: selectedLot?.referencia ?? 'lote' });
     } catch {
       // React Query conserva el error para mostrar la salida de reintento.
     }
@@ -144,11 +214,11 @@ export function FieldPanelPage() {
         ) : !company ? (
           <section className="my-auto space-y-5 text-center">
             <div>
-              <h1 className="text-2xl font-extrabold text-granate-deep">Elegí la empresa</h1>
-              <p className="mt-2 text-sm text-ink-soft">La carga va a quedar asociada a esta empresa.</p>
+              <h1 className="text-2xl font-extrabold text-granate-deep">Elegí el negocio</h1>
+              <p className="mt-2 text-sm text-ink-soft">La carga va a quedar asociada a este negocio.</p>
             </div>
             {(companies.data ?? []).length === 0 ? (
-              <p className="rounded-2xl border border-line bg-white p-5">Todavía no hay una empresa disponible.</p>
+              <p className="rounded-2xl border border-line bg-white p-5">Todavía no hay un negocio disponible.</p>
             ) : (
               <div className="grid gap-3">
                 {(companies.data ?? []).map((item) => (
@@ -163,6 +233,23 @@ export function FieldPanelPage() {
                 ))}
               </div>
             )}
+          </section>
+        ) : confirmation ? (
+          <section className="flex flex-1 flex-col items-center justify-center py-8 text-center" aria-live="polite">
+            <CheckCircle2 className="size-24 text-success" strokeWidth={1.8} aria-hidden="true" />
+            <h1 className="mt-5 text-3xl font-extrabold text-granate-deep">Listo</h1>
+            <p className="mt-3 text-lg font-bold text-ink">
+              Listo: {confirmation.amount} {confirmation.item}, {confirmation.lot}, hoy
+            </p>
+            <p className="mt-2 text-sm text-ink-soft">El dato quedó guardado y disponible para revisión.</p>
+            <div className="mt-8 grid w-full max-w-sm gap-3">
+              <Button type="button" className="h-14 text-base" onClick={() => setConfirmation(null)}>
+                Cargar otro dato
+              </Button>
+              <Button type="button" variant="secondary" className="h-14 text-base" onClick={() => navigate({ to: '/dashboard' })}>
+                Volver al inicio
+              </Button>
+            </div>
           </section>
         ) : action === null ? (
           <section className="flex flex-1 flex-col justify-center py-8">
@@ -198,7 +285,7 @@ export function FieldPanelPage() {
                     type="button"
                     data-testid="field-action"
                     disabled={!selectedLotId}
-                    onClick={() => setAction(key)}
+                    onClick={() => startAction(key)}
                     className="flex min-h-36 flex-col items-center justify-center rounded-3xl border border-line bg-white p-4 text-center shadow-sm transition active:scale-[0.98] disabled:opacity-45 sm:min-h-44"
                   >
                     <Icon className="size-11 text-granate sm:size-13" strokeWidth={1.8} />
@@ -211,7 +298,7 @@ export function FieldPanelPage() {
 
             {visibleActions.length === 0 && activeLots.length > 0 && (
               <p className="rounded-2xl border border-line bg-white p-6 text-center font-semibold">
-                No hay cargas habilitadas para esta empresa.
+                No hay cargas habilitadas para este negocio.
               </p>
             )}
           </section>
@@ -280,6 +367,7 @@ export function FieldPanelPage() {
           </section>
         )}
       </div>
+      <HelpAssistant screen="field" />
     </main>
   );
 }

@@ -15,6 +15,11 @@ no podés no saber.
 npm run briefing
 ```
 
+Antes de leer el issue, leé la página de diez principios de
+[`CONSTITUCION.md`](https://github.com/Coste-AR/CosteAR-os/blob/dev/CONSTITUCION.md). Si el issue
+contradice la Constitución, el issue está mal: decilo ahí y no lo hagas. Cuando tomes una decisión
+sobre la marcha, citá en la bitácora el principio aplicado (`Constitución §N`).
+
 Te imprime en qué estado está el proyecto **ahora**: en qué rama estás, si tu copia quedó atrás
 de `origin/dev`, qué PRs tuyos hay abiertos, qué issues tenés asignados, y el `ESTADO.md` con lo
 que está pasando esta semana — incluidos los tests flaky conocidos, para que no pierdas media hora
@@ -116,7 +121,7 @@ a mano al final es una promesa que se incumple sola.
   hayas acertado**. No es una queja: es con lo que mejoramos cómo pedimos el trabajo.
 - **Qué quedó afuera.**
 
-Formato completo: `CosteAR-os/plantillas/bitacora-sesion-agente.md`.
+Formato completo: `CosteAR-os/software/templates/bitacora-sesion-agente.md`.
 
 ## Antes de decir que algo ya está resuelto
 
@@ -175,5 +180,6 @@ y no declara qué cambió queda esperando a una persona.
 
 |Fecha|Qué cambió|Fuente|
 |---|---|---|
+|2026-09-14|**La Constitución se lee antes que el issue.** Si el pedido la contradice, se informa y no se ejecuta; las decisiones tomadas sobre la marcha citan el principio aplicado en la bitácora.|Santiago, issue #179|
 |2026-09-13|**El briefing declara el modo de trabajo y muestra el canal `/agente`.** Los mensajes de la orquestación en issues accionables y PRs abiertos se leen antes de tocar código; si GitHub no responde, la ausencia se declara y el arranque continúa.|Santiago, issue #169|
 |2026-09-04|**Se agrega "Antes de decir que algo ya está resuelto".** Un triage recomendó cerrar un issue afirmando que el commit ya estaba en `dev`; estaba sólo en una rama sin PR, y cerrarlo habría perdido 125 líneas y un ADR. Se agregan los tres comandos que lo comprueban y qué hacer al encontrar una rama huérfana. **Y se inaugura esta tabla**, que no existía: sin ella ningún cambio a este archivo se podía auto-etiquetar.|Santiago|
