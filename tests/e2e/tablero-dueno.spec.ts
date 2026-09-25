@@ -243,6 +243,14 @@ async function responderTablero(
     if (route.request().method() !== 'GET') return route.fallback();
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tramos) });
   });
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/analisis/equilibrio-sectorial`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ json: { data: { equilibrioGeneral: null, segmentos: [], controlIndirectos: { indirectos: 0, contribucionesNetas: 0, diferencia: 0 } } } });
+  });
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/segmentos-analisis`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ json: { data: [] } });
+  });
 }
 
 async function expandirParaCaptura(page: Page) {
@@ -264,6 +272,129 @@ async function expandirParaCaptura(page: Page) {
     document.documentElement.style.overflowY = 'visible';
   });
 }
+
+testConSesion('muestra AM-02, declara el prorrateo y permite administrar segmentos sin recalcular', async ({ page, consola }, testInfo) => {
+  await responderTablero(page, TABLERO_COMPLETO);
+
+  const baseInput = {
+    nombre: 'Línea sintética',
+    nivel: 'linea',
+    parentId: null,
+    produccionConjunta: false,
+    precioUnitario: 100,
+    costoVariableUnitario: 40,
+    participacion: 1,
+    costoFijoDirecto: 4_000,
+    prorrateoIndirectos: 12_000,
+    coproductos: [],
+  };
+  let segmentos = [{ id: '00000000-0000-4000-8000-000000000205', ...baseInput }];
+  const sectorial = {
+    data: {
+      equilibrioGeneral: 120,
+      segmentos: [{
+        id: segmentos[0]!.id,
+        nombre: baseInput.nombre,
+        contribucionMarginalUnitaria: 100,
+        contribucionNeta: 12_000,
+        equilibrioEspecifico: 40,
+        equilibrioSectorial: 120,
+        excedente: 0,
+        vistaSinProrrateo: { resultado: 12_000 },
+        vistaConProrrateo: {
+          resultado: 0,
+          doctrinaria: false,
+          motivo: 'El prorrateo se muestra sólo como lectura de gestión.',
+        },
+        basadoEn: {
+          participacion: 1,
+          costoFijoDirecto: 4_000,
+          prorrateoIndirectos: 12_000,
+          produccionConjunta: false,
+        },
+      }],
+      controlIndirectos: { indirectos: 12_000, contribucionesNetas: 12_000, diferencia: 0 },
+    },
+  };
+
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/analisis/equilibrio-sectorial`, (route) => route.fulfill({ json: sectorial }));
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/segmentos-analisis/*`, async (route) => {
+    const id = new URL(route.request().url()).pathname.split('/').at(-1)!;
+    if (route.request().method() === 'PATCH') {
+      const input = route.request().postDataJSON();
+      segmentos = segmentos.map((segmento) => segmento.id === id ? { id, ...input } : segmento);
+      return route.fulfill({ json: { data: { id, ...input } } });
+    }
+    if (route.request().method() === 'DELETE') {
+      segmentos = segmentos.filter((segmento) => segmento.id !== id);
+      return route.fulfill({ json: { data: { eliminado: true } } });
+    }
+    return route.fallback();
+  });
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/segmentos-analisis`, async (route) => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: { data: segmentos } });
+    if (route.request().method() === 'POST') {
+      const input = route.request().postDataJSON();
+      if (input.produccionConjunta && input.costoVariableUnitario !== null) {
+        return route.fulfill({
+          status: 422,
+          json: { error: { message: 'R15: una producción conjunta no acepta costo variable propio.' } },
+        });
+      }
+      const created = { id: '00000000-0000-4000-8000-000000000206', ...input };
+      segmentos = [...segmentos, created];
+      return route.fulfill({ status: 201, json: { data: created } });
+    }
+    return route.fallback();
+  });
+
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+  await laAppPinto(page);
+
+  const panel = page.getByTestId('equilibrio-sectorial-panel');
+  await panel.scrollIntoViewIfNeeded();
+  await expect(panel.getByRole('heading', { name: 'Línea sintética' })).toBeVisible();
+  await expect(panel.getByText('Sin prorrateo', { exact: true })).toBeVisible();
+  await expect(panel.getByText('Con prorrateo', { exact: true })).toBeVisible();
+  await expect(panel.getByText('No doctrinaria', { exact: true })).toBeVisible();
+  await expect(panel.getByText('40 cajones', { exact: true })).toBeVisible();
+  await expect(panel.getByTestId('control-indirectos')).toContainText('$\u00a012.000,00');
+  await expect(panel.getByTestId('control-indirectos')).toContainText('$\u00a00,00');
+  await testInfo.attach('equilibrio-sectorial-am-02', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+
+  await panel.getByRole('button', { name: 'Nuevo segmento' }).click();
+  await panel.getByLabel('Nombre').fill('Nueva línea');
+  await panel.getByLabel('Participación').fill('50');
+  await panel.getByLabel('Costo variable por unidad (opcional)').fill('40');
+  await panel.getByLabel('Costo fijo directo').fill('2000');
+  await panel.getByLabel('Indirectos asignados').fill('6000');
+  await panel.getByLabel(/Producción conjunta/).check();
+  await testInfo.attach('gestion-segmentos', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  await panel.getByRole('button', { name: 'Crear segmento' }).click();
+  await expect(panel.getByRole('alert')).toContainText('R15: una producción conjunta no acepta costo variable propio.');
+
+  await panel.getByLabel(/Producción conjunta/).uncheck();
+  await panel.getByRole('button', { name: 'Crear segmento' }).click();
+  const newRow = panel.locator('li').filter({ hasText: 'Nueva línea' });
+  await expect(newRow).toBeVisible();
+
+  await newRow.getByRole('button', { name: 'Editar' }).click({ force: true });
+  await panel.getByLabel('Nombre').fill('Línea editada');
+  await panel.getByRole('button', { name: 'Guardar cambios' }).click();
+  const editedRow = panel.locator('li').filter({ hasText: 'Línea editada' });
+  await expect(editedRow).toBeVisible();
+
+  const deleteButton = editedRow.getByRole('button', { name: 'Dar de baja' });
+  await deleteButton.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+  await expect(deleteButton).toBeVisible();
+  await deleteButton.click();
+  const dialogHeading = page.getByRole('heading', { name: 'Dar de baja el segmento' });
+  await expect(dialogHeading).toBeVisible();
+  const confirmacion = dialogHeading.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " fixed ")][1]');
+  await confirmacion.getByRole('button', { name: 'Dar de baja', exact: true }).click();
+  await expect(editedRow).toHaveCount(0);
+  expect(consola.mensajes).toEqual([]);
+});
 
 testConSesion('abre y cierra el sidebar del rubro y el logo vuelve al inicio', async ({ page, consola }, testInfo) => {
   await responderTablero(page, TABLERO_COMPLETO);

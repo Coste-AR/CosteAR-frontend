@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { UnidadGestion } from '@/lib/types';
 
@@ -163,6 +163,63 @@ export interface TramoCostoData {
   createdAt: string;
 }
 
+export interface EquilibrioSectorialSegmento {
+  id: string;
+  nombre: string;
+  contribucionMarginalUnitaria: number;
+  contribucionNeta: number | null;
+  equilibrioEspecifico: number | null;
+  equilibrioSectorial: number | null;
+  excedente: number | null;
+  vistaSinProrrateo: { resultado: number | null };
+  vistaConProrrateo: {
+    resultado: number | null;
+    doctrinaria: false;
+    motivo: string;
+  };
+  basadoEn: {
+    participacion: number;
+    costoFijoDirecto: number;
+    prorrateoIndirectos: number;
+    produccionConjunta: boolean;
+  };
+}
+
+export interface EquilibrioSectorialData {
+  equilibrioGeneral: number | null;
+  segmentos: EquilibrioSectorialSegmento[];
+  controlIndirectos: {
+    indirectos: number;
+    contribucionesNetas: number;
+    diferencia: number;
+  };
+}
+
+export type SegmentoNivel = 'empresa' | 'division' | 'canal' | 'linea';
+
+export interface SegmentoCoproducto {
+  nombre: string;
+  precio: number;
+  rendimiento: number;
+}
+
+export interface SegmentoAnalisisInput {
+  nombre: string;
+  nivel: SegmentoNivel;
+  parentId: string | null;
+  produccionConjunta: boolean;
+  precioUnitario: number | null;
+  costoVariableUnitario: number | null;
+  participacion: number;
+  costoFijoDirecto: number;
+  prorrateoIndirectos: number;
+  coproductos: SegmentoCoproducto[];
+}
+
+export interface SegmentoAnalisis extends SegmentoAnalisisInput {
+  id: string;
+}
+
 interface PuntoCierreParams {
   companyId?: string;
   periodId?: string;
@@ -234,5 +291,77 @@ export function useEquilibrioTramos(companyId: string | undefined, enabled: bool
       return { equilibrio: equilibrio.data.data, tramos: tramos.data.data };
     },
     enabled: Boolean(companyId && enabled),
+  });
+}
+
+export function useEquilibrioSectorial(companyId: string | undefined) {
+  return useQuery({
+    queryKey: ['equilibrio-sectorial', companyId],
+    queryFn: async () => {
+      const response = await api.get<{ data: EquilibrioSectorialData }>(
+        `/companies/${companyId}/analisis/equilibrio-sectorial`,
+      );
+      return response.data.data;
+    },
+    enabled: Boolean(companyId),
+  });
+}
+
+export function useSegmentosAnalisis(companyId: string | undefined) {
+  return useQuery({
+    queryKey: ['segmentos-analisis', companyId],
+    queryFn: async () => {
+      const response = await api.get<{ data: SegmentoAnalisis[] }>(
+        `/companies/${companyId}/segmentos-analisis`,
+      );
+      return response.data.data;
+    },
+    enabled: Boolean(companyId),
+  });
+}
+
+function useInvalidateSegmentos(companyId: string | undefined) {
+  const queryClient = useQueryClient();
+  return () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['segmentos-analisis', companyId] }),
+    queryClient.invalidateQueries({ queryKey: ['equilibrio-sectorial', companyId] }),
+  ]);
+}
+
+export function useCreateSegmentoAnalisis(companyId: string | undefined) {
+  const invalidate = useInvalidateSegmentos(companyId);
+  return useMutation({
+    mutationFn: async (input: SegmentoAnalisisInput) => {
+      const response = await api.post<{ data: SegmentoAnalisis }>(
+        `/companies/${companyId}/segmentos-analisis`,
+        input,
+      );
+      return response.data.data;
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateSegmentoAnalisis(companyId: string | undefined) {
+  const invalidate = useInvalidateSegmentos(companyId);
+  return useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: SegmentoAnalisisInput }) => {
+      const response = await api.patch<{ data: SegmentoAnalisis }>(
+        `/companies/${companyId}/segmentos-analisis/${id}`,
+        input,
+      );
+      return response.data.data;
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteSegmentoAnalisis(companyId: string | undefined) {
+  const invalidate = useInvalidateSegmentos(companyId);
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/companies/${companyId}/segmentos-analisis/${id}`);
+    },
+    onSuccess: invalidate,
   });
 }

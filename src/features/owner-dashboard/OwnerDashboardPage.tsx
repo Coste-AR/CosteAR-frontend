@@ -29,9 +29,14 @@ import { formatDate, formatMoney } from '@/lib/utils';
 import { nombreUnidad, nombreUnidadPlural, SIN_UNIDAD_DECLARADA } from '@/lib/unit-display';
 import {
   useCapiaIndicators,
+  useCreateSegmentoAnalisis,
+  useDeleteSegmentoAnalisis,
+  useEquilibrioSectorial,
   useEquilibrioTramos,
   useOwnerDashboard,
   usePuntoCierre,
+  useSegmentosAnalisis,
+  useUpdateSegmentoAnalisis,
   type OwnerDashboardData,
   type OwnerDashboardNumber,
   type OwnerDashboardPending,
@@ -40,6 +45,7 @@ import {
 import { CapiaReferences } from './CapiaReferences';
 import { PuntoCierrePanel } from './PuntoCierrePanel';
 import { EquilibrioTramosPanel } from './EquilibrioTramosPanel';
+import { EquilibrioSectorialPanel } from './EquilibrioSectorialPanel';
 
 const SIN_DATOS = 'Sin datos';
 const INCOMPLETO = 'Incompleto';
@@ -502,6 +508,11 @@ export function OwnerDashboardPage() {
     actividad,
   }, Boolean(companyId && periodId && datosPuntoCierreCompletos));
   const equilibrioTramos = useEquilibrioTramos(companyId, Boolean(companyId));
+  const equilibrioSectorial = useEquilibrioSectorial(companyId);
+  const segmentosAnalisis = useSegmentosAnalisis(companyId);
+  const createSegmento = useCreateSegmentoAnalisis(companyId);
+  const updateSegmento = useUpdateSegmentoAnalisis(companyId);
+  const deleteSegmento = useDeleteSegmentoAnalisis(companyId);
   const capia = useCapiaIndicators(data?.rubro?.clave === 'AVICOLA_POSTURA');
   const unidadSingular = nombreUnidad(data?.unidadGestion);
   const unidadPlural = nombreUnidadPlural(data?.unidadGestion);
@@ -638,6 +649,23 @@ export function OwnerDashboardPage() {
             error={equilibrioTramos.isError
               ? `No se pudo cargar el equilibrio por tramos: ${apiErrorMessage(equilibrioTramos.error)}`
               : undefined}
+          />
+        </section>
+
+        <section aria-label="Equilibrio sectorial y específico">
+          <EquilibrioSectorialPanel
+            data={equilibrioSectorial.data}
+            segmentos={segmentosAnalisis.data ?? []}
+            unidadPlural={unidadPlural}
+            isLoading={companies.isLoading || equilibrioSectorial.isLoading || segmentosAnalisis.isLoading}
+            error={equilibrioSectorial.isError
+              ? `No se pudo cargar el equilibrio sectorial: ${apiErrorMessage(equilibrioSectorial.error)}`
+              : segmentosAnalisis.isError
+                ? `No se pudo cargar la configuración de segmentos: ${apiErrorMessage(segmentosAnalisis.error)}`
+                : undefined}
+            onCreate={(input) => createSegmento.mutateAsync(input)}
+            onUpdate={(id, input) => updateSegmento.mutateAsync({ id, input })}
+            onDelete={(id) => deleteSegmento.mutateAsync(id)}
           />
         </section>
 
