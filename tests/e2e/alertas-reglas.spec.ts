@@ -41,13 +41,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('home cuenta solo alertas activas y la lista explica lo que no pudo evaluarse', async ({ page, consola }, testInfo) => {
-  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
-  await laAppPinto(page);
-  await expect(page.getByRole('link', { name: /Alertas Activas/ }).getByText('1', { exact: true })).toBeVisible();
-  await expect(page.getByText('Falta la lectura de postura')).toBeVisible();
-  await testInfo.attach('home-alertas', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
-
+test('la lista cuenta alertas activas y explica lo que no pudo evaluarse', async ({ page, consola }, testInfo) => {
   await page.goto('/alerts', { waitUntil: 'domcontentloaded' });
   await laAppPinto(page);
   await expect(page.getByTestId('alertas-activas')).toHaveText('1');

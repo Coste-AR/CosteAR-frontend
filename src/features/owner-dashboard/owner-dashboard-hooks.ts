@@ -45,6 +45,13 @@ export interface OwnerDashboardData {
     clave: string;
     nombreProducto: string | null;
     icons: Record<string, string>;
+    kpisHome: Array<{
+      clave: string;
+      etiqueta: string;
+      unidad: string;
+      valor: number | null;
+      completo: boolean;
+    }>;
   } | null;
   pendientes: OwnerDashboardPending[];
   costoPorCajon: {

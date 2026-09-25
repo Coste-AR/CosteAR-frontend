@@ -367,7 +367,7 @@ export function AppShell({
 
       {/* Main Container (Shifted right by pl-28 to clear the floating sidebar) */}
       <div className="flex-1 flex flex-col pl-4 pr-4 pt-4 pb-24 lg:pl-28 lg:pr-5 lg:pt-5 lg:pb-0 relative z-10 overflow-y-auto scrollbar-hidden bg-surface-alt">
-        <TopBar />
+        <TopBar showSettings={location.pathname === '/dashboard'} />
 
         {/* Content Area */}
         <main className="flex-1">

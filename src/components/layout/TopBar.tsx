@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Bell, Menu, User, Zap, LogOut } from 'lucide-react';
+import { Bell, Menu, User, Zap, LogOut, Settings } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAlerts } from '@/features/alerts/alert-hooks';
 import { useLogout } from '@/features/auth/auth-hooks';
@@ -17,7 +17,7 @@ function TraceModeIndicator() {
   );
 }
 
-export function TopBar() {
+export function TopBar({ showSettings = false }: { showSettings?: boolean }) {
   const user = useAuthStore((s) => s.user);
   const { data: alerts = [] } = useAlerts();
   const unreadCount = alerts.filter((a) => !a.isRead).length;
@@ -28,6 +28,16 @@ export function TopBar() {
     <header className="flex shrink-0 items-center justify-between border-b border-line/40 px-1 py-4 lg:px-8 lg:py-5">
       {/* Right side: Alerts and User details */}
       <div className="flex items-center gap-3 lg:gap-4">
+        {showSettings && (
+          <Link
+            to="/profile"
+            aria-label="Settings"
+            className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-alt/80 px-3 py-2 text-xs font-bold text-granate shadow-sm hover:bg-granate-tenue"
+          >
+            <Settings className="size-4" aria-hidden />
+            <span className="hidden sm:inline">Settings</span>
+          </Link>
+        )}
         <TraceModeIndicator />
 
         {/* Alerts Indicator - Hidden for Admin */}
@@ -45,7 +55,7 @@ export function TopBar() {
         )}
 
         {/* Profile Detail Card — desktop only */}
-        <div className="hidden items-center gap-2.5 rounded-full border border-line bg-surface-alt/80 px-3.5 py-1.5 shadow-sm lg:flex">
+        <div className={`${showSettings ? 'hidden' : 'hidden lg:flex'} items-center gap-2.5 rounded-full border border-line bg-surface-alt/80 px-3.5 py-1.5 shadow-sm`}>
           {user?.avatarUrl ? (
             <img src={user.avatarUrl} alt="" className="size-6.5 shrink-0 rounded-full object-cover border border-line" />
           ) : (

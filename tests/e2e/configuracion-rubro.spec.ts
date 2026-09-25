@@ -279,9 +279,9 @@ test('completa opciones y números obligatorios sin confirmar sugerencias en sil
 
   // Una respuesta ya confirmada vuelve precargada al salir y entrar otra vez.
   await expect(page.getByLabel('Primera forma')).toBeChecked();
-  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+  await page.goto('/companies', { waitUntil: 'domcontentloaded' });
   await laAppPinto(page);
-  await expect(page.getByText('Clientes Activos', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/companies$/);
   await page.goto(`/companies/${COMPANY_ID}/setup`, { waitUntil: 'domcontentloaded' });
   await laAppPinto(page);
   await page.getByRole('button', { name: 'Seguir con las preguntas' }).click();

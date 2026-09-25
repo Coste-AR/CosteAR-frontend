@@ -9,10 +9,7 @@ test('dashboard carga con la sesion iniciada', async ({ page, consola }) => {
 
   await laAppPinto(page);
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByText('Clientes Activos', { exact: true })).toBeVisible();
-  await expect(page.getByText('Por Validar', { exact: true })).toBeVisible();
-  await expect(page.getByText('Alertas Activas', { exact: true })).toBeVisible();
-  await expect(page.getByText('Estructuras Totales', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Elegí un negocio' })).toBeVisible();
   await vocabularioVisiblePermitido(page);
 
   expect(consola.mensajes, 'errores en /dashboard').toEqual([]);

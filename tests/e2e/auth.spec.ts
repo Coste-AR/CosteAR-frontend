@@ -21,7 +21,7 @@ testConSesion(
 
     await laAppPinto(page);
     await expect(page).toHaveURL(/\/dashboard$/);
-    await expect(page.getByText('Clientes Activos', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Elegí un negocio' })).toBeVisible();
 
     expect(consola.mensajes, 'errores al salir del login con una sesión activa').toEqual([]);
   },
