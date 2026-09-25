@@ -1,7 +1,7 @@
 ---
 issue: 185
 repo: CosteAR-frontend
-pr: pendiente
+pr: 222
 rama: feat/185-home-accionable
 agente: codex
 modelo: gpt-5
