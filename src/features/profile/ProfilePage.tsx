@@ -12,6 +12,7 @@ import { useCompanies } from '@/features/companies/company-hooks';
 import { CompanyRubroConfiguration } from '@/features/companies/components/CompanyRubroConfiguration';
 import { CompanyCostParametersTab } from '@/features/companies/components/CompanyCostParametersTab';
 import { Select } from '@/components/ui/Select';
+import { QuickAccessSettings } from './QuickAccessSettings';
 
 const MAX_AVATAR_BYTES = 6 * 1024 * 1024;
 
@@ -281,6 +282,7 @@ export function ProfilePage() {
         {/* TAB: PREFERENCIAS */}
         {activeTab === 'preferencias' && (
           <div className="lg:col-span-2 space-y-6 max-w-2xl">
+            <QuickAccessSettings />
             <Card>
               <CardHeader title="Notificaciones" description="Controlá qué avisos querés recibir" />
               <CardBody className="space-y-4">

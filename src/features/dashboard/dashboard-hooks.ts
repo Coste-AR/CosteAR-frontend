@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 export interface MacroIndicator {
@@ -58,5 +58,18 @@ export function useQuickAccessCatalog(enabled: boolean) {
       return response.data.data;
     },
     enabled,
+  });
+}
+
+export function useSaveUserPreferences() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (preferences: UserPreferences) => {
+      const response = await api.put<{ data: UserPreferences }>('/me/preferencias', preferences);
+      return response.data.data;
+    },
+    onSuccess: (preferences) => {
+      queryClient.setQueryData(['user-preferences'], preferences);
+    },
   });
 }
