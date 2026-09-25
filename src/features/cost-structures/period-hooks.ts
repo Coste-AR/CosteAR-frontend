@@ -83,6 +83,18 @@ export function usePeriods(structureId: string) {
   });
 }
 
+/** El período abierto de la estructura, o `null` si todavía no hay uno. */
+export function useOpenPeriod(structureId: string | undefined) {
+  return useQuery({
+    queryKey: ['cost-structures', structureId, 'periods', 'open'],
+    queryFn: async () => {
+      const res = await api.get<{ data: CostPeriod | null }>(`/structures/${structureId}/periods/open`);
+      return res.data.data;
+    },
+    enabled: Boolean(structureId),
+  });
+}
+
 /** Invalida la lista de períodos y la estructura tras abrir/cerrar/reabrir. */
 function usePeriodMutation<TInput, TOutput>(
   structureId: string,

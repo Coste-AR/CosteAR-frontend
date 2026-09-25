@@ -6,6 +6,7 @@ testConSesion.setTimeout(60_000);
 
 const PERIOD_ID = '00000000-0000-4000-8000-000000000090';
 const COMPANY_ID = '00000000-0000-4000-8000-000000000091';
+const STRUCTURE_ID = '00000000-0000-4000-8000-000000000092';
 const METRICAS = [
   'Costo por cajón',
   'Precio promedio de venta del período',
@@ -189,6 +190,26 @@ async function responderTablero(
       contentType: 'application/json',
       body: JSON.stringify({ data: [{ id: COMPANY_ID, name: 'Negocio sintético' }] }),
     });
+  });
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/cost-structures`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ json: { data: [{ id: STRUCTURE_ID, companyId: COMPANY_ID }] } });
+  });
+  await page.route(`**/api/v1/structures/${STRUCTURE_ID}/periods/open`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ json: { data: { id: PERIOD_ID, structureId: STRUCTURE_ID, companyId: COMPANY_ID, code: '2099-01', label: 'Enero 2099', status: 'OPEN' } } });
+  });
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/indicadores-macro`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ json: { data: [] } });
+  });
+  await page.route('**/api/v1/me/preferencias', (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ json: { data: { home: { accesosRapidos: [] } } } });
+  });
+  await page.route('**/api/v1/me/preferencias/catalogo', (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ json: { data: [] } });
   });
   await page.route('**/api/v1/periods/*/tablero-dueno', (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
