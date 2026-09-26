@@ -11,6 +11,7 @@ const apiDelete = vi.fn();
 vi.mock('@/lib/api', () => ({ api: { get: apiGet, post: apiPost, patch: apiPatch, delete: apiDelete } }));
 const {
   useCapiaIndicators,
+  useCapacidadOciosa,
   useCreateSegmentoAnalisis,
   useDeleteSegmentoAnalisis,
   useEquilibrioSectorial,
@@ -107,6 +108,20 @@ describe('tablero del dueño', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(2));
     expect(apiGet).toHaveBeenCalledWith('/companies/company-1/analisis/equilibrio-sectorial');
     expect(apiGet).toHaveBeenCalledWith('/companies/company-1/segmentos-analisis');
+  });
+
+  it('consulta capacidad ociosa sólo cuando hay un negocio identificado', async () => {
+    const { rerender } = renderHook(({ companyId }) => useCapacidadOciosa(companyId), {
+      wrapper,
+      initialProps: { companyId: undefined as string | undefined },
+    });
+    expect(apiGet).not.toHaveBeenCalled();
+
+    apiGet.mockResolvedValue({ data: { data: { ociosidadR22: { valor: null } } } });
+    rerender({ companyId: 'company-1' });
+    await waitFor(() => expect(apiGet).toHaveBeenCalled());
+
+    expect(apiGet).toHaveBeenCalledWith('/companies/company-1/analisis/capacidad-ociosa');
   });
 
   it('crea, edita y da de baja segmentos con el contrato publicado', async () => {

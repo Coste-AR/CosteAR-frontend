@@ -195,6 +195,66 @@ export interface EquilibrioSectorialData {
   };
 }
 
+export interface CapacidadOciosaDesglose {
+  tipo: 'tiempos-perdidos-informados' | 'improductividad-oculta';
+  label: string;
+  hours: number;
+  cost: number;
+  reasons: Array<{
+    reason: string;
+    hours: number;
+    cost: number;
+  }>;
+}
+
+export interface CapacidadOciosaData {
+  corrida: {
+    id: string;
+    validada: boolean;
+    ejecutadaEn: string;
+  } | null;
+  ociosidadR22: {
+    valor: number | null;
+    motivo: string | null;
+    capacidadNormal?: number | null;
+    actividadReal?: number | null;
+    unidad?: string | null;
+  };
+  manoDeObra: {
+    paidHours?: number;
+    productiveHours?: number;
+    chargeableHours?: number;
+    idleHours: number;
+    fullMod?: number;
+    idleCost: number;
+    applicableMod: number;
+    hasIdleCapacity?: boolean;
+    destination: 'absorbido-en-el-producto' | 'perdida-del-periodo';
+    breakdown: CapacidadOciosaDesglose[];
+    alert: {
+      level: 'advertencia' | 'critico';
+      title: string;
+      message: string;
+      cost: number;
+      sharePercent: number;
+    } | null;
+  } | null;
+  cip: {
+    variacionPresupuesto: number;
+    variacionVolumen: number;
+    controlDosVias: {
+      sobreSubaplicacion: number;
+      diferencia: number;
+      cierra: boolean;
+      formula: string;
+    };
+  };
+  tresVias: {
+    bloqueada: true;
+    motivo: string;
+  };
+}
+
 export type SegmentoNivel = 'empresa' | 'division' | 'canal' | 'linea';
 
 export interface SegmentoCoproducto {
@@ -300,6 +360,19 @@ export function useEquilibrioSectorial(companyId: string | undefined) {
     queryFn: async () => {
       const response = await api.get<{ data: EquilibrioSectorialData }>(
         `/companies/${companyId}/analisis/equilibrio-sectorial`,
+      );
+      return response.data.data;
+    },
+    enabled: Boolean(companyId),
+  });
+}
+
+export function useCapacidadOciosa(companyId: string | undefined) {
+  return useQuery({
+    queryKey: ['capacidad-ociosa', companyId],
+    queryFn: async () => {
+      const response = await api.get<{ data: CapacidadOciosaData }>(
+        `/companies/${companyId}/analisis/capacidad-ociosa`,
       );
       return response.data.data;
     },
