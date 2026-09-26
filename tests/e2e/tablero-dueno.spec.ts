@@ -168,6 +168,85 @@ const TRAMOS_AM_09 = {
   ],
 };
 
+const CAPACIDAD_OCIOSA_SIN_DATOS = {
+  data: {
+    corrida: null,
+    ociosidadR22: {
+      valor: null,
+      motivo: 'Todavía no hay una corrida disponible para analizar la capacidad.',
+      capacidadNormal: null,
+      actividadReal: null,
+      unidad: null,
+    },
+    manoDeObra: null,
+    cip: {
+      variacionPresupuesto: 0,
+      variacionVolumen: 0,
+      controlDosVias: {
+        sobreSubaplicacion: 0,
+        diferencia: 0,
+        cierra: true,
+        formula: 'presupuesto + volumen = -(aplicado - real)',
+      },
+    },
+    tresVias: {
+      bloqueada: true,
+      motivo: 'Falta una base estándar de producción real (O1-02).',
+    },
+  },
+};
+
+const CAPACIDAD_OCIOSA_AM_05 = {
+  data: {
+    corrida: {
+      id: '00000000-0000-4000-8000-000000000206',
+      validada: true,
+      ejecutadaEn: '2099-01-15T12:00:00.000Z',
+    },
+    ociosidadR22: {
+      valor: 25_600,
+      motivo: null,
+      capacidadNormal: 1_000,
+      actividadReal: 900,
+      unidad: 'unidades_por_periodo',
+    },
+    manoDeObra: {
+      idleHours: 10,
+      idleCost: 5_000,
+      applicableMod: 45_000,
+      destination: 'perdida-del-periodo',
+      breakdown: [{
+        tipo: 'tiempos-perdidos-informados',
+        label: 'Tiempos perdidos informados',
+        hours: 10,
+        cost: 5_000,
+        reasons: [{ reason: 'Preparación de línea', hours: 10, cost: 5_000 }],
+      }],
+      alert: {
+        level: 'advertencia',
+        title: 'Capacidad ociosa relevante',
+        message: 'Las horas pagadas sin trabajo asignado requieren revisión.',
+        cost: 5_000,
+        sharePercent: 10,
+      },
+    },
+    cip: {
+      variacionPresupuesto: 1_200,
+      variacionVolumen: 4_800,
+      controlDosVias: {
+        sobreSubaplicacion: -6_000,
+        diferencia: 0,
+        cierra: true,
+        formula: 'presupuesto + volumen = -(aplicado - real)',
+      },
+    },
+    tresVias: {
+      bloqueada: true,
+      motivo: 'Falta una base estándar de producción real (O1-02).',
+    },
+  },
+};
+
 async function responderTablero(
   page: Page,
   body: unknown,
@@ -246,6 +325,10 @@ async function responderTablero(
   await page.route(`**/api/v1/companies/${COMPANY_ID}/analisis/equilibrio-sectorial`, (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
     return route.fulfill({ json: { data: { equilibrioGeneral: null, segmentos: [], controlIndirectos: { indirectos: 0, contribucionesNetas: 0, diferencia: 0 } } } });
+  });
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/analisis/capacidad-ociosa`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ json: CAPACIDAD_OCIOSA_SIN_DATOS });
   });
   await page.route(`**/api/v1/companies/${COMPANY_ID}/segmentos-analisis`, (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
@@ -394,6 +477,43 @@ testConSesion('muestra AM-02, declara el prorrateo y permite administrar segment
   await confirmacion.getByRole('button', { name: 'Dar de baja', exact: true }).click();
   await expect(editedRow).toHaveCount(0);
   expect(consola.mensajes).toEqual([]);
+});
+
+testConSesion('muestra AM-05 con R22 primero y mantiene MOD y CIP separadas', async ({ page, consola }, testInfo) => {
+  await responderTablero(page, TABLERO_COMPLETO);
+  await page.route(`**/api/v1/companies/${COMPANY_ID}/analisis/capacidad-ociosa`, (route) => (
+    route.fulfill({ json: CAPACIDAD_OCIOSA_AM_05 })
+  ));
+
+  await page.goto(`/owner-dashboard?periodId=${PERIOD_ID}`, { waitUntil: 'domcontentloaded' });
+  await laAppPinto(page);
+
+  const panel = page.getByTestId('capacidad-ociosa-panel');
+  await panel.scrollIntoViewIfNeeded();
+  await expect(panel.getByRole('heading', { name: 'Capacidad ociosa' })).toBeVisible();
+
+  const r22 = panel.getByTestId('ociosidad-r22');
+  await expect(r22.getByText(/25\.600,00/)).toBeVisible();
+  await expect(r22.getByText('Lo que se dejó de ganar')).toBeVisible();
+
+  const mod = panel.getByTestId('ociosidad-mod');
+  await expect(mod.getByText('10 horas', { exact: true })).toBeVisible();
+  await expect(mod.getByText('Capacidad ociosa relevante')).toBeVisible();
+
+  const cip = panel.getByTestId('ociosidad-cip');
+  await expect(cip.getByText(/4\.800,00/)).toBeVisible();
+  await expect(cip.getByText('El control de dos vías cierra')).toBeVisible();
+  await expect(panel.getByText('Tres vías no disponibles')).toBeVisible();
+  await expect(panel.getByText(/base estándar.*O1-02/i)).toBeVisible();
+  await expect(panel.getByText(/9\.800,00/)).toHaveCount(0);
+  await expect(panel.getByText(/ociosidad total/i)).toHaveCount(0);
+
+  await expandirParaCaptura(page);
+  await testInfo.attach('capacidad-ociosa-am-05', {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  });
+  expect(consola.mensajes, 'errores al mostrar capacidad ociosa').toEqual([]);
 });
 
 testConSesion('abre y cierra el sidebar del rubro y el logo vuelve al inicio', async ({ page, consola }, testInfo) => {

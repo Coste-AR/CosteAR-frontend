@@ -29,6 +29,7 @@ import { formatDate, formatMoney } from '@/lib/utils';
 import { nombreUnidad, nombreUnidadPlural, SIN_UNIDAD_DECLARADA } from '@/lib/unit-display';
 import {
   useCapiaIndicators,
+  useCapacidadOciosa,
   useCreateSegmentoAnalisis,
   useDeleteSegmentoAnalisis,
   useEquilibrioSectorial,
@@ -46,6 +47,7 @@ import { CapiaReferences } from './CapiaReferences';
 import { PuntoCierrePanel } from './PuntoCierrePanel';
 import { EquilibrioTramosPanel } from './EquilibrioTramosPanel';
 import { EquilibrioSectorialPanel } from './EquilibrioSectorialPanel';
+import { CapacidadOciosaPanel } from './CapacidadOciosaPanel';
 
 const SIN_DATOS = 'Sin datos';
 const INCOMPLETO = 'Incompleto';
@@ -509,6 +511,7 @@ export function OwnerDashboardPage() {
   }, Boolean(companyId && periodId && datosPuntoCierreCompletos));
   const equilibrioTramos = useEquilibrioTramos(companyId, Boolean(companyId));
   const equilibrioSectorial = useEquilibrioSectorial(companyId);
+  const capacidadOciosa = useCapacidadOciosa(companyId);
   const segmentosAnalisis = useSegmentosAnalisis(companyId);
   const createSegmento = useCreateSegmentoAnalisis(companyId);
   const updateSegmento = useUpdateSegmentoAnalisis(companyId);
@@ -666,6 +669,19 @@ export function OwnerDashboardPage() {
             onCreate={(input) => createSegmento.mutateAsync(input)}
             onUpdate={(id, input) => updateSegmento.mutateAsync({ id, input })}
             onDelete={(id) => deleteSegmento.mutateAsync(id)}
+          />
+        </section>
+
+        <section aria-label="Capacidad ociosa">
+          <CapacidadOciosaPanel
+            data={capacidadOciosa.data}
+            isLoading={companies.isLoading || capacidadOciosa.isLoading}
+            error={capacidadOciosa.isError
+              ? `No se pudo cargar la capacidad ociosa: ${apiErrorMessage(capacidadOciosa.error)}`
+              : undefined}
+            unavailableReason={companies.data && companies.data.length !== 1
+              ? 'No se pudo identificar un único negocio para analizar su capacidad.'
+              : undefined}
           />
         </section>
 
