@@ -1,17 +1,17 @@
 ---
 issue: 206
 repo: CosteAR-frontend
-pr: 0
+pr: 231
 rama: feat/206-capacidad-ociosa
 agente: codex
 modelo: gpt-5
 tanda: B3
 inicio: 2026-09-26T07:02:09-03:00
-fin: 2026-09-26T07:36:00-03:00
-minutos: 34
+fin: 2026-09-26T07:39:20-03:00
+minutos: 37
 tokens: no-informado
 clears: 0
-intentos_hasta_verde: 14
+intentos_hasta_verde: 15
 rojos_deliberados: 1
 rebotes_de_guarda: 0
 ---
